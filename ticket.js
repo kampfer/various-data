@@ -50,5 +50,17 @@ post('/ags/ms/cm-u-bond-publish/TicketPutAndBackMonthRegion').then(d => {
             if (err) return console.error(err);
             fs.writeFileSync(`./${Date.now()}.csv`, csv);
         });
+
+        const values = [];
+        let prev = 0;
+        for(let i = d.data.resultList.length - 1; i >= 0; i--) {
+            const cur = d.data.resultList[i];
+            prev += Number(cur.netPutIn);
+            values.push({ value: prev, date: cur.date });
+        }
+        jsonexport(values, function(err, csv) {
+            if (err) return console.error(err);
+            fs.writeFileSync(`./${Date.now()}.csv`, csv);
+        });
     }, e => console.log(e));
 }, e => console.log(e));
