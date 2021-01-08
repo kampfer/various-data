@@ -1,4 +1,4 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.3.1/d3.min.js"></script>
+<script src="../../node_modules/d3/dist/d3.js"></script>
 
 <body></body>
 
@@ -10,11 +10,13 @@ d3.json('../../data/pbocTicket.json').then((data) => {
         d.date = new Date(d.date);
     });
 
+    data = data.reverse();
+
     const width = window.innerWidth;
     const height = window.innerHeight;
     const margin = {top: 20, right: 30, bottom: 30, left: 40};
 
-    const bisect = () => {
+    const bisect = (() => {
         const bisect = d3.bisector(d => d.date).left;
         return mx => {
             const date = x.invert(mx);
@@ -23,7 +25,7 @@ d3.json('../../data/pbocTicket.json').then((data) => {
             const b = data[index];
             return b && (date - a.date > b.date - date) ? b : a;
         };
-    };
+    })();
 
     function formatDate(date) {
         return date.toLocaleString("en", {
@@ -37,7 +39,7 @@ d3.json('../../data/pbocTicket.json').then((data) => {
     function formatValue(value) {
         return value.toLocaleString("en", {
             style: "currency",
-            currency: "USD"
+            currency: "CNY"
         });
     }
 
@@ -124,12 +126,11 @@ d3.json('../../data/pbocTicket.json').then((data) => {
         const tooltip = svg.append("g");
 
         svg.on("touchmove mousemove", function(event) {
-            const {date, value} = bisect(d3.pointer(event, this)[0]);
+            const {date, accPutIn} = bisect(d3.pointer(event, this)[0]);
 
             tooltip
-                .attr("transform", `translate(${x(date)},${y(value)})`)
-                .call(callout, `${formatValue(value)}
-        ${formatDate(date)}`);
+                .attr("transform", `translate(${x(date)},${y(accPutIn)})`)
+                .call(callout, `${formatValue(accPutIn)}\n${formatDate(date)}`);
         });
 
         svg.on("touchend mouseleave", () => tooltip.call(callout, null));
