@@ -6,6 +6,10 @@
 // https://observablehq.com/@d3/line-chart-with-tooltip
 d3.json('../../data/pbocTicket.json').then((data) => {
 
+    data.forEach(d => {
+        d.date = new Date(d.date);
+    });
+
     const width = window.innerWidth;
     const height = window.innerHeight;
     const margin = {top: 20, right: 30, bottom: 30, left: 40};
@@ -39,9 +43,9 @@ d3.json('../../data/pbocTicket.json').then((data) => {
 
     const line = d3.line()
         .curve(d3.curveStep)
-        .defined(d => !isNaN(d.value))
+        .defined(d => !isNaN(d.accPutIn))
         .x(d => x(d.date))
-        .y(d => y(d.value));
+        .y(d => y(d.accPutIn));
 
     const yAxis = g => g
         .attr("transform", `translate(${margin.left},0)`)
@@ -58,7 +62,7 @@ d3.json('../../data/pbocTicket.json').then((data) => {
         .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
 
     const y = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.value)]).nice()
+        .domain([d3.min(data, d => d.accPutIn), d3.max(data, d => d.accPutIn)]).nice()
         .range([height - margin.bottom, margin.top]);
 
     const x = d3.scaleUtc()

@@ -48,25 +48,17 @@ post('/ags/ms/cm-u-bond-publish/TicketPutAndBackMonthRegion').then(d => {
         pageSize: months,
         pageNo: 1,
     }).then(d => {
-        // jsonexport(d.data.resultList, function(err, csv) {
-        //     if (err) return console.error(err);
-        //     fs.writeFileSync(`./${Date.now()}.csv`, csv);
-        // });
+        const data = d.data.resultList;
+        let prev = 0;
+        for(let i = data.length - 1; i >= 0; i--) {
+            const cur = data[i];
+            prev += Number(cur.netPutIn);
+            cur.accPutIn = prev;
+        }
+
         fs.writeFileSync(
             path.join(DATA_STORE_PATH, 'pbocTicket.json'),
-            JSON.stringify(d.data.resultList)
+            JSON.stringify(data)
         );
-
-        // const values = [];
-        // let prev = 0;
-        // for(let i = d.data.resultList.length - 1; i >= 0; i--) {
-        //     const cur = d.data.resultList[i];
-        //     prev += Number(cur.netPutIn);
-        //     values.push({ value: prev, date: cur.date });
-        // }
-        // jsonexport(values, function(err, csv) {
-        //     if (err) return console.error(err);
-        //     fs.writeFileSync(`./${Date.now()}.csv`, csv);
-        // });
     }, e => console.log(e));
 }, e => console.log(e));
