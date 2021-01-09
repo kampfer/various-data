@@ -41,7 +41,6 @@ function post(path, data) {
 post('/ags/ms/cm-u-bond-publish/TicketPutAndBackMonthRegion').then(d => {
     const { maxMonth, maxMonthYear, minMonth, minMonthYear } = d.data.ticketPutAndBackMonthRegion;
     const months = (maxMonthYear - minMonthYear) * 12 + (maxMonth - minMonth) + 1;
-    console.log(months);
     return post('/ags/ms/cm-u-bond-publish/TicketPutAndBackStatByMonth', {
         startMonth: `${minMonthYear}-${minMonth}`,
         endMonth: `${maxMonthYear}-${maxMonth}`,
