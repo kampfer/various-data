@@ -2,7 +2,7 @@ const http = require('http');
 const querystring = require('querystring');
 const jsonexport = require('jsonexport');
 const fs = require('fs');
-const { DATA_STORE_PATH } = require('./constants');
+const { DATA_STORE_PATH } = require('../constants');
 const path = require('path');
 
 function post(path, data) {
