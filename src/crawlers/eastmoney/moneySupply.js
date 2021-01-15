@@ -1,10 +1,12 @@
+// http://data.eastmoney.com/cjsj/hbgyl.html
+// 月份 M2数量 M2同比增长 M2环比增长 M1数量 M1同比增长 M1环比增长 M0数量 M0同比增长 M0环比增长 
+
 const http = require('http');
 const querystring = require('querystring');
 // const jsonexport = require('jsonexport');
 const fs = require('fs');
 const { DATA_STORE_PATH } = require('../constants');
 const path = require('path');
-
 
 function get(data) {
     const search = querystring.stringify(data);

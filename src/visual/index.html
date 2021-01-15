@@ -44,7 +44,7 @@ d3.json('../../data/pbocTicket.json').then((data) => {
     }
 
     const line = d3.line()
-        .curve(d3.curveStep)
+        // .curve(d3.curveStep)
         .defined(d => !isNaN(d.accPutIn))
         .x(d => x(d.date))
         .y(d => y(d.accPutIn));
