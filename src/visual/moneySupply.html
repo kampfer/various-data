@@ -21,22 +21,6 @@
             serieArr[2].push(Number(arr[1]));
         }
 
-        function formatDate(date) {
-            return date.toLocaleString("en", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-                timeZone: "UTC"
-            });
-        }
-
-        function formatValue(value) {
-            return value.toLocaleString("en", {
-                style: "currency",
-                currency: "CNY"
-            });
-        }
-
         const x = d3.scaleUtc()
             .domain(d3.extent(dateArr))
             .range([margin.left, width - margin.right]);
@@ -60,7 +44,7 @@
         const yAxis = g => g
             .attr("transform", `translate(${margin.left},0)`)
             .call(d3.axisLeft(y))
-            .call(g => g.select(".domain").remove())
+            // .call(g => g.select(".domain").remove())
             .call(g => g.select(".tick:last-of-type text").clone()
                 .attr("x", 3)
                 .attr("text-anchor", "start")
