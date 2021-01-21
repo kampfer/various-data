@@ -8,11 +8,11 @@ const agenda = new Agenda({
 });
 
 agenda.on('ready', () => {
-    console.log('agenda ready');
+    console.log((new Date()).toLocaleString(), 'agenda ready');
 });
 
 agenda.on('error', (error) => {
-    console.log('agenda error', error);
+    console.log((new Date()).toLocaleString(), 'agenda error: ', error);
 });
 
 agenda.on('start', job => {
@@ -43,7 +43,7 @@ agenda.start().then(() => {
         } else if (job.jobType === 'schedule') {
             await agenda.schedule(job.time, job.jobName, job.data);
         } else if (job.jobType === 'now') {
-            await agenda.now(job.time, job.data);
+            await agenda.now(job.jobName, job.data);
         }
     });
 });
