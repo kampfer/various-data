@@ -26,7 +26,9 @@ agenda.on('fail', (error, job) => {
 });
 
 const jobsDir = path.resolve(__dirname, 'jobs');
-const jobs = fs.readdirSync(jobsDir).map(value => require(path.resolve(jobsDir, value)));
+const jobs = fs.readdirSync(jobsDir)
+    .map(value => require(path.resolve(jobsDir, value)))
+    .filter(job => !job.disabled);
 
 jobs.forEach(job => {
     if (job.options) {
