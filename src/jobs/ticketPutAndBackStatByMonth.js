@@ -22,7 +22,8 @@ module.exports = {
                 path.join(DATA_STORE_PATH, 'ticketPutAndBackStatByMonth.json'),
                 JSON.stringify(list)
             );
+
+            done();
         });
-        done();
     }
 };
