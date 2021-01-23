@@ -5,9 +5,7 @@
   "main": "ticket.js",
   "dependencies": {
     "agenda": "^4.0.1",
-    "agendash": "^1.0.0",
     "d3": "^6.3.1",
-    "express": "^4.17.1",
     "jsonexport": "^3.1.0",
     "selenium-webdriver": "^4.0.0-alpha.8"
   },
