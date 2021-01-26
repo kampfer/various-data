@@ -15,7 +15,7 @@ d3.json('../../data/ticketPutAndBackStatByMonth.json').then((data) => {
 
     const width = window.innerWidth;
     const height = window.innerHeight;
-    const margin = {top: 20, right: 50, bottom: 30, left: 40};
+    const margin = {top: 20, right: 30, bottom: 30, left: 40};
 
     const bisect = (() => {
         const bisect = d3.bisector(d => d.date).left;
@@ -60,24 +60,22 @@ d3.json('../../data/ticketPutAndBackStatByMonth.json').then((data) => {
             .attr("font-weight", "bold")
             .text(data.y));
 
-    const yAxis2 = g => g
-        .attr("transform", `translate(${width - margin.right},0)`)
-        .call(d3.axisRight(y2))
-        .call(g => g.select(".domain").remove())
+    // const yAxis2 = g => g
+    //     .attr("transform", `translate(${width - margin.right},0)`)
+    //     .call(d3.axisRight(y2))
+    //     .call(g => g.select(".domain").remove())
 
     const xAxis = g => g
         .attr("transform", `translate(0,${height - margin.bottom})`)
         .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
 
-    console.log(d3.range(1000));
-
     const y = d3.scaleLinear()
         .domain(d3.extent(data, d => d.accPutIn)).nice()
         .range([height - margin.bottom, margin.top]);
 
-    const y2 = d3.scaleLinear()
-        .domain(d3.extent(data, d => d.netPutIn)).nice()
-        .range([height - margin.bottom, margin.top]);
+    // const y2 = d3.scaleLinear()
+    //     .domain(d3.extent(data, d => d.netPutIn)).nice()
+    //     .range([height - margin.bottom, margin.top]);
 
     const x = d3.scaleUtc()
         .domain(d3.extent(data, d => d.date))
@@ -131,8 +129,8 @@ d3.json('../../data/ticketPutAndBackStatByMonth.json').then((data) => {
         svg.append("g")
             .call(yAxis);
 
-        svg.append("g")
-            .call(yAxis2);
+        // svg.append("g")
+        //     .call(yAxis2);
         
         svg.append("g")
             .selectAll("rect")
@@ -140,8 +138,8 @@ d3.json('../../data/ticketPutAndBackStatByMonth.json').then((data) => {
             .join("rect")
                 .attr("fill", d => d.netPutIn <= 0 ? "#008000" : '#f00')
                 .attr("x", (d, i) => x2(i))
-                .attr("y", d => d.netPutIn >=0 ? y2(d.netPutIn) : y2(0))
-                .attr("height", d => Math.abs(y2(0) - y2(d.netPutIn)) || 1)
+                .attr("y", d => d.netPutIn >=0 ? y(d.netPutIn) : y(0))
+                .attr("height", d => Math.abs(y(0) - y(d.netPutIn)) || 1)
                 .attr("width", x2.bandwidth());
 
         svg.append("path")
