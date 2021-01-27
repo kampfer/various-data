@@ -8,6 +8,7 @@ d3.json('../../data/ticketPutAndBackStatByMonth.json').then((data) => {
 
     data.forEach(d => {
         d.date = new Date(d.date);
+        d.netPutIn = Number(d.netPutIn);
     });
 
     data = data.reverse();
@@ -59,17 +60,31 @@ d3.json('../../data/ticketPutAndBackStatByMonth.json').then((data) => {
             .attr("font-weight", "bold")
             .text(data.y));
 
+    // const yAxis2 = g => g
+    //     .attr("transform", `translate(${width - margin.right},0)`)
+    //     .call(d3.axisRight(y2))
+    //     .call(g => g.select(".domain").remove())
+
     const xAxis = g => g
         .attr("transform", `translate(0,${height - margin.bottom})`)
         .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
 
     const y = d3.scaleLinear()
-        .domain([d3.min(data, d => d.accPutIn), d3.max(data, d => d.accPutIn)]).nice()
+        .domain(d3.extent(data, d => d.accPutIn)).nice()
         .range([height - margin.bottom, margin.top]);
+
+    // const y2 = d3.scaleLinear()
+    //     .domain(d3.extent(data, d => d.netPutIn)).nice()
+    //     .range([height - margin.bottom, margin.top]);
 
     const x = d3.scaleUtc()
         .domain(d3.extent(data, d => d.date))
         .range([margin.left, width - margin.right]);
+
+    const x2 = d3.scaleBand()
+        .domain(d3.range(data.length))
+        .range([margin.left, width - margin.right])
+        .padding(0.1);
 
     const callout = (g, value) => {
         if (!value) return g.style("display", "none");
@@ -113,7 +128,20 @@ d3.json('../../data/ticketPutAndBackStatByMonth.json').then((data) => {
 
         svg.append("g")
             .call(yAxis);
+
+        // svg.append("g")
+        //     .call(yAxis2);
         
+        svg.append("g")
+            .selectAll("rect")
+            .data(data)
+            .join("rect")
+                .attr("fill", d => d.netPutIn <= 0 ? "#008000" : '#f00')
+                .attr("x", (d, i) => x2(i))
+                .attr("y", d => d.netPutIn >=0 ? y(d.netPutIn) : y(0))
+                .attr("height", d => Math.abs(y(0) - y(d.netPutIn)) || 1)
+                .attr("width", x2.bandwidth());
+
         svg.append("path")
             .datum(data)
             .attr("fill", "none")
