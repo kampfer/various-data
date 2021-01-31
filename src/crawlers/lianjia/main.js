@@ -3,6 +3,7 @@ const fs = require('fs');
 const jsonexport = require('jsonexport');
 
 // https://www.selenium.dev/selenium/docs/api/javascript/index.html
+// https://www.selenium.dev/documentation/en/webdriver/driver_requirements/
 
 async function extractPageInfo(href, driver) {
     await driver.get(href);

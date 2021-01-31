@@ -1,60 +1,67 @@
 const http = require('http');
+const https = require('https');
 const querystring = require('querystring');
-const url = require('url');
+const { URL } = require('url');
+
+function fetch({
+    url,
+    method,
+    headers,
+    data,
+}) {
+    return new Promise((resolve, reject) => {
+        const isPost = method.toLowerCase() === 'post';
+        const requestData = querystring.stringify(data);
+
+        const target = new URL(url);
+        const urlOptions = {
+            protocol: target.protocol,
+            hostname: target.hostname,
+            port: target.port,
+            path: `${target.pathname}${isPost ? target.search : `?${target.search.substr(1)}&${requestData}`}`, // Should include query string if any
+        };
+
+        const headersOptions = { ...headers };
+        if (isPost) {
+            Object.assign(headersOptions, {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Length': Buffer.byteLength(requestData)
+            });
+        }
+
+        const requestOptions = {
+            ...urlOptions,
+            headers: headersOptions,
+            method,
+        };
+
+        const req = (target.protocol === 'https:' ? https : http)
+            .request(requestOptions, res => {
+                res.setEncoding('utf8');
+                let rawData = '';
+                res.on('data', chunk => rawData += chunk);
+                res.on('end', () => {
+                    try {
+                        const parsedData = JSON.parse(rawData);
+                        resolve(parsedData);
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            });
+        req.on('error', e => reject(e));
+        // write data to request body
+        req.write(requestData);
+        req.end();
+    });
+}
 
 exports.get = function(options) {
-    const target = url.parse(options.url);
-
-    return new Promise((resolve, reject) => {
-        http.get({
-            hostname: target.host,
-            // port: 80,
-            path: `${target.path}?${querystring.stringify(options.data)}`
-        }, (res) => {
-            res.setEncoding('utf8');
-            let rawData = '';
-            res.on('data', chunk => rawData += chunk);
-            res.on('end', () => {
-                try {
-                    resolve(JSON.parse(rawData));
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        });
-    });
+    options.method = 'GET';
+    return fetch(options);
 };
 
 exports.post = function(options) {
-    const target = url.parse(options.url);
-    const postData = querystring.stringify(options.data);
-
-    return new Promise((resolve, reject) => {
-        const req = http.request({
-            hostname: target.host,
-            // port: 80,
-            path: target.path,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Content-Length': Buffer.byteLength(postData)
-            }
-        }, res => {
-            res.setEncoding('utf8');
-            let rawData = '';
-            res.on('data', chunk => rawData += chunk);
-            res.on('end', () => {
-                try {
-                    const parsedData = JSON.parse(rawData);
-                    resolve(parsedData);
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        });
-        req.on('error', e => reject(e));  
-        // write data to request body
-        req.write(postData);
-        req.end();
-    });
+    options.method = 'POST';
+    return fetch(options);
 };
