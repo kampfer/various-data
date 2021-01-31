@@ -1,15 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 const { DATA_STORE_PATH } = require('../constants');
-const moneySupply = require('../crawlers/moneySupply');
+const cpi = require('../crawlers/cpi');
 
 module.exports = {
-    jobName: 'moneySupply',
+    jobName: 'cpi',
     jobType: 'now',
     handler(job, done) {
-        moneySupply().then((data) => {
+        cpi().then((data) => {
             fs.writeFileSync(
-                path.join(DATA_STORE_PATH, 'moneySupply.json'),
+                path.join(DATA_STORE_PATH, 'cpi.json'),
                 JSON.stringify(data)
             );
             done();

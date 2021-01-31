@@ -1,24 +1,19 @@
-const { Builder, By } = require('selenium-webdriver');
-const chrome = require('selenium-webdriver/chrome');
+const request = require('./request');
 
-async function querySelectorAll(parent, selector) {
-    const nodeList = await parent.findElement(By.css(selector)).catch(() => null);
-    return nodeList;
+// https://stackoverflow.com/questions/31673587/error-unable-to-verify-the-first-certificate-in-nodejs
+process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
+
+module.exports = async function cpi() {
+    const data = await request.get({
+        url: 'https://data.stats.gov.cn/easyquery.htm',
+        data: {
+            m: 'QueryData',
+            dbcode: 'hgyd',
+            rowcode: 'zb',
+            colcode: 'sj',
+            wds: `[]`,
+            dfwds: `[{"wdcode":"sj","valuecode":"last100"}]`,
+        }
+    });
+    return data;
 }
-
-(async function () {
-
-    const options = new chrome.Options();
-    options.addArguments('--ignore-certificate-errors');
-
-    const driver = await new Builder().forBrowser('chrome').setChromeOptions(options).build();
-
-    await driver.get('https://data.stats.gov.cn/easyquery.htm?cn=A01');
-
-    const table = await querySelectorAll(driver, '.table_container_main table');
-    const text = await table.getText();
-    console.log(text);
-
-    await driver.quit();
-
-})()
