@@ -16,7 +16,7 @@ function getPage(i) {
             pageNum: i,
             js: '{"data":[(x)], "pages": (pc)}'
         }
-    })
+    });
 }
 
 module.exports = async function moneySupply() {
@@ -24,7 +24,8 @@ module.exports = async function moneySupply() {
     let total = 1;
     let cur = 0;
     while(++cur <= total) {
-        const { data: page, pages } = await getPage(cur);
+        const res = await getPage(cur);
+        const { data: page, pages } = res.json();
         data.push(...page);
         total = pages;
     }

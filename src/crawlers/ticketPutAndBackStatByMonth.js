@@ -1,14 +1,14 @@
 const request = require('./request');
 
 module.exports = async function () {
-    const { data } = await request.post({
+    const { data } = (await request.post({
         url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bond-publish/TicketPutAndBackMonthRegion',
-    });
+    })).json();
 
     const { maxMonth, maxMonthYear, minMonth, minMonthYear } = data.ticketPutAndBackMonthRegion;
     const months = (maxMonthYear - minMonthYear) * 12 + (maxMonth - minMonth) + 1;
 
-    return request.post({
+    const res = await request.post({
         url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bond-publish/TicketPutAndBackStatByMonth',
         data: {
             startMonth: `${minMonthYear}-${minMonth}`,
@@ -17,4 +17,6 @@ module.exports = async function () {
             pageNo: 1,
         }
     });
+
+    return res.json();
 }

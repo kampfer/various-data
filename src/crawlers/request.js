@@ -3,6 +3,23 @@ const https = require('https');
 const querystring = require('querystring');
 const { URL } = require('url');
 
+class Res {
+
+    constructor(res, body) {
+        this._res = res;
+        this._body = body;
+    }
+
+    json() {
+        return JSON.parse(this._body);
+    }
+
+    cookies() {
+        return this._res.headers['set-cookie'];
+    }
+
+}
+
 function fetch({
     url,
     method,
@@ -42,8 +59,8 @@ function fetch({
                 res.on('data', chunk => rawData += chunk);
                 res.on('end', () => {
                     try {
-                        const parsedData = JSON.parse(rawData);
-                        resolve(parsedData);
+                        // const parsedData = JSON.parse(rawData);
+                        resolve(new Res(res, rawData));
                     } catch (e) {
                         reject(e);
                     }
