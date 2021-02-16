@@ -5,7 +5,8 @@ const moneySupply = require('../crawlers/moneySupply');
 
 module.exports = {
     jobName: 'moneySupply',
-    jobType: 'now',
+    jobType: 'every',
+    time: '1 week',
     handler(job, done) {
         moneySupply().then((data) => {
             fs.writeFileSync(

@@ -5,7 +5,8 @@ const cpi = require('../crawlers/cpi');
 
 module.exports = {
     jobName: 'cpi',
-    jobType: 'now',
+    jobType: 'every',
+    time: '1 week',
     handler(job, done) {
         cpi().then((data) => {
             fs.writeFileSync(

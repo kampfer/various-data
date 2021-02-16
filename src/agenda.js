@@ -27,6 +27,7 @@ agenda.on('fail', (error, job) => {
 
 const jobsDir = path.resolve(__dirname, 'jobs');
 const jobs = fs.readdirSync(jobsDir)
+    .filter(jobPath => path.extname(jobPath) === '.js')
     .map(value => require(path.resolve(jobsDir, value)))
     .filter(job => !job.disabled);
 

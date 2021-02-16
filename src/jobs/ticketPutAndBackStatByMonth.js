@@ -7,7 +7,8 @@ module.exports = {
     jobName: 'ticketPutAndBackStatByMonth',
     // https://github.com/agenda/agenda#creating-jobs
     jobType: 'now',   // every, schedule, now, create
-    time: '10 seconds',
+    jobType: 'every',
+    time: '1 day',
     handler(job, done) {
         ticketPutAndBackStatByMonth().then(({ data }) => {
             const list = data.resultList;
