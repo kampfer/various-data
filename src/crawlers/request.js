@@ -75,10 +75,22 @@ function fetch({
 
 exports.get = function(options) {
     options.method = 'GET';
-    return fetch(options);
+    return fetch(options).then(
+        res => res,
+        err => {
+            console.log(err);
+            return null;
+        }
+    );
 };
 
 exports.post = function(options) {
     options.method = 'POST';
-    return fetch(options);
+    return fetch(options).then(
+        res => res,
+        err => {
+            console.log(err);
+            return null;
+        }
+    );
 };
