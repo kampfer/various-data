@@ -1,6 +1,8 @@
 const { Builder, By, Key, until } = require('selenium-webdriver');
 const fs = require('fs');
 const jsonexport = require('jsonexport');
+const { DATA_STORE_PATH } = require('../../constants');
+const path = require('path');
 
 // https://www.selenium.dev/selenium/docs/api/javascript/index.html
 // https://www.selenium.dev/documentation/en/webdriver/driver_requirements/
@@ -71,10 +73,11 @@ async function extract(url, driver) {
     } catch (e) {
         console.log(e);
     } finally {
-        fs.writeFileSync(`./${Date.now()}.json`, JSON.stringify(data, null, '\t'));
+        const dataFileName = '金地艺境历史成交数据';
+        // fs.writeFileSync(path.join(DATA_STORE_PATH, `./${dataFileName}.json`), JSON.stringify(data, null, '\t'));
         jsonexport(data, function(err, csv) {
             if (err) return console.error(err);
-            fs.writeFileSync(`./${Date.now()}.csv`, csv);
+            fs.writeFileSync(path.join(DATA_STORE_PATH, `./${dataFileName}.csv`), csv);
         });
         await driver.quit();
     }
@@ -82,8 +85,9 @@ async function extract(url, driver) {
 
 // 万科魅力之城 https://wh.lianjia.com/chengjiao/c3711060258233/
 // 当代国际城   https://wh.lianjia.com/chengjiao/c3711063315968/
+// 金地艺境     https://wh.lianjia.com/chengjiao/c3711063886840/
 (async function main() {
     const driver = await new Builder().forBrowser('chrome').build();
     const args = process.argv.slice(2);
-    extract(args[0] || 'https://wh.lianjia.com/chengjiao/c3711060258233/', driver)
+    extract(args[0] || 'https://wh.lianjia.com/chengjiao/c3711063886840/', driver)
 })();
