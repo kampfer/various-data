@@ -23,6 +23,8 @@ function renderTable() {
             <tr>
                 <th>名称</th>
                 <th>描述</th>
+                <th>更新频率</th>
+                <th>本地更新时间</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -31,6 +33,8 @@ function renderTable() {
         <tr>
             <td>${d.name}</td>
             <td>${d.desc}</td>
+            <td></td>
+            <td></td>
             <td><a href="${d.url}">查看</a></td>
         </tr>
     `).join('');
