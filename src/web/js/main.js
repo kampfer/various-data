@@ -35,7 +35,10 @@ function renderTable() {
             <td>${d.desc}</td>
             <td></td>
             <td></td>
-            <td><a href="${d.url}">查看</a></td>
+            <td>
+                <a href="${d.url}">查看</a>
+                <a href="javascript:void(0);" data-action="${d.name}">更新</a>
+            </td>
         </tr>
     `).join('');
     tableElem.innerHTML = thead + tbody;
@@ -43,3 +46,12 @@ function renderTable() {
 }
 
 document.body.appendChild(renderTable());
+
+document.body.addEventListener('click', (e) => {
+
+    const action = e.target.dataset.action;
+    if (action) {
+        fetch(`/api/update?name=${action}`).then(res => console.log(res));
+    }
+
+});
