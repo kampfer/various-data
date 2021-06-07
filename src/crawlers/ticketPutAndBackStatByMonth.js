@@ -18,5 +18,17 @@ module.exports = async function () {
         }
     });
 
-    return res.json();
+    const json = res.json();
+
+    return {
+        name: 'ticketPutAndBackStatByMonth',
+        description: '央行票据',
+        data: json.data.resultList.map(({ date, putIn, back }) => (
+            {
+                date,
+                putIn: Number(putIn),
+                back: Number(back),
+            }
+        ))
+    };
 }

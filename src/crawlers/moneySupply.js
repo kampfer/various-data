@@ -19,15 +19,36 @@ function getPage(i) {
     });
 }
 
+// http://data.eastmoney.com/cjsj/hbgyl.html
+// 月份 M2数量 M2同比增长 M2环比增长 M1数量 M1同比增长 M1环比增长 M0数量 M0同比增长 M0环比增长 
 module.exports = async function moneySupply() {
-    let data = [];
+    let json = {
+        name: 'moneySupply',
+        description: '货币供应',
+        source: 'http://data.eastmoney.com/cjsj/hbgyl.html',
+        data: []
+    };
     let total = 1;
     let cur = 0;
     while(++cur <= total) {
         const res = await getPage(cur);
         const { data: page, pages } = res.json();
-        data.push(...page);
+        page.forEach(d => {
+            const [date, m2, m2YOY, m2MOM, m1, m1YOY, m1MOM, m0, m0YOY, m0MOM] = d.split(',');
+            json.data.push({
+                date: date,
+                m2: Number(m2),
+                m2YOY: Number(m2YOY),
+                m2MOM: Number(m2MOM),
+                m1: Number(m1),
+                m1YOY: Number(m1YOY),
+                m1MOM: Number(m1MOM),
+                m0: Number(m0),
+                m0YOY: Number(m0YOY),
+                m0MOM: Number(m0MOM),
+            });
+        });
         total = pages;
     }
-    return data;
+    return json;
 }
