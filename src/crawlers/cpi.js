@@ -54,10 +54,23 @@ async function cpi() {
 
     process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = NODE_TLS_REJECT_UNAUTHORIZED;
 
+    const json1 = res.json();
+    const json2 = res2.json();
+
     return {
-        '2016-': res.json(),
-        '2001-2015': res2.json()
-    }
+        name: 'cpi',
+        description: '全国居民消费价格指数（上月=100）',
+        source: 'https://data.stats.gov.cn/easyquery.htm',
+        data: json1.returndata.datanodes.map(d => ({
+            cpi: d.data.data,
+            date: d.wds[1].valuecode
+        })).concat(
+            json2.returndata.datanodes.map(d => ({
+                cpi: d.data.data,
+                date: d.wds[1].valuecode
+            }))
+        )
+    };
 }
 
 module.exports = cpi;
