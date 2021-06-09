@@ -18,3 +18,5 @@ http://www.safe.gov.cn/safe/rmbhlzjj/
 6. 超储
 
 7. 央行票据
+
+8. 全国银行间质押式回购交易

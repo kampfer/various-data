@@ -9,6 +9,13 @@ function makeValueCode() {
     return ret.join(',');
 }
 
+function makeItem(d) {
+    return {
+        cpi: d.data.hasdata ? d.data.data : null,
+        date: d.wds[1].valuecode
+    };
+}
+
 async function cpi() {
     // https://stackoverflow.com/questions/31673587/error-unable-to-verify-the-first-certificate-in-nodejs
     const NODE_TLS_REJECT_UNAUTHORIZED = process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
@@ -61,14 +68,8 @@ async function cpi() {
         name: 'cpi',
         description: '全国居民消费价格指数（上月=100）',
         source: 'https://data.stats.gov.cn/easyquery.htm',
-        data: json1.returndata.datanodes.map(d => ({
-            cpi: d.data.data,
-            date: d.wds[1].valuecode
-        })).concat(
-            json2.returndata.datanodes.map(d => ({
-                cpi: d.data.data,
-                date: d.wds[1].valuecode
-            }))
+        data: json1.returndata.datanodes.map(d => makeItem(d)).concat(
+            json2.returndata.datanodes.map(d => makeItem(d))
         )
     };
 }
