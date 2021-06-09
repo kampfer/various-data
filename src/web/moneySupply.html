@@ -9,16 +9,16 @@
 
     // http://data.eastmoney.com/cjsj/hbgyl.html
     // 月份 M2数量 M2同比增长 M2环比增长 M1数量 M1同比增长 M1环比增长 M0数量 M0同比增长 M0环比增长 
-    d3.json('../../data/moneySupply.json').then((data) => {
-        const reverseData = data.reverse();
+    d3.json('data/moneySupply.json').then((res) => {
+        const reverseData = res.data.reverse();
         const dateArr = [];
         const serieArr = [[], [], []];
         for (let item of reverseData) {
-            const arr = item.split(',');
-            dateArr.push(new Date(arr[0]));
-            serieArr[0].push(Number(arr[7]));
-            serieArr[1].push(Number(arr[4]));
-            serieArr[2].push(Number(arr[1]));
+            // const arr = item.split(',');
+            dateArr.push(new Date(item.date));
+            serieArr[0].push(item.m0);
+            serieArr[1].push(item.m1);
+            serieArr[2].push(item.m2);
         }
 
         const x = d3.scaleUtc()
