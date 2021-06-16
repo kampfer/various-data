@@ -1,9 +1,20 @@
 <script src="./js/lib/d3.v6.min.js"></script>
 
-<body></body>
+<body>
+    <div id="graph"></div>
+</body>
 
-<script>
-d3.json('../../data/cpi.json').then((data) => {
-    console.log(data);
+<script type="module">
+import LineGraph from './js/LineGraph.js';
+
+d3.json('../../data/cpi.json').then(({ data }) => {
+    const graph = new LineGraph({
+        container: '#graph',
+    });
+    graph.setData({
+        labels: data.map(d => d.date),
+        series: [data.map(d => d.cpi)]
+    });
+    graph.render();
 });
 </script>
