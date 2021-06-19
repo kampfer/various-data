@@ -4,10 +4,15 @@ class LineGraph {
         width = 300,
         height = 150,
         container,
+        margin = { top: 0, right: 0, bottom: 0, left: 0 }
     }) {
         this.width = width;
         this.height = height;
-        this.svgSelection = d3.create('svg').attr("viewBox", [0, 0, width, height]);
+        this.margin = margin;
+        this.svgSelection = d3.create('svg').attr('viewBox', [0, 0, width, height]);
+        this.xAxisSelection = this.svgSelection.append('g');
+        this.yAxisSelection = this.svgSelection.append('g');
+        this.seriesWrapperSelection = this.svgSelection.append('g');
 
         if (container) {
             if (container instanceof HTMLElement) {
@@ -18,17 +23,20 @@ class LineGraph {
         }
     }
 
-    setData({ labels, series }) {
+    setData(data) {
         const width = this.width;
         const height = this.height;
+        let { labels, series } = data;
+
+        this.data = data;
 
         labels = labels.map(d => new Date(d.replace(/(\d{4})(\d{2})/, ($0, $1, $2) => `${$1}-${$2}`)));
 
-        const xScale = d3.scaleUtc()
+        this.xScale = d3.scaleUtc()
             .domain(d3.extent(labels))
             .range([0, width]);
         
-        const yScale = d3.scaleLinear()
+        this.yScale = d3.scaleLinear()
             .domain([
                 d3.min(series, d => d3.min(d)),
                 d3.max(series, d => d3.max(d))
@@ -36,13 +44,43 @@ class LineGraph {
             .nice()
             .range([0, height]);
 
-        const line = d3.line()
-            .defined(d => !isNaN(d))
-            .x(d => x(d))
-            .y(d => y(d));
+        this.line = d3.line()
+            .defined(d => !isNaN(d) && d !== null)
+            .x(d => this.xScale(d))
+            .y(d => this.yScale(d));
     }
 
-    render() {}
+    render() {
+        const width = this.width;
+        const height = this.height;
+        const margin = this.margin;
+        const xScale = this.xScale;
+        const yScale = this.yScale;
+
+        this.xAxisSelection
+            .attr('transform', `translate(0, ${height - margin.bottom})`)
+            .call(
+                d3.axisBottom(xScale)
+                  .ticks(width / 80)
+                  .tickSizeOuter(0)
+            );
+
+        this.yAxisSelection
+            .attr('transform', `translate(${margin.left}, 0)`)
+            .call(d3.axisLeft(yScale));
+
+        this.seriesWrapperSelection
+            .selectAll('g')
+            .data(this.data.series)
+            .join('g')
+            .append('path')
+                .attr('fill', 'none')
+                .attr('stroke-width', 1.5)
+                .attr('stroke-linejoin', 'round')
+                .attr('stroke-linecap', 'round')
+                .attr('stroke', '#000')
+                .attr('d', d => this.line(d));
+    }
 
 }
 
