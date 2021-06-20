@@ -26,27 +26,26 @@ class LineGraph {
     setData(data) {
         const width = this.width;
         const height = this.height;
-        let { labels, series } = data;
+        const margin = this.margin;
+        const { labels, series } = data;
 
         this.data = data;
 
-        labels = labels.map(d => new Date(d.replace(/(\d{4})(\d{2})/, ($0, $1, $2) => `${$1}-${$2}`)));
-
         this.xScale = d3.scaleUtc()
             .domain(d3.extent(labels))
-            .range([0, width]);
+            .range([margin.left, width - margin.left]);
         
         this.yScale = d3.scaleLinear()
             .domain([
                 d3.min(series, d => d3.min(d)),
                 d3.max(series, d => d3.max(d))
             ])
-            .nice()
-            .range([0, height]);
+            // .nice()
+            .range([height - margin.bottom, margin.top]);
 
         this.line = d3.line()
             .defined(d => !isNaN(d) && d !== null)
-            .x(d => this.xScale(d))
+            .x((d, i) => this.xScale(labels[i]))
             .y(d => this.yScale(d));
     }
 

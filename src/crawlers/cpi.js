@@ -1,14 +1,5 @@
 const request = require('./request');
 
-function makeValueCode() {
-    let year = new Date().getFullYear();
-    const ret = [];
-    while (year >= 2016) {
-        ret.push(year--);
-    }
-    return ret.join(',');
-}
-
 function makeItem(d) {
     return {
         cpi: d.data.hasdata ? d.data.data : null,
@@ -32,10 +23,10 @@ async function cpi() {
             wds: `[]`,
             dfwds: JSON.stringify([{
                 wdcode: 'zb',
-                valuecode: 'A010301'
+                valuecode: 'A01030101'
             }, {
                 wdcode: 'sj',
-                valuecode: makeValueCode()
+                valuecode: '2016-'
             }]),
         }
     });
@@ -51,10 +42,10 @@ async function cpi() {
             wds: `[]`,
             dfwds: JSON.stringify([{
                 wdcode: 'zb',
-                valuecode: 'A010302'
+                valuecode: 'A01030201'
             }, {
                 wdcode: 'sj',
-                valuecode: Array.from({ length: 15 }).map((item, index) => 2001 + index).join(',')
+                valuecode: '2001-2015'
             }]),
         }
     });

@@ -20,7 +20,7 @@ d3.json('../../data/cpi.json').then(({ data }) => {
         }
     });
     graph.setData({
-        labels: data.map(d => d.date),
+        labels: data.map(d => new Date(d.date.replace(/(\d{4})(\d{2})/, ($0, $1, $2) => `${$1}-${$2}`))),
         series: [data.map(d => d.cpi)]
     });
     graph.render();
