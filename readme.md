@@ -11,6 +11,7 @@ http://www.safe.gov.cn/safe/rmbhlzjj/
 https://data.stats.gov.cn/easyquery.htm
 
 3. 货币供应
+http://data.eastmoney.com/cjsj/hbgyl.html
 
 4. 社融
 

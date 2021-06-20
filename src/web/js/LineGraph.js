@@ -37,10 +37,10 @@ class LineGraph {
         
         this.yScale = d3.scaleLinear()
             .domain([
-                d3.min(series, d => d3.min(d)),
-                d3.max(series, d => d3.max(d))
+                d3.min(series, d => d3.min(d.data)),
+                d3.max(series, d => d3.max(d.data))
             ])
-            // .nice()
+            .nice()
             .range([height - margin.bottom, margin.top]);
 
         this.line = d3.line()
@@ -77,8 +77,8 @@ class LineGraph {
                 .attr('stroke-width', 1.5)
                 .attr('stroke-linejoin', 'round')
                 .attr('stroke-linecap', 'round')
-                .attr('stroke', '#000')
-                .attr('d', d => this.line(d));
+                .attr('stroke', d => d.color || '#000')
+                .attr('d', d => this.line(d.data));
     }
 
 }
