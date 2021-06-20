@@ -19,16 +19,23 @@ module.exports = async function () {
     });
 
     const json = res.json();
+    const list = json.data.resultList.reverse();
+    let accPutIn = 0;
 
     return {
         name: 'ticketPutAndBackStatByMonth',
         description: '央行票据',
-        data: json.data.resultList.map(({ date, putIn, back }) => (
-            {
+        source: 'http://www.chinamoney.com.cn',
+        data: list.map(({ date, putIn, back, netPutIn }) => {
+            netPutIn = Number(netPutIn);
+            accPutIn += netPutIn;
+            return {
                 date,
                 putIn: Number(putIn),
                 back: Number(back),
+                netPutIn,
+                accPutIn,
             }
-        ))
+        })
     };
 }
