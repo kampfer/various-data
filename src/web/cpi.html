@@ -8,6 +8,7 @@
 import LineGraph from './js/LineGraph.js';
 
 d3.json('../../data/cpi.json').then(({ data }) => {
+    data.reverse();
     const graph = new LineGraph({
         container: '#graph',
         width: window.innerWidth,
@@ -19,9 +20,17 @@ d3.json('../../data/cpi.json').then(({ data }) => {
             left: 100
         }
     });
+    let accValue = 1;
+    const accSerie = {
+        name: 'cpi累计',
+        data: data.map(d => {
+            accValue *= (isNaN(d.cpi) || d.cpi === null) ? 1 : d.cpi / 100;
+            return accValue;
+        })
+    };
     graph.setData({
         labels: data.map(d => new Date(d.date.replace(/(\d{4})(\d{2})/, ($0, $1, $2) => `${$1}-${$2}`))),
-        series: [data.map(d => d.cpi)]
+        series: [accSerie]
     });
     graph.render();
 });

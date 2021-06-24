@@ -62,11 +62,13 @@ class LineGraph {
                 d3.axisBottom(xScale)
                   .ticks(width / 80)
                   .tickSizeOuter(0)
-            );
+            )
+            .call(g => g.selectAll('.tick text').attr('fill', '#666'));
 
         this.yAxisSelection
             .attr('transform', `translate(${margin.left}, 0)`)
-            .call(d3.axisLeft(yScale));
+            .call(d3.axisLeft(yScale))
+            .call(g => g.selectAll('.tick text').attr('fill', '#666'));
 
         this.seriesWrapperSelection
             .selectAll('g')
