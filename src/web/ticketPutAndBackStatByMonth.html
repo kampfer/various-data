@@ -1,33 +1,41 @@
-<script src="./js/lib/d3.v6.min.js"></script>
-
-<body><div id="graph"></div></body>
-
-<script type="module">
-    import LineGraph from './js/LineGraph.js';
-
-    // https://observablehq.com/@d3/line-chart-with-tooltip
-    d3.json('../../data/ticketPutAndBackStatByMonth.json').then(({ data }) => {
-
-        const graph = new LineGraph({
-            container: '#graph',
-            width: window.innerWidth,
-            height: window.innerHeight,
-            margin: {
-                top: 20, 
-                right: 100, 
-                bottom: 30, 
-                left: 100
-            }
-        });
-
-        graph.setData({
-            labels: data.map(d => new Date(d.date)),
-            series: [{
-                data: data.map(d => d.accPutIn)
-            }]
-        });
+<html>
+    <head>
+        <script src="./js/lib/d3.v6.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="./css/main.css">
+    </head>
+    <body>
+        <div id="graph"></div>
+        <script type="module">
+            import LineGraph from './js/LineGraph.js';
         
-        graph.render();
-
-    });
-</script>
+            // https://observablehq.com/@d3/line-chart-with-tooltip
+            d3.json('../../data/ticketPutAndBackStatByMonth.json').then(({ data }) => {
+        
+                const graph = new LineGraph({
+                    container: '#graph',
+                    chart: {
+                        width: window.innerWidth,
+                        height: window.innerHeight,
+                        spacing: [30, 100, 20, 100]
+                    },
+                    title: {
+                        text: '央行票据',
+                    },
+                    subtitle: {
+                        text: '数据来源：中国人民银行'
+                    }
+                });
+        
+                graph.setData({
+                    labels: data.map(d => new Date(d.date)),
+                    series: [{
+                        data: data.map(d => d.accPutIn)
+                    }]
+                });
+                
+                graph.render();
+        
+            });
+        </script>
+    </body>
+</html>
