@@ -21,6 +21,12 @@ d3.json('../../data/cpi.json').then(({ data }) => {
             width: window.innerWidth,
             height: window.innerHeight,
             spacing: [30, 100, 20, 100]
+        },
+        title: {
+            text: '居民消费价格指数(上月=100)',
+        },
+        subtitle: {
+            text: '数据来源：国家统计局'
         }
     });
     let accValue = 1;
