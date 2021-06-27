@@ -1,5 +1,11 @@
 <script src="./js/lib/d3.v6.min.js"></script>
 
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+
 <body>
     <div id="graph"></div>
 </body>
@@ -11,13 +17,10 @@ d3.json('../../data/cpi.json').then(({ data }) => {
     data.reverse();
     const graph = new LineGraph({
         container: '#graph',
-        width: window.innerWidth,
-        height: window.innerHeight,
-        margin: {
-            top: 20, 
-            right: 100, 
-            bottom: 30, 
-            left: 100
+        chart: {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            spacing: [30, 100, 20, 100]
         }
     });
     let accValue = 1;
