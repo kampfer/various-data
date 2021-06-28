@@ -38,7 +38,7 @@ class LineGraph {
         this._chart = mergeSettings({
             width: containerWidth || 300,
             height: containerHeight || 150,
-            spacing: [0, 0, 0, 0]
+            padding: [0, 0, 0, 0]   // highchart使用spacing配置，我使用padding
         }, chart);
 
         // https://api.highcharts.com.cn/highcharts#xAxis
@@ -107,7 +107,7 @@ class LineGraph {
     setData(data) {
         const width = this._chart.width;
         const height = this._chart.height;
-        const spacing = this._chart.spacing;
+        const padding = this._chart.padding;
         const { labels, series } = data;
 
         series.forEach((item, i) => {
@@ -118,15 +118,16 @@ class LineGraph {
 
         this.xScale = d3.scaleUtc()
             .domain(d3.extent(labels))
-            .range([spacing[3], width - spacing[3]]);
-        
+            .range([padding[3], width - padding[3]]);
+        this.xScale.ticks(width / 80);
+
         this.yScale = d3.scaleLinear()
             .domain([
                 d3.min(series, d => d3.min(d.data)),
                 d3.max(series, d => d3.max(d.data))
             ])
             .nice()
-            .range([height - spacing[2], spacing[0]]);
+            .range([height - padding[2], padding[0]]);
 
         this.line = d3.line()
             .defined(d => !isNaN(d) && d !== null)
@@ -137,7 +138,7 @@ class LineGraph {
     render() {
         const width = this._chart.width;
         const height = this._chart.height;
-        const spacing = this._chart.spacing;
+        const padding = this._chart.padding;
         const xScale = this.xScale;
         const yScale = this.yScale;
 
@@ -171,12 +172,8 @@ class LineGraph {
         });
 
         xAxisWrapperSelection
-            .attr('transform', `translate(0, ${height - spacing[2]})`)
-            .call(
-                d3.axisBottom(xScale)
-                  .ticks(width / 80)
-                  .tickSizeOuter(0)
-            )
+            .attr('transform', `translate(0, ${height - padding[2]})`)
+            .call(d3.axisBottom(xScale))
             .call(g => {
                 g.selectAll('.domain').attr('stroke', this._xAxis.lineColor);
                 g.selectAll('.tick text').attr('fill', this._xAxis.labels.style.color);
@@ -184,7 +181,7 @@ class LineGraph {
             });
 
         yAxisWrapperSelection
-            .attr('transform', `translate(${spacing[3]}, 0)`)
+            .attr('transform', `translate(${padding[3]}, 0)`)
             .call(d3.axisLeft(yScale))
             .call(g => {
                 g.selectAll('.domain').attr('stroke', this._yAxis.lineColor);
