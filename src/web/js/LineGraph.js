@@ -13,6 +13,14 @@ const textAlignToTextAnchor = {
     right: 'end'
 };
 
+const measureText = function () {
+    const ctx = document.createElement('canvas').getContext('2d');
+    return function (text, fontSize = '10px') {
+        ctx.font = `${fontSize} sans-serif`
+        return ctx.measureText(text);
+    };
+}();
+
 class LineGraph {
 
     constructor({
@@ -45,9 +53,11 @@ class LineGraph {
         this._xAxis = mergeSettings({
             lineColor: '#ccd6eb',
             tickColor: '#ccd6eb',
+            tickLength: 6,
             labels: {
                 style: {
                     color: '#666',
+                    fontSize: '11px',
                 }
             }
         }, xAxis);
@@ -56,9 +66,11 @@ class LineGraph {
         this._yAxis = mergeSettings({
             lineColor: '#ccd6eb',
             tickColor: '#ccd6eb',
+            tickLength: 6,
             labels: {
                 style: {
                     color: '#666',
+                    fontSize: '11px',
                 }
             }
         }, yAxis);
@@ -117,17 +129,33 @@ class LineGraph {
         this._data = data;
 
         this.xScale = d3.scaleUtc()
-            .domain(d3.extent(labels))
-            .range([padding[3], width - padding[3]]);
-        this.xScale.ticks(width / 80);
+            .domain(d3.extent(labels));
 
         this.yScale = d3.scaleLinear()
             .domain([
                 d3.min(series, d => d3.min(d.data)),
                 d3.max(series, d => d3.max(d.data))
             ])
-            .nice()
-            .range([height - padding[2], padding[0]]);
+            .nice();
+
+        // console.log(this.yScale.tickFormat()(this.yScale.domain()[1]));
+        // console.log(d3.create('svg:text').attr('font-size', 16).text(this.yScale.domain()[1]).node().getBBox());
+        // console.log(measureText(this.yScale.domain()[1], '20px'))
+        const maxLengthOfYLabel = measureText(
+            this.ySYcale.tickFormat()(this.yScale.domain()[1]),
+            this._yAxis.labels.style.fontSize
+        ).width;
+        this.xScale
+            .range([padding[3], width - padding[1]])
+            .ticks(width / 80);
+
+        // console.log(maxLengthOfXAxis, measureText('2021', '11px'));
+        const maxLengthOfXLabel = measureText(
+            this.xScale.tickFormat()(this.xScale.domain()[0]),
+            this._xAxis.labels.style.fontSize
+        ).width;
+        this.xScale.range([height - padding[2] - maxLengthOfXLabel, padding[0]]);
+       
 
         this.line = d3.line()
             .defined(d => !isNaN(d) && d !== null)
@@ -173,8 +201,12 @@ class LineGraph {
 
         xAxisWrapperSelection
             .attr('transform', `translate(0, ${height - padding[2]})`)
-            .call(d3.axisBottom(xScale))
+            .call(
+                d3.axisBottom(xScale)
+                  .tickSize(this._xAxis.tickLength)
+            )
             .call(g => {
+                g.attr('font-size', this._xAxis.labels.style.fontSize);
                 g.selectAll('.domain').attr('stroke', this._xAxis.lineColor);
                 g.selectAll('.tick text').attr('fill', this._xAxis.labels.style.color);
                 g.selectAll('.tick line').attr('stroke', this._xAxis.tickColor);
@@ -182,8 +214,12 @@ class LineGraph {
 
         yAxisWrapperSelection
             .attr('transform', `translate(${padding[3]}, 0)`)
-            .call(d3.axisLeft(yScale))
+            .call(
+                d3.axisLeft(yScale)
+                  .tickSize(this._yAxis.tickLength)
+            )
             .call(g => {
+                g.attr('font-size', this._yAxis.labels.style.fontSize);
                 g.selectAll('.domain').attr('stroke', this._yAxis.lineColor);
                 g.selectAll('.tick text').attr('fill', this._yAxis.labels.style.color);
                 g.selectAll('.tick line').attr('stroke', this._yAxis.tickColor);
