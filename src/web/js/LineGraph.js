@@ -15,8 +15,8 @@ const textAlignToTextAnchor = {
 
 const measureText = function () {
     const ctx = document.createElement('canvas').getContext('2d');
-    return function (text, fontSize = '10px') {
-        ctx.font = `${fontSize} sans-serif`
+    return function (text, font = '10px sans-serif') {
+        ctx.font = font;
         return ctx.measureText(text);
     };
 }();
@@ -43,10 +43,11 @@ class LineGraph {
         }
 
         // https://api.highcharts.com.cn/highcharts#chart
+        // width和height包括填充等
         this._chart = mergeSettings({
             width: containerWidth || 300,
             height: containerHeight || 150,
-            padding: [0, 0, 0, 0]   // highchart使用spacing配置，我使用padding
+            padding: [10, 10, 15, 10]   // highchart使用spacing配置，我使用padding
         }, chart);
 
         // https://api.highcharts.com.cn/highcharts#xAxis
@@ -96,7 +97,7 @@ class LineGraph {
         }, subtitle);
 
         this._title.x = this._chart.width / 2;
-        this._title.y = parseFloat(this._title.style.fontSize, 10) * (4 / 3);
+        this._title.y = parseFloat(this._title.style.fontSize, 10) + this._chart.padding[0];
 
         this._subtitle.x = this._title.x;
         this._subtitle.y = this._title.y + 10 + parseFloat(this._subtitle.style.fontSize, 10);
@@ -138,24 +139,32 @@ class LineGraph {
             ])
             .nice();
 
-        // console.log(this.yScale.tickFormat()(this.yScale.domain()[1]));
-        // console.log(d3.create('svg:text').attr('font-size', 16).text(this.yScale.domain()[1]).node().getBBox());
-        // console.log(measureText(this.yScale.domain()[1], '20px'))
-        const maxLengthOfYLabel = measureText(
-            this.ySYcale.tickFormat()(this.yScale.domain()[1]),
-            this._yAxis.labels.style.fontSize
-        ).width;
+        const yTickFormat = this.yScale.tickFormat();
+        const xTickFormat = this.xScale.tickFormat();
+        const yTickFont = `${this._yAxis.labels.style.fontSize} sans-serif`;
+        const xTickFont = `${this._xAxis.labels.style.fontSize} sans-serif`;
+        const maxLengthOfYLabel = Math.ceil(
+            Math.max(
+                ...this.yScale.domain().map(v => measureText(yTickFormat(v), yTickFont).width)
+            )
+        );
+        const maxLengthOfXLabel = Math.ceil(
+            Math.max(
+                ...this.xScale.domain().map(v => measureText(xTickFormat(v), xTickFont).width)
+            )
+        );
+        // 高度 - 下填充 - x轴label的最大长度 - x轴刻度线长度 - x轴刻度线与label之间的间距
+        // x轴刻度线与label之间的间距 = d3.axis.tickPadding = 3
+        // y轴类似
+        this._xAxis.position = [0, height - padding[2] - maxLengthOfXLabel - this._xAxis.tickLength - 3];
+        this._yAxis.position = [padding[3] + maxLengthOfYLabel + this._yAxis.tickLength + 3, 0];
+
         this.xScale
-            .range([padding[3], width - padding[1]])
+            .range([this._yAxis.position[0], width - padding[1]])
             .ticks(width / 80);
 
-        // console.log(maxLengthOfXAxis, measureText('2021', '11px'));
-        const maxLengthOfXLabel = measureText(
-            this.xScale.tickFormat()(this.xScale.domain()[0]),
-            this._xAxis.labels.style.fontSize
-        ).width;
-        this.xScale.range([height - padding[2] - maxLengthOfXLabel, padding[0]]);
-       
+        // 抛去标题的高度
+        this.yScale.range([this._xAxis.position[1], padding[0] + this._subtitle.y]);
 
         this.line = d3.line()
             .defined(d => !isNaN(d) && d !== null)
@@ -164,9 +173,6 @@ class LineGraph {
     }
 
     render() {
-        const width = this._chart.width;
-        const height = this._chart.height;
-        const padding = this._chart.padding;
         const xScale = this.xScale;
         const yScale = this.yScale;
 
@@ -200,7 +206,7 @@ class LineGraph {
         });
 
         xAxisWrapperSelection
-            .attr('transform', `translate(0, ${height - padding[2]})`)
+            .attr('transform', `translate(${this._xAxis.position.join(',')})`)
             .call(
                 d3.axisBottom(xScale)
                   .tickSize(this._xAxis.tickLength)
@@ -213,7 +219,7 @@ class LineGraph {
             });
 
         yAxisWrapperSelection
-            .attr('transform', `translate(${padding[3]}, 0)`)
+            .attr('transform', `translate(${this._yAxis.position.join(',')})`)
             .call(
                 d3.axisLeft(yScale)
                   .tickSize(this._yAxis.tickLength)
