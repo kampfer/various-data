@@ -30,6 +30,7 @@ class LineGraph {
         yAxis,
         title,
         subtitle,
+        legend,
     }) {
 
         if (typeof container === 'string') {
@@ -96,6 +97,21 @@ class LineGraph {
             }
         }, subtitle);
 
+        // https://api.highcharts.com.cn/highcharts#legend
+        this._legend = mergeSettings({
+            align: 'right',
+            layout: 'horizontal',
+            padding: 20,
+            itemStyle: {
+                color: '#333',
+                fontSize: '12px',
+                fontWeight: 'bold'
+            },
+            symbolWidth: 16,
+            symbolHeight: 12,
+            symbolPadding: 5,
+        }, legend);
+
         this._title.x = this._chart.width / 2;
         this._title.y = parseFloat(this._title.style.fontSize, 10) + this._chart.padding[0];
 
@@ -125,6 +141,12 @@ class LineGraph {
 
         series.forEach((item, i) => {
             item.color = item.color || d3.schemeCategory10[i % 10];
+            // 处理图例
+            if (!this._legend.items) this._legend.items = [];
+            this._legend.items.push({
+                text: item.name,
+                color: item.color
+            });
         });
 
         this._data = data;
@@ -164,7 +186,10 @@ class LineGraph {
             .ticks(width / 80);
 
         // 抛去标题的高度
-        this.yScale.range([this._xAxis.position[1], padding[0] + this._subtitle.y]);
+        this.yScale.range([
+            this._xAxis.position[1],
+            padding[0] + this._subtitle.y + this._legend.padding * 2 + parseFloat(this._legend.itemStyle.fontSize, 10)
+        ]);
 
         this.line = d3.line()
             .defined(d => !isNaN(d) && d !== null)
@@ -181,7 +206,8 @@ class LineGraph {
             yAxisWrapperSelection,
             seriesWrapperSelection,
             titleSelection,
-            subtitleSelection
+            subtitleSelection,
+            legendSelection
         ] = [{
             selector: 'xAxisWrapper',
             tag: 'g',
@@ -197,6 +223,9 @@ class LineGraph {
         }, {
             selector: 'subtitle',
             tag: 'text',
+        }, {
+            selector: 'legend',
+            tag: 'g',
         }].map(({ selector, tag }) => {
             let selection = this._svgSelection.selectAll(`.${selector}`);
             if (selection.empty()) {
@@ -258,7 +287,46 @@ class LineGraph {
             .attr('text-anchor', textAlignToTextAnchor[this._subtitle.align])
             .attr('x', this._subtitle.x)
             .attr('y', this._subtitle.y);
-        
+
+        legendSelection
+            .selectAll('g')
+            .data(this._legend.items)
+            .join('g')
+            .call(g => {
+                g.append('rect')
+                 .attr('x', 0)
+                 .attr('y', 0)
+                 .attr('width', this._legend.symbolWidth)
+                 .attr('height', this._legend.symbolHeight)
+                 .attr('fill', d => d.color);
+                g.append('text')
+                 .attr('x', this._legend.symbolWidth + this._legend.symbolPadding)
+                 .attr('y', this._legend.itemStyle.fontSize)
+                 .call(g => {
+                     for(let key in this._legend.itemStyle) {
+                         g.style(key, this._legend.itemStyle[key]);
+                     }
+                 })
+                 .text(d => d.text);
+                let position = 0;
+                g.each(function (d, i, nodes) {
+                    const box = nodes[i].getBBox();
+                    d3.select(this).attr('transform', `translate(${position} ${0})`);
+                    position += box.width + 10;
+                });
+            });
+
+        const legendBox = legendSelection.node().getBBox();
+        const legendPosition = [];
+        if (this._legend.align === 'left') {
+            legendPosition[0] = this._legend.padding;
+        } else if (this._legend.align === 'center') {
+            legendPosition[0] = this._chart.width / 2 - legendBox.width / 2;
+        } else if (this._legend.align === 'right') {
+            legendPosition[0] = this._chart.width - this._legend.padding - legendBox.width;
+        }
+        legendPosition[1] = this._subtitle.y + this._legend.padding
+        legendSelection.attr('transform', `translate(${legendPosition[0]} ${legendPosition[1]})`)
     }
 
 }
