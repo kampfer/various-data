@@ -261,7 +261,8 @@ class LineGraph {
                 g.selectAll('.tick text').attr('fill', this._yAxis.labels.style.color);
                 g.selectAll('.tick line')
                  .attr('stroke', this._yAxis.tickColor)
-                 .attr('x1', this.xScale.range()[1]);
+                 .attr('x1', this.xScale.range()[1] - this._yAxis.position[0])
+                 .style('shape-rendering', 'crispEdges');
             });
 
         seriesWrapperSelection
