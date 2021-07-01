@@ -19,6 +19,8 @@ http://data.eastmoney.com/cjsj/hbgyl.html
 
 6. 超储
 
-7. 央行票据
+7. 货币净投放与净回笼
+http://www.chinamoney.com.cn/chinese/hb/
 
-8. 全国银行间质押式回购交易
+8. 回购定盘利率和银银间回购定盘利率
+http://www.chinamoney.com.cn/chinese/bkfrr/

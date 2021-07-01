@@ -10,6 +10,7 @@ const crawlers = {
     cpi: './crawlers/cpi.js',
     moneySupply: './crawlers/moneySupply.js',
     ticketPutAndBackStatByMonth: './crawlers/ticketPutAndBackStatByMonth.js',
+    fr_fdr: './crawlers/fr_fdr.js',
 };
 
 const { DATA_STORE_PATH } = require('./constants');

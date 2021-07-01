@@ -13,6 +13,11 @@ const routers = [
         name: 'ticketPutAndBackStatByMonth',
         desc: 'ticketPutAndBackStatByMonth',
         url: './ticketPutAndBackStatByMonth.html',
+    },
+    {
+        name: 'fr_fdr',
+        desc: 'fr_fdr',
+        url: '',
     }
 ];
 
