@@ -259,7 +259,9 @@ class LineGraph {
                 g.attr('font-size', this._yAxis.labels.style.fontSize);
                 g.selectAll('.domain').attr('stroke', this._yAxis.lineColor);
                 g.selectAll('.tick text').attr('fill', this._yAxis.labels.style.color);
-                g.selectAll('.tick line').attr('stroke', this._yAxis.tickColor);
+                g.selectAll('.tick line')
+                 .attr('stroke', this._yAxis.tickColor)
+                 .attr('x1', this.xScale.range()[1]);
             });
 
         seriesWrapperSelection

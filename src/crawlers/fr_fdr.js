@@ -9,13 +9,6 @@ module.exports = async function () {
     const endTime = moment();
     const startTime = moment().subtract(1, 'y').add(1, 'd');
 
-    console.log({
-        lang: 'CN',
-        startDate: startTime.format('YYYY-MM-DD'),
-        endDate: endTime.format('YYYY-MM-DD'),
-        t: Date.now()
-    });
-
     const res = await request.get({
         url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/FrrHis',
         data: {
