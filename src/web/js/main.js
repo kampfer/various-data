@@ -17,7 +17,7 @@ const routers = [
     {
         name: 'fr_fdr',
         desc: 'fr_fdr',
-        url: '',
+        url: './frfdr.html',
     }
 ];
 

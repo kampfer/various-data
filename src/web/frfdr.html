@@ -1,0 +1,43 @@
+<html>
+    <head>
+        <script src="./js/lib/d3.v6.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="./css/main.css" />
+    </head>
+    <body>
+        <div id="graph"></div>
+        <script type="module">
+            import LineGraph from './js/LineGraph.js';
+
+            d3.json('data/fr_fdr.json').then(({ data }) => {
+
+                const graph = new LineGraph({
+                    container: '#graph',
+                    chart: {
+                        width: window.innerWidth,
+                        height: window.innerHeight,
+                    },
+                    title: {
+                        text: '回购定盘利率和银银间回购定盘利率',
+                    },
+                    subtitle: {
+                        text: '数据来源：中国外汇交易中心'
+                    }
+                });
+        
+                graph.setData({
+                    labels: data.map(d => new Date(d.date)),
+                    series: [{
+                        name: 'FDR007',
+                        data: data.map(d => d.FDR007)
+                    }, {
+                        name: 'FR007',
+                        data: data.map(d => d.FR007),
+                    }]
+                });
+                
+                graph.render();
+
+            });
+        </script>
+    </body>
+</html>
