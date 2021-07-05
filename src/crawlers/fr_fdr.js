@@ -2,6 +2,9 @@
 
 const request = require('./request');
 const moment = require('moment');
+const { DATA_STORE_PATH } = require('../constants');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = async function () {
 
@@ -20,12 +23,22 @@ module.exports = async function () {
     });
 
     const json = res.json();
+    const { data } = JSON.parse(
+        fs.readFileSync(path.join(DATA_STORE_PATH, 'fr_fdr.json'))
+    );
+    const lastest = moment(data[0].date);
+    const { records: newData } = json;
+    newData.forEach(({ frValueMap: d }) => {
+        if (moment(d.date).isAfter(lastest)) {
+            data.unshift(d);
+        }
+    });
 
     return {
         name: 'fr_fdr',
         description: '回购定盘利率和银银间回购定盘利率',
         source: 'http://www.chinamoney.com.cn/chinese/bkfrr/',
-        data: json.records.map(({ frValueMap }) => frValueMap)
+        data,
     };
 
 }
