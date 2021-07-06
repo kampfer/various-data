@@ -140,7 +140,10 @@ class LineGraph {
         const { labels, series } = data;
 
         series.forEach((item, i) => {
+            // 设置颜色
             item.color = item.color || d3.schemeCategory10[i % 10];
+            // 设置marker
+            item.marker = mergeSettings({ symbol: 'circle', radius: 3 }, item.marker);
             // 处理图例
             if (item.name) {
                 if (!this._legend.items) this._legend.items = [];
@@ -269,13 +272,47 @@ class LineGraph {
             .selectAll('g')
             .data(this._data.series)
             .join('g')
-            .append('path')
-                .attr('fill', 'none')
-                .attr('stroke-width', 1.5)
-                .attr('stroke-linejoin', 'round')
-                .attr('stroke-linecap', 'round')
-                .attr('stroke', d => d.color || '#000')
-                .attr('d', d => this.line(d.data));
+            .attr('class', (d, i) => `serie-${i}`)
+            .call(g => {
+                // 绘制折线
+                g.append('path')
+                    .classed('line', true)
+                    .attr('fill', 'none')
+                    .attr('stroke-width', 1.5)
+                    .attr('stroke-linejoin', 'round')
+                    .attr('stroke-linecap', 'round')
+                    .attr('stroke', d => d.color || '#000')
+                    .attr('d', d => this.line(d.data));
+
+                // 绘制symbol
+                const {labels } = this._data;
+                function circle(x, y, w, h) {
+                    const startPosition = [x, y + h / 2];
+                    const rx = w / 2;
+                    const ry = h / 2;
+                    const xAxsiRotation = 0;
+                    const largeArcFlag = 1;
+                    const sweepFlag = 1;
+                    return `M ${startPosition[0]} ${startPosition[1]}
+                            A ${rx} ${ry} ${xAxsiRotation} ${largeArcFlag} ${sweepFlag} ${startPosition[0] + w} ${startPosition[1]}
+                            A ${rx} ${ry} ${xAxsiRotation} ${largeArcFlag} ${sweepFlag} ${startPosition[0]} ${startPosition[1]}
+                            Z`;
+                }
+                g.each(function(p) {
+                    d3.select(this)
+                        .selectAll('path.point')
+                        .data(d => d.data)
+                        .join('path')
+                            .classed('point', true)
+                            .attr('fill', p.color)
+                            .attr('d', (d, i) => {
+                                const x = xScale(labels[i]);
+                                const y = yScale(d);
+                                const { radius } = p.marker;
+                                return circle(x - radius, y - radius, radius * 2, radius * 2);
+                            });
+                });
+            });
 
         titleSelection
             .text(this._title.text)
