@@ -37,5 +37,8 @@ d3.json('../../data/cpi.json').then(({ data }) => {
         series: [accSerie]
     });
     graph.render();
+
+    // 用于测试重复调用render方法是否会出问题
+    // setInterval(() => graph.render(), 1000);
 });
 </script>

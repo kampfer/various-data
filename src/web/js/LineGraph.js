@@ -204,23 +204,21 @@ class LineGraph {
     }
 
     render() {
+        console.log('render');
         const xScale = this.xScale;
         const yScale = this.yScale;
 
         const [
             backgroundSelection,
-            plotBackgroundSelection,
             xAxisWrapperSelection,
             yAxisWrapperSelection,
             seriesWrapperSelection,
             titleSelection,
             subtitleSelection,
             legendSelection,
+            plotBackgroundSelection,
         ] = [{
             selector: 'background',
-            tag: 'rect',
-        }, {
-            selector: 'plotBackground',
             tag: 'rect',
         }, {
             selector: 'xAxisWrapper',
@@ -240,6 +238,9 @@ class LineGraph {
         }, {
             selector: 'legend',
             tag: 'g',
+        }, {
+            selector: 'plotBackground',
+            tag: 'rect',
         }].map(({ selector, tag }) => {
             let selection = this._svgSelection.selectAll(`.${selector}`);
             if (selection.empty()) {
@@ -248,6 +249,7 @@ class LineGraph {
             return selection;
         });
 
+        // 背景色
         backgroundSelection
             .attr('x', 0)
             .attr('y', 0)
@@ -255,6 +257,7 @@ class LineGraph {
             .attr('height', this._chart.height)
             .attr('fill', this._chart.backgroundColor);
 
+        // 通过占位rect监听鼠标事件，实现各种交互
         const xRange = xScale.range();
         const yRange = yScale.range();
         plotBackgroundSelection
@@ -262,7 +265,13 @@ class LineGraph {
             .attr('y', yRange[1])
             .attr('width', xRange[1] - xRange[0])
             .attr('height', yRange[0] - yRange[1])
-            .attr('fill', 'none');
+            .attr('fill', 'transparent')
+            .on('mouseover', function (e) {
+                console.log(e.type);
+            })
+            .on('mousemove', function (e) {
+                console.log(e.type);
+            });
 
         xAxisWrapperSelection
             .attr('transform', `translate(${this._xAxis.position.join(',')})`)
@@ -288,18 +297,13 @@ class LineGraph {
                 g.selectAll('.domain').attr('stroke', this._yAxis.lineColor);
                 g.selectAll('.tick text').attr('fill', this._yAxis.labels.style.color);
                 g.selectAll('.tick line')
+                 .attr('fill', 'none')
                  .attr('stroke', this._yAxis.tickColor)
                  .attr('x1', this.xScale.range()[1] - this._yAxis.position[0])
                  .style('shape-rendering', 'crispEdges');
             });
 
         seriesWrapperSelection
-            .on('mouseover', function (e) {
-                console.log(e.type);
-            })
-            .on('mousemove', function (e) {
-                console.log(e.type);
-            })
             .selectAll('g')
             .data(this._data.series)
             .join('g')
