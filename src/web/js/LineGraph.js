@@ -48,7 +48,8 @@ class LineGraph {
         this._chart = mergeSettings({
             width: containerWidth || 300,
             height: containerHeight || 150,
-            padding: [10, 10, 15, 10]   // highchart使用spacing配置，我使用padding
+            padding: [10, 10, 15, 10],   // highchart使用spacing配置，我使用padding
+            backgroundColor: '#fff',
         }, chart);
 
         // https://api.highcharts.com.cn/highcharts#xAxis
@@ -207,13 +208,21 @@ class LineGraph {
         const yScale = this.yScale;
 
         const [
+            backgroundSelection,
+            plotBackgroundSelection,
             xAxisWrapperSelection,
             yAxisWrapperSelection,
             seriesWrapperSelection,
             titleSelection,
             subtitleSelection,
-            legendSelection
+            legendSelection,
         ] = [{
+            selector: 'background',
+            tag: 'rect',
+        }, {
+            selector: 'plotBackground',
+            tag: 'rect',
+        }, {
             selector: 'xAxisWrapper',
             tag: 'g',
         }, {
@@ -238,6 +247,22 @@ class LineGraph {
             }
             return selection;
         });
+
+        backgroundSelection
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', this._chart.width)
+            .attr('height', this._chart.height)
+            .attr('fill', this._chart.backgroundColor);
+
+        const xRange = xScale.range();
+        const yRange = yScale.range();
+        plotBackgroundSelection
+            .attr('x', xRange[0])
+            .attr('y', yRange[1])
+            .attr('width', xRange[1] - xRange[0])
+            .attr('height', yRange[0] - yRange[1])
+            .attr('fill', 'none');
 
         xAxisWrapperSelection
             .attr('transform', `translate(${this._xAxis.position.join(',')})`)
@@ -269,6 +294,12 @@ class LineGraph {
             });
 
         seriesWrapperSelection
+            .on('mouseover', function (e) {
+                console.log(e.type);
+            })
+            .on('mousemove', function (e) {
+                console.log(e.type);
+            })
             .selectAll('g')
             .data(this._data.series)
             .join('g')
