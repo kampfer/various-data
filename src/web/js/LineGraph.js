@@ -31,6 +31,7 @@ class LineGraph {
         title,
         subtitle,
         legend,
+        tooltip
     }) {
 
         if (typeof container === 'string') {
@@ -62,7 +63,8 @@ class LineGraph {
                     color: '#666',
                     fontSize: '11px',
                 }
-            }
+            },
+            crosshair: false,
         }, xAxis);
 
         // https://api.highcharts.com.cn/highcharts#yAxis
@@ -75,7 +77,8 @@ class LineGraph {
                     color: '#666',
                     fontSize: '11px',
                 }
-            }
+            },
+            crosshair: false,
         }, yAxis);
 
         // https://api.highcharts.com.cn/highcharts#title
@@ -113,6 +116,10 @@ class LineGraph {
             symbolPadding: 5,
         }, legend);
 
+        this._tooltip = mergeSettings({
+            
+        }, tooltip);
+
         this._title.x = this._chart.width / 2;
         this._title.y = parseFloat(this._title.style.fontSize, 10) + this._chart.padding[0];
 
@@ -140,6 +147,12 @@ class LineGraph {
         const padding = this._chart.padding;
         const { labels, series } = data;
 
+        // 需要保证数据是递增排序的
+        let needReverseData = false;
+        if (labels[0] > labels[1]) needReverseData = true;
+
+        if (needReverseData) labels.reverse();
+
         series.forEach((item, i) => {
             // 设置颜色
             item.color = item.color || d3.schemeCategory10[i % 10];
@@ -153,6 +166,7 @@ class LineGraph {
                     color: item.color
                 });
             }
+            if (needReverseData) item.data.reverse();
         });
 
         this._data = data;
@@ -212,6 +226,8 @@ class LineGraph {
             backgroundSelection,
             xAxisWrapperSelection,
             yAxisWrapperSelection,
+            xCrosshairSelection,
+            yCrosshairSelection,
             seriesWrapperSelection,
             titleSelection,
             subtitleSelection,
@@ -227,6 +243,14 @@ class LineGraph {
             selector: 'yAxisWrapper',
             tag: 'g',
         }, {
+            selector: 'xCrosshair',
+            tag: 'path',
+            enable: !!this._xAxis.crosshair
+        }, {
+            selector: 'yCrosshair',
+            tag: 'path',
+            enable: !!this._yAxis.crosshair
+        }, {
             selector: 'seriesWrapper',
             tag: 'g',
         }, {
@@ -241,7 +265,8 @@ class LineGraph {
         }, {
             selector: 'plotBackground',
             tag: 'rect',
-        }].map(({ selector, tag }) => {
+        }].map(({ selector, tag, enable }) => {
+            if (enable === false) return;
             let selection = this._svgSelection.selectAll(`.${selector}`);
             if (selection.empty()) {
                 selection = this._svgSelection.append(tag).classed(selector, true);
@@ -266,11 +291,30 @@ class LineGraph {
             .attr('width', xRange[1] - xRange[0])
             .attr('height', yRange[0] - yRange[1])
             .attr('fill', 'transparent')
-            .on('mouseover', function (e) {
-                console.log(e.type);
+            .on('mousemove', (e) => {
+                const label = xScale.invert(e.pageX);
+                // 只能用bisectLeft、right
+                // bisectCenter会把array元素转成数字，导致比对结果错误，不能使用
+                const index = d3.bisectLeft(this._data.labels, label);
+
+                if (this._xAxis.crosshair) {
+                    let x = xScale(this._data.labels[index]);
+                    xCrosshairSelection
+                        .attr('visibility', 'visible')
+                        .attr('d', `M ${x} ${yRange[0]} L ${x} ${yRange[1]}`);
+                }
+
+                if (this._yAxis.crosshair) {
+                    let yArr = this._data.series.map(({ data }) => yScale(data[index]));
+                    let yIndex = d3.minIndex(yArr, v => Math.abs(v - e.pageY));;
+                    yCrosshairSelection
+                        .attr('visibility', 'visible')
+                        .attr('d', `M ${xRange[0]} ${yArr[yIndex]} L ${xRange[1]} ${yArr[yIndex]}`);
+                }
             })
-            .on('mousemove', function (e) {
-                console.log(e.type);
+            .on('mouseout', () => {
+                if (this._xAxis.crosshair) xCrosshairSelection.attr('visibility', 'hidden');
+                if (this._yAxis.crosshair) yCrosshairSelection.attr('visibility', 'hidden');
             });
 
         xAxisWrapperSelection
@@ -302,6 +346,22 @@ class LineGraph {
                  .attr('x1', this.xScale.range()[1] - this._yAxis.position[0])
                  .style('shape-rendering', 'crispEdges');
             });
+
+        if (this._xAxis.crosshair) {
+            xCrosshairSelection
+                .attr('stroke-width', this._xAxis.crosshair.width)
+                .attr('stroke', this._xAxis.crosshair.color)
+                .style('shape-rendering', 'crispEdges')
+                .attr('fill', 'none');
+        }
+
+        if (this._xAxis.crosshair) {
+            yCrosshairSelection
+                .attr('stroke-width', this._yAxis.crosshair.width)
+                .attr('stroke', this._yAxis.crosshair.color)
+                .style('shape-rendering', 'crispEdges')
+                .attr('fill', 'none');
+        }
 
         seriesWrapperSelection
             .selectAll('g')
