@@ -4,8 +4,8 @@ crawlers从各个数据源抓取数据，转换为json格式储存在/data目录
 
 ## 数据源列表
 
-1. 人民币汇率中间价（美元/人民币）
-http://www.safe.gov.cn/safe/rmbhlzjj/
+1. CFETS人民币汇率指数
+http://www.chinamoney.com.cn/chinese/bkrmbidx/
 
 2. 居民消费价格指数(上月=100)
 https://data.stats.gov.cn/easyquery.htm

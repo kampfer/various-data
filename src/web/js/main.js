@@ -18,6 +18,11 @@ const routers = [
         name: 'fr_fdr',
         desc: 'fr_fdr',
         url: './frfdr.html',
+    },
+    {
+        name: 'rmbCFETSIndex',
+        desc: 'CFETS人民币汇率指数',
+        url: './rmbCFETSIndex.html',
     }
 ];
 
