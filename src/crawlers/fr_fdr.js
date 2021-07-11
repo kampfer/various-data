@@ -28,11 +28,12 @@ module.exports = async function () {
     );
     const lastest = moment(data[0].date);
     const { records: newData } = json;
-    newData.forEach(({ frValueMap: d }) => {
+    for(let i = newData.length - 1; i >= 0; i--) {
+        const d = newData[i].frValueMap;
         if (moment(d.date).isAfter(lastest)) {
             data.unshift(d);
         }
-    });
+    }
 
     return {
         name: 'fr_fdr',
