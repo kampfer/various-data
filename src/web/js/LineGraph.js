@@ -117,7 +117,15 @@ class LineGraph {
         }, legend);
 
         this._tooltip = mergeSettings({
-            
+            backgroundColor: 'rgba(247,247,247,0.85)',
+            borderColor: null,
+            borderRadius: 3,
+            borderWidth: 1,
+            padding: 8,
+            style: {
+                fontSize: '12px',
+                color: '#333'
+            }
         }, tooltip);
 
         this._title.x = this._chart.width / 2;
@@ -232,6 +240,7 @@ class LineGraph {
             titleSelection,
             subtitleSelection,
             legendSelection,
+            tooltipSelection,
             plotBackgroundSelection,
         ] = [{
             selector: 'background',
@@ -261,6 +270,9 @@ class LineGraph {
             tag: 'text',
         }, {
             selector: 'legend',
+            tag: 'g',
+        }, {
+            selector: 'tooltip',
             tag: 'g',
         }, {
             selector: 'plotBackground',
@@ -297,20 +309,84 @@ class LineGraph {
                 // bisectCenter会把array元素转成数字，导致比对结果错误，不能使用
                 const index = d3.bisectLeft(this._data.labels, label);
 
+                const x = xScale(this._data.labels[index]);
                 if (this._xAxis.crosshair) {
-                    let x = xScale(this._data.labels[index]);
                     xCrosshairSelection
                         .attr('visibility', 'visible')
                         .attr('d', `M ${x} ${yRange[0]} L ${x} ${yRange[1]}`);
                 }
 
+                const yArr = this._data.series.map(({ data }) => yScale(data[index]));
+                const yIndex = d3.minIndex(yArr, v => Math.abs(v - e.pageY));
                 if (this._yAxis.crosshair) {
-                    let yArr = this._data.series.map(({ data }) => yScale(data[index]));
-                    let yIndex = d3.minIndex(yArr, v => Math.abs(v - e.pageY));;
                     yCrosshairSelection
                         .attr('visibility', 'visible')
                         .attr('d', `M ${xRange[0]} ${yArr[yIndex]} L ${xRange[1]} ${yArr[yIndex]}`);
                 }
+
+                const formatTime = d3.timeFormat('%Y-%m-%d');
+                tooltipSelection.call(g => {
+
+                    const data = [{
+                        label: this._data.labels[index],
+                        values: (this._data.series.map(({ name, data, color }) => ({
+                            color,
+                            name,
+                            value: data[index]
+                        })))
+                    }];
+
+                    const textSelection = g.selectAll('text')
+                        .data(data)
+                        .join('text')
+                        .attr('fill', this._tooltip.style.color)
+                        .call(g => {
+                            g.selectAll('tspan.label')
+                                .data(d => [d.label])
+                                .join('tspan')
+                                .classed('label', true)
+                                .text(d => formatTime(d))
+                                .style('font-size', 10)
+                                .attr('x', this._tooltip.padding)
+                                .attr('dy', 10 + this._tooltip.padding);
+
+                            g.selectAll('tspan.valueItem')
+                                .data(d => d.values)
+                                .join('tspan')
+                                .classed('valueItem', true)
+                                .style('font-size', this._tooltip.style.fontSize)
+                                .attr('x', this._tooltip.padding)
+                                .attr('dy', parseFloat(this._tooltip.style.fontSize, 10) + 5)
+                                .call(g => {
+                                    g.selectAll('tspan.legend')
+                                        .data(d => [d.color])
+                                        .join('tspan')
+                                        .classed('legend', true)
+                                        .attr('fill', d => d)
+                                        .text('● ');
+                                    g.selectAll('tspan.name')
+                                        .data(d => [d.name])
+                                        .join('tspan')
+                                        .classed('name', true)
+                                        .text(d => `${d}: `);
+                                    g.selectAll('tspan.value')
+                                        .data(d => [d.value])
+                                        .join('tspan')
+                                        .classed('value', true)
+                                        .style('font-weight', 'bold')
+                                        .text(d => d);
+                                });
+                        });
+
+                    const box = textSelection.node().getBBox();
+                    g.selectAll('path')
+                        .data(data)
+                        .join('path')
+                        .attr('d', `M ${this._tooltip.padding} ${this._tooltip.padding} L ${box.width} ${0 + this._tooltip.padding} L ${box.width} ${box.height + this._tooltip.padding} L ${0 + this._tooltip.padding} ${box.height + this._tooltip.padding}`)
+                        .attr('fill', 'rgba(0, 0, 0, 0.5)');
+
+                }).attr('transform', `translate(${x}, ${yArr[yIndex]})`);
+                
             })
             .on('mouseout', () => {
                 if (this._xAxis.crosshair) xCrosshairSelection.attr('visibility', 'hidden');
