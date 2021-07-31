@@ -61,7 +61,7 @@ document.body.addEventListener('click', (e) => {
 
     const action = e.target.dataset.action;
     if (action) {
-        fetch(`/api/update?name=${action}`).then(res => console.log(res));
+        fetch(`/api/update?name=${action}`).then(res => alert('更新成功！'));
     }
 
 });
