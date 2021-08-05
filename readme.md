@@ -24,3 +24,6 @@ http://www.chinamoney.com.cn/chinese/hb/
 
 8. 回购定盘利率和银银间回购定盘利率
 http://www.chinamoney.com.cn/chinese/bkfrr/
+
+## chromedriver
+https://npm.taobao.org/mirrors/chromedriver/
