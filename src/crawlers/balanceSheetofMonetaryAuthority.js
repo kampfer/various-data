@@ -13,6 +13,7 @@
 
 const {Builder, By} = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
+const path = require('path');
 
 const sources = [
     'http://www.pbc.gov.cn/diaochatongjisi/resource/cms/2021/07/2021071516002091976.htm',
@@ -20,6 +21,7 @@ const sources = [
 ];
 
 async function balanceSheetofMonetaryAuthority() {
+    chrome.setDefaultService(new chrome.ServiceBuilder(path.join(__dirname, '../../bin/chromedriver.exe')).build());
     const opts = new chrome.Options();
     const driver = await new Builder()
         .forBrowser('chrome')
@@ -46,7 +48,7 @@ async function balanceSheetofMonetaryAuthority() {
                 });
             }
         });
-        data = [data, ...yearData];
+        data = [...yearData, data];
     }
     // console.log(data);
     await driver.quit();
