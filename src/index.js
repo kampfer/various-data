@@ -32,3 +32,5 @@ app.get('/api/update', async (req, res) => {
 });
  
 app.listen(3000);
+
+console.log(`listening 3000`);
