@@ -5,7 +5,7 @@ import * as crawlers from './crawlers/index.js';
 import { ROOT_PATH, DATA_STORE_PATH } from './constants.js';
 
 const app = express();
-app.use(express.static(path.resolve(ROOT_PATH, 'src/web')));
+app.use(express.static(path.resolve(ROOT_PATH, 'dist/web')));
 app.use('/data', express.static(DATA_STORE_PATH));
 
 app.get('/api/update', async (req, res) => {
