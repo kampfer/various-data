@@ -1,4 +1,4 @@
-const request = require('./request');
+import * as request from './request.js';
 
 function makeItem(d) {
     return {
@@ -7,7 +7,7 @@ function makeItem(d) {
     };
 }
 
-async function cpi() {
+export default async function cpi() {
     // https://stackoverflow.com/questions/31673587/error-unable-to-verify-the-first-certificate-in-nodejs
     const NODE_TLS_REJECT_UNAUTHORIZED = process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
     process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
@@ -64,5 +64,3 @@ async function cpi() {
         )
     };
 }
-
-module.exports = cpi;

@@ -1,6 +1,6 @@
-const request = require('./request');
+import * as request from './request.js';
 
-module.exports = async function () {
+export default async function () {
     const { data } = (await request.post({
         url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bond-publish/TicketPutAndBackMonthRegion',
     })).json();
@@ -35,7 +35,7 @@ module.exports = async function () {
                 back: Number(back),
                 netPutIn,
                 accPutIn,
-            }
+            };
         })
     };
 }

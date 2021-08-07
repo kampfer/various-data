@@ -1,12 +1,12 @@
 // 回购定盘利率和银银间回购定盘利率
 
-const request = require('./request');
-const moment = require('moment');
-const { DATA_STORE_PATH } = require('../constants');
-const fs = require('fs');
-const path = require('path');
+import * as request from './request.js';
+import moment from 'moment';
+import  { DATA_STORE_PATH } from '../constants.js';
+import fs from 'fs';
+import path from 'path';
 
-module.exports = async function () {
+export default async function () {
 
     // 接口只能查最近一年的数据
     const endTime = moment();

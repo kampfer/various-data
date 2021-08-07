@@ -1,30 +1,4 @@
-const routers = [
-    {
-        name: 'cpi',
-        desc: 'cpi',
-        url: './cpi.html',
-    },
-    {
-        name: 'moneySupply',
-        desc: 'moneySupply',
-        url: './moneySupply.html',
-    },
-    {
-        name: 'ticketPutAndBackStatByMonth',
-        desc: 'ticketPutAndBackStatByMonth',
-        url: './ticketPutAndBackStatByMonth.html',
-    },
-    {
-        name: 'fr_fdr',
-        desc: 'fr_fdr',
-        url: './frfdr.html',
-    },
-    {
-        name: 'rmbCFETSIndex',
-        desc: 'CFETS人民币汇率指数',
-        url: './rmbCFETSIndex.html',
-    }
-];
+import indicators from './indicators.js';
 
 function renderTable() {
     const tableElem = document.createElement('table');
@@ -39,7 +13,7 @@ function renderTable() {
             </tr>
         </thead>
     `;
-    const tbody = routers.map(d => `
+    const tbody = indicators.map(d => `
         <tr>
             <td>${d.name}</td>
             <td>${d.desc}</td>
@@ -61,7 +35,11 @@ document.body.addEventListener('click', (e) => {
 
     const action = e.target.dataset.action;
     if (action) {
-        fetch(`/api/update?name=${action}`).then(res => alert('更新成功！'));
+        fetch(`/api/update?name=${action}`)
+            .then(res => res.json())
+            .then(json => {
+                if (json.code === 200) alert('更新成功！');
+            });
     }
 
 });

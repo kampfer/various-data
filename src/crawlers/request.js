@@ -1,7 +1,7 @@
-const http = require('http');
-const https = require('https');
-const querystring = require('querystring');
-const { URL } = require('url');
+import http from 'http';
+import https from 'https';
+import querystring from 'querystring';
+import { URL } from 'url';
 
 class Res {
 
@@ -73,7 +73,7 @@ function fetch({
     });
 }
 
-exports.get = function(options) {
+export function get (options) {
     options.method = 'GET';
     return fetch(options).then(
         res => res,
@@ -82,9 +82,9 @@ exports.get = function(options) {
             return null;
         }
     );
-};
+}
 
-exports.post = function(options) {
+export function post (options) {
     options.method = 'POST';
     return fetch(options).then(
         res => res,
@@ -93,4 +93,4 @@ exports.post = function(options) {
             return null;
         }
     );
-};
+}

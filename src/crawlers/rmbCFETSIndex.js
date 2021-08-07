@@ -1,6 +1,6 @@
-const request = require('./request');
+import * as request from './request.js';
 
-module.exports = async function () {
+export default async function () {
 
     const res = await request.get({
         url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bk-fx/RmbIdxChrt',

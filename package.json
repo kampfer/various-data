@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "ticket.js",
+  "type": "module",
   "dependencies": {
     "express": "^4.17.1",
     "jsonexport": "^3.1.0",
