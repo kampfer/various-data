@@ -3,29 +3,17 @@ import React from 'react';
 export default class CpiGraph extends React.Component {
 
     componentDidMount() {
-        fetch('data/cpi.json')
+        fetch('data/fr_fdr.json')
             .then(response => response.json())
             .then(({ data }) => {
-                // 倒排数据，再计算累计值
                 data.reverse();
-
-                let accValue = 1;
-                const accSerie = {
-                    name: 'cpi累计',
-                    type: 'line',
-                    data: data.map(d => ({
-                        x: (new Date(d.date.replace(/(\d{4})(\d{2})/, ($0, $1, $2) => `${$1}-${$2}`))).getTime(),
-                        y: accValue *= (isNaN(d.cpi) || d.cpi === null) ? 1 : d.cpi / 100,
-                    }))
-                };
-
-                this.chart = Highcharts.chart('CpiGraph', {
+                this.chart = Highcharts.chart('FrFdrGraph', {
                     chart: {
                         width: window.innerWidth,
                         height: window.innerHeight,
                     },
                     title: {
-                        text: '居民消费价格指数(累计)'
+                        text: '回购定盘利率和银银间回购定盘利率'
                     },
                     xAxis: {
                         type: 'datetime',
@@ -36,21 +24,32 @@ export default class CpiGraph extends React.Component {
                     },
                     tooltip: {
                         dateTimeLabelFormats: {
-                            day: '%Y-%m-%d',
-                            month: '%Y-%m'
+                            day: '%Y-%m-%d'
                         }
                     },
-                    series: [accSerie],
+                    series: [{
+                        name: 'FDR007',
+                        data: data.map(d => ({
+                            x: (new Date(d.date)).getTime(),
+                            y: parseFloat(d.FDR007, 10)
+                        }))
+                    }, {
+                        name: 'FR007',
+                        data: data.map(d => ({
+                            x: (new Date(d.date)).getTime(),
+                            y: parseFloat(d.FR007, 10)
+                        })),
+                    }],
                 });
             });
     }
 
     componentWillUnmount() {
-        this.chart.dispose();
+        this.chart.destory();
     }
 
     render() {
-        return <div id='CpiGraph'></div>;
+        return <div id='FrFdrGraph'></div>;
     }
 
 }

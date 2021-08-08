@@ -4,6 +4,7 @@ import {
     Route,
 } from 'react-router-dom';
 import CpiGraph from './graphs/CpiGraph.js';
+import FrFdrGraph from './graphs/FrFdrGraph.js';
 
 export default function IndicatorGraph() {
 
@@ -19,7 +20,7 @@ export default function IndicatorGraph() {
                 <CpiGraph />
             </Route>
             <Route path='/indicator/fr_fdr'>
-                <CpiGraph />
+                <FrFdrGraph />
             </Route>
             <Route path='/indicator/rmbCFETSIndex'>
                 <CpiGraph />

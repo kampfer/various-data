@@ -21,6 +21,6 @@
         "jsx-quotes": ["error", "prefer-single"]
     },
     "globals": {
-        "echarts": "readonly"
+        "Highcharts": "readonly"
     }
 }
