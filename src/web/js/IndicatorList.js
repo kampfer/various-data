@@ -1,8 +1,24 @@
 import React from 'react';
-import { Table, Space } from 'antd';
+import {
+    Table,
+    Space
+} from 'antd';
 import indicators from './indicators.js';
-
+import {
+    Link
+} from "react-router-dom";
+  
 import 'antd/dist/antd.css';
+
+const updateIndicator = (name) => {
+    if (name) {
+        fetch(`/api/update?name=${name}`)
+            .then(res => res.json())
+            .then(json => {
+                if (json.code === 200) alert('更新成功！');
+            });
+    }
+};
 
 const columns = [
     {
@@ -18,10 +34,10 @@ const columns = [
     {
         title: '操作',
         key: 'action',
-        render: () => (
-            <Space size="middle">
-                <a>查看</a>
-                <a>更新</a>
+        render: (text, record, /*index*/) => (
+            <Space size='middle'>
+                <Link to={`/indicator/${record.name}`}>查看</Link>
+                <a onClick={() => updateIndicator(record.name)}>更新</a>
             </Space>
         )
     }
@@ -35,7 +51,7 @@ export default class IndicatorList extends React.Component {
 
     render() {
         return (
-            <Table dataSource={indicators} columns={columns} pagination={{hideOnSinglePage: true}}/>
+            <Table dataSource={indicators} columns={columns} pagination={{hideOnSinglePage: true}} rowKey='name'/>
         );
     }
 

@@ -5,6 +5,7 @@ import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import path from 'path';
 import { ROOT_PATH } from '../src/constants.js';
+import CopyPlugin from 'copy-webpack-plugin';
 
 export default {
     entry: path.join(ROOT_PATH, 'src/web/js/main.js'),
@@ -20,7 +21,7 @@ export default {
                         '@babel/preset-react'
                     ],
                     // plugins: ['@babel/plugin-transform-runtime'],
-                    cacheDirectory: true
+                    // cacheDirectory: true
                 }
             },
             {
@@ -33,8 +34,17 @@ export default {
         new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
             filename: 'index.html',
-            template: path.join(ROOT_PATH, 'src/web/index.html')
-        })
+            template: path.join(ROOT_PATH, 'src/web/index.html'),
+            inject: 'body'
+        }),
+        new CopyPlugin({
+            patterns: [
+                {
+                    from: path.join(ROOT_PATH, 'src/web/js/lib'),
+                    to: path.join(ROOT_PATH, 'dist/web') 
+                },
+            ],
+        }),
     ],
     output: {
         filename: '[name].[hash].js',

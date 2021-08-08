@@ -17,6 +17,10 @@
     },
     "rules": {
         "semi": ["error", "always"],
-        "react/display-name": 0
+        "react/display-name": 0,
+        "jsx-quotes": ["error", "prefer-single"]
+    },
+    "globals": {
+        "echarts": "readonly"
     }
 }
