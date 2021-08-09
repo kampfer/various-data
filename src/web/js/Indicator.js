@@ -3,6 +3,7 @@ import {
     Switch,
     Route,
 } from 'react-router-dom';
+import BalanceSheetOfMonetaryAuthorityGraph from './graphs/BalanceSheetOfMonetaryAuthorityGraph.js';
 import CpiGraph from './graphs/CpiGraph.js';
 import FrFdrGraph from './graphs/FrFdrGraph.js';
 import MoneySupplyGraph from './graphs/MoneySupplyGraph.js';
@@ -29,7 +30,7 @@ export default function IndicatorGraph() {
                 <RMBCFETSIndex />
             </Route>
             <Route path='/indicator/balanceSheetOfMonetaryAuthority'>
-                <CpiGraph />
+                <BalanceSheetOfMonetaryAuthorityGraph />
             </Route>
         </Switch>
     );

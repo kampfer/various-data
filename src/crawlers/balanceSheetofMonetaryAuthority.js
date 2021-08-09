@@ -36,7 +36,7 @@ export default async function balanceSheetofMonetaryAuthority() {
                 });
             }
         });
-        data = [...yearData, data];
+        data = [...yearData, ...data];
     }
     // console.log(data);
     await driver.quit();
