@@ -46,7 +46,7 @@ export default class CpiGraph extends React.Component {
     }
 
     componentWillUnmount() {
-        this.chart.dispose();
+        this.chart.destroy();
     }
 
     render() {
