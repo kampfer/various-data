@@ -13,8 +13,13 @@ export default function BalanceSheetOfMonetaryAuthorityGraph() {
                     width: window.innerWidth,
                     height: window.innerHeight,
                 },
+                plotOptions: {
+                    area: {
+                        stacking: 'normal',
+                    }
+                },
                 title: {
-                    text: '央行票据'
+                    text: '央行资产负债表'
                 },
                 xAxis: {
                     type: 'datetime',
@@ -29,10 +34,10 @@ export default function BalanceSheetOfMonetaryAuthorityGraph() {
                         month: '%Y-%m'
                     }
                 },
-                series: Object.keys(data[0]).filter(key =>!['date', 'TotalAssets', 'TotalLiabilities'].includes(key)).map((key) => ({
+                series: Object.keys(data[0]).filter(key =>!['date', /*'TotalAssets', 'TotalLiabilities'*/].includes(key)).map((key) => ({
                     name: key,
                     data: data.map(d => {
-                        console.log(d);
+                        if (!d[key]) console.log(`${d.date}不存在${key}`);
                         return {
                             x: new Date(d.date.replace('.', '-')).getTime(),
                             y: d[key]
