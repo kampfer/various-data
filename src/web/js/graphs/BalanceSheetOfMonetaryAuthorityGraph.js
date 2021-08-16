@@ -1,5 +1,13 @@
 import React, { useEffect } from 'react';
 
+const itemMap = {
+    ForeignExchange: '外汇',
+    ClaimsonOtherDepositoryCorporations: '对其他存款性公司债权',    // 央行投放
+    DepositsofGovernment: '政府存款',
+    CurrencyIssue: '货币发行',  // m0 + 商业银行库存现金
+    DepositsofOtherDepositoryCorporations: '其他存款性公司存款'     // 法定存款准备金+超额存款准备金
+};
+
 export default function BalanceSheetOfMonetaryAuthorityGraph() {
 
     useEffect(() => {
@@ -9,7 +17,7 @@ export default function BalanceSheetOfMonetaryAuthorityGraph() {
 
             return Highcharts.chart('BalanceSheetOfMonetaryAuthorityGraph', {
                 chart: {
-                    type: 'area',
+                    type: 'line',
                     width: window.innerWidth,
                     height: window.innerHeight,
                 },
@@ -34,8 +42,8 @@ export default function BalanceSheetOfMonetaryAuthorityGraph() {
                         month: '%Y-%m'
                     }
                 },
-                series: Object.keys(data[0]).filter(key =>!['date', /*'TotalAssets', 'TotalLiabilities'*/].includes(key)).map((key) => ({
-                    name: key,
+                series: Object.keys(data[0]).filter(key => key in itemMap).map((key) => ({
+                    name: itemMap[key],
                     data: data.map(d => {
                         if (!d[key]) console.log(`${d.date}不存在${key}`);
                         return {
