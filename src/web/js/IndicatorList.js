@@ -9,7 +9,7 @@ import indicators from './indicators.js';
 import {
     Link
 } from "react-router-dom";
-  
+
 import 'antd/dist/antd.css';
 import './IndicatorList.css';
 
@@ -35,7 +35,8 @@ export default class IndicatorList extends React.Component {
                     key: 'action',
                     render: (text, record, /*index*/) => (
                         <Space size='middle'>
-                            <Link to={`/indicator/${record.name}`}>查看</Link>
+                            <Link to={`/indicator/graph/${record.name}`}>查看图表</Link>
+                            <Link to={`/indicator/table/${record.name}`}>查看表格</Link>
                             <a onClick={() => this.updateIndicator(record.name)}>更新</a>
                         </Space>
                     )

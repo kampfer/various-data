@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
-    "dev:web": "webpack --config ./scripts/webpack.dev.config.js --progress --watch",
+    "dev:web": "webpack --config ./scripts/webpack.dev.config.js --watch",
     "dev:server": "node src/index.js"
   },
   "repository": {

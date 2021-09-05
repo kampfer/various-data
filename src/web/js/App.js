@@ -6,7 +6,8 @@ import {
     Redirect,
 } from 'react-router-dom';
 import IndicatorList from './IndicatorList.js';
-import Indicator from './Indicator.js';
+import IndicatorGraphRouter from './graphs/index.js';
+import IndicatorTableRouter from './tables/index.js';
 
 export default class App extends React.Component {
 
@@ -24,8 +25,11 @@ export default class App extends React.Component {
                     <Route path='/indicators'>
                         <IndicatorList />
                     </Route>
-                    <Route path='/indicator/:name'>
-                        <Indicator />
+                    <Route path='/indicator/table'>
+                        <IndicatorTableRouter />
+                    </Route>
+                    <Route path='/indicator/graph'>
+                        <IndicatorGraphRouter />
                     </Route>
                 </Switch>
             </Router>
