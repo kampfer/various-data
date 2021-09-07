@@ -15,7 +15,12 @@ export default function IndicatorTable() {
             .then(response => response.json())
             .then(({ data }) => {
                 setColumns([
-                    ...Object.keys(data[0]).map((d) => ({ title: d, dataIndex: d })),
+                    {
+                        title: 'date',
+                        dataIndex: 'date',
+                        fixed: 'left',
+                    },
+                    ...Object.keys(data[0]).filter(d => d !== 'date').map((d) => ({ title: d, dataIndex: d })),
                     {
                         title: '操作',
                         dataIndex: 'operation',
@@ -30,7 +35,7 @@ export default function IndicatorTable() {
     const addRow = () => {};
 
     return (
-        <div style={{ padding: 10 }}>
+        <div style={{ padding: 10, width: '100%' }}>
             <Button
                 onClick={addRow}
                 type='primary'
@@ -40,7 +45,7 @@ export default function IndicatorTable() {
             >
                 Add a row
             </Button>
-            <Table dataSource={data} columns={columns} bordered></Table>
+            <Table dataSource={data} columns={columns} scroll={{ x: true }} rowKey='date' bordered></Table>
         </div>
     );
 
