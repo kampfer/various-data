@@ -1,9 +1,11 @@
+import moment from 'moment';
 import * as request from './request.js';
 
 function makeItem(d) {
     return {
         cpi: d.data.hasdata ? d.data.data : null,
-        date: d.wds[1].valuecode
+        displayDate: d.wds[1].valuecode,
+        date: moment(d.wds[1].valuecode, 'YYYYMM').valueOf()
     };
 }
 
@@ -61,6 +63,6 @@ export default async function cpi() {
         source: 'https://data.stats.gov.cn/easyquery.htm',
         data: json1.returndata.datanodes.map(d => makeItem(d)).concat(
             json2.returndata.datanodes.map(d => makeItem(d))
-        )
+        ).reverse()
     };
 }

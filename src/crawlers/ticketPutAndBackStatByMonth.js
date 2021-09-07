@@ -1,3 +1,4 @@
+import moment from 'moment';
 import * as request from './request.js';
 
 export default async function () {
@@ -30,7 +31,8 @@ export default async function () {
             netPutIn = Number(netPutIn);
             accPutIn += netPutIn;
             return {
-                date,
+                date: moment(date, 'YYYY-MM').valueOf(),
+                displayDate: date,
                 putIn: Number(putIn),
                 back: Number(back),
                 netPutIn,

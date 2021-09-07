@@ -6,15 +6,12 @@ export default class CpiGraph extends React.Component {
         fetch('data/cpi.json')
             .then(response => response.json())
             .then(({ data }) => {
-                // 倒排数据，再计算累计值
-                data.reverse();
-
                 let accValue = 1;
                 const accSerie = {
                     name: 'cpi累计',
                     type: 'line',
                     data: data.map(d => ({
-                        x: (new Date(d.date.replace(/(\d{4})(\d{2})/, ($0, $1, $2) => `${$1}-${$2}`))).getTime(),
+                        x: d.date,
                         y: accValue *= (isNaN(d.cpi) || d.cpi === null) ? 1 : d.cpi / 100,
                     }))
                 };

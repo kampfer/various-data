@@ -2,6 +2,7 @@ import {Builder, By} from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import path from 'path';
 import { ROOT_PATH } from '../constants.js';
+import moment from 'moment';
 
 const sources = [
     {
@@ -62,7 +63,12 @@ export default async function balanceSheetofMonetaryAuthority() {
             const matches = str.match(regx);
             if (i === 0) {
                 // 日期
-                matches[3].trim().split(/\s+/).forEach(d => yearData.push({ date: d}));
+                matches[3].trim()
+                    .split(/\s+/)
+                    .forEach(d => yearData.push({ 
+                        date: moment(d, 'YYYY.MM').valueOf(),
+                        displayDate: d,
+                    }));
             } else {
                 const key = matches[2].replace(/[^a-zA-Z]+/g, '');
                 matches[3].trim().split(/\s+/).forEach((d, i) => {
@@ -81,5 +87,3 @@ export default async function balanceSheetofMonetaryAuthority() {
         data
     };
 }
-
-balanceSheetofMonetaryAuthority();

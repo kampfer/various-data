@@ -26,12 +26,15 @@ export default async function () {
     const { data } = JSON.parse(
         fs.readFileSync(path.join(DATA_STORE_PATH, 'fr_fdr.json'))
     );
-    const lastest = moment(data[0].date);
+    const lastest = moment(data[data.length - 1].date);
     const { records: newData } = json;
     for(let i = newData.length - 1; i >= 0; i--) {
         const d = newData[i].frValueMap;
-        if (moment(d.date).isAfter(lastest)) {
-            data.unshift(d);
+        const now = moment(d.date);
+        if (now.isAfter(lastest)) {
+            d.displayDate = d.date;
+            d.date = now.valueOf();
+            data.push(d);
         }
     }
 

@@ -1,6 +1,4 @@
-// const http = require('http');
-// const querystring = require('querystring');
-
+import moment from 'moment';
 import * as request from './request.js';
 
 function getPage(i) {
@@ -35,8 +33,9 @@ export default async function moneySupply() {
         const { data: page, pages } = res.json();
         page.forEach(d => {
             const [date, m2, m2YOY, m2MOM, m1, m1YOY, m1MOM, m0, m0YOY, m0MOM] = d.split(',');
-            json.data.push({
-                date: date,
+            json.data.unshift({
+                date: moment(date, 'YYYY-MM-DD').valueOf(),
+                displayDate: date,
                 m2: Number(m2),
                 m2YOY: Number(m2YOY),
                 m2MOM: Number(m2MOM),

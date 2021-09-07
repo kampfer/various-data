@@ -1,12 +1,11 @@
 import React from 'react';
 
-export default class CpiGraph extends React.Component {
+export default class FrFdrGraph extends React.Component {
 
     componentDidMount() {
         fetch('data/fr_fdr.json')
             .then(response => response.json())
             .then(({ data }) => {
-                data.reverse();
                 this.chart = Highcharts.chart('FrFdrGraph', {
                     chart: {
                         width: window.innerWidth,
@@ -30,13 +29,13 @@ export default class CpiGraph extends React.Component {
                     series: [{
                         name: 'FDR007',
                         data: data.map(d => ({
-                            x: (new Date(d.date)).getTime(),
+                            x: d.date,
                             y: parseFloat(d.FDR007, 10)
                         }))
                     }, {
                         name: 'FR007',
                         data: data.map(d => ({
-                            x: (new Date(d.date)).getTime(),
+                            x: d.date,
                             y: parseFloat(d.FR007, 10)
                         })),
                     }],
