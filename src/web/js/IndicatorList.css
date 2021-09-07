@@ -1,11 +1,7 @@
-/* .indicatorListWrapper {
-    position: relative;
+.indicator-list-container {
+    padding: 10px;
 }
 
-.loading {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 9;
-} */
+.indicator-list-container .add-row-btn {
+    margin-bottom: 10px;
+}

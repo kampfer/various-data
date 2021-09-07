@@ -16,7 +16,7 @@ export default async function () {
     // 从远到近排序
 
     return {
-        name: 'rmbCFETSIndex',
+        name: 'CFETSRMBIndex',
         description: 'CFETS人民币汇率指数',
         source: 'http://www.chinamoney.com.cn/chinese/bkrmbidx/',
         data: records.reverse().map(d => ({

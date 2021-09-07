@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 
-export default function RMBCFETSIndexGraph() {
+export default function CFETSRMBIndexGraph() {
 
     useEffect(() => {
         let chart;
-        fetch('data/rmbCFETSIndex.json')
+        fetch('data/CFETSRMBIndex.json')
             .then(response => response.json())
             .then(({ data }) => {
                 chart = Highcharts.chart('RMBCFETSIndexGraph', {
@@ -38,7 +38,7 @@ export default function RMBCFETSIndexGraph() {
             });
 
         return () => chart && chart.destroy();
-        
+
     });
 
     return (<div id='RMBCFETSIndexGraph'></div>);

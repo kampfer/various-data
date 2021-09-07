@@ -8,7 +8,7 @@ import BalanceSheetOfMonetaryAuthorityGraph from './BalanceSheetOfMonetaryAuthor
 import CpiGraph from './CpiGraph.js';
 import FrFdrGraph from './FrFdrGraph.js';
 import MoneySupplyGraph from './MoneySupplyGraph.js';
-import RMBCFETSIndex from './RMBCFETSIndex.js';
+import CFETSRMBIndexGraph from './CFETSRMBIndexGraph.js';
 import TicketGraph from './TicketGraph.js';
 
 export default function IndicatorGraphRouter() {
@@ -32,8 +32,8 @@ export default function IndicatorGraphRouter() {
             <Route path={`${path}/fr_fdr`}>
                 <FrFdrGraph />
             </Route>
-            <Route path={`${path}/rmbCFETSIndex`}>
-                <RMBCFETSIndex />
+            <Route path={`${path}/CFETSRMBIndex`}>
+                <CFETSRMBIndexGraph />
             </Route>
             <Route path={`${path}/balanceSheetOfMonetaryAuthority`}>
                 <BalanceSheetOfMonetaryAuthorityGraph />

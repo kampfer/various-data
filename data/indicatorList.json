@@ -1,0 +1,38 @@
+[
+    {
+        "name": "cpi",
+        "title": "全国居民消费价格指数（上月=100）",
+        "desc": "全国居民消费价格指数（上月=100）",
+        "type": 1
+    },
+    {
+        "name": "moneySupply",
+        "title": "中国 货币供应量",
+        "desc": "中国 货币供应量",
+        "type": 1
+    },
+    {
+        "name": "ticketPutAndBackStatByMonth",
+        "title": "货币净投放与净回笼",
+        "desc": "货币净投放与净回笼",
+        "type": 1
+    },
+    {
+        "name": "fr_fdr",
+        "title": "回购定盘利率和银银间回购定盘利率",
+        "desc": "回购定盘利率和银银间回购定盘利率",
+        "type": 1
+    },
+    {
+        "name": "CFETSRMBIndex",
+        "title": "CFETS人民币汇率指数",
+        "desc": "CFETS人民币汇率指数",
+        "type": 1
+    },
+    {
+        "name": "balanceSheetOfMonetaryAuthority",
+        "title": "货币当局资产负债表",
+        "desc": "货币当局资产负债表",
+        "type": 1
+    }
+]

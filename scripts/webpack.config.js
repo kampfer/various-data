@@ -17,11 +17,9 @@ export default {
                 loader: 'babel-loader',
                 options: {
                     presets: [
-                        // '@babel/preset-env',
                         '@babel/preset-react'
                     ],
-                    // plugins: ['@babel/plugin-transform-runtime'],
-                    // cacheDirectory: true
+                    plugins: ['@babel/plugin-proposal-class-properties'],
                 }
             },
             {
@@ -41,7 +39,7 @@ export default {
             patterns: [
                 {
                     from: path.join(ROOT_PATH, 'src/web/js/lib'),
-                    to: path.join(ROOT_PATH, 'dist/web') 
+                    to: path.join(ROOT_PATH, 'dist/web')
                 },
             ],
         }),

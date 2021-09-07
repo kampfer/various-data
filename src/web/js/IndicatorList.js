@@ -3,9 +3,9 @@ import {
     Table,
     Space,
     Spin,
-    message
+    message,
+    Button,
 } from 'antd';
-import indicators from './indicators.js';
 import {
     Link
 } from "react-router-dom";
@@ -19,20 +19,19 @@ export default class IndicatorList extends React.Component {
         super(props);
 
         this.state = {
+            indicatorList: [],
             columns: [
                 {
                     title: '名称',
-                    key: 'name',
                     dataIndex: 'name',
                 },
                 {
                     title: '描述',
-                    key: 'desc',
                     dataIndex: 'desc',
                 },
                 {
                     title: '操作',
-                    key: 'action',
+                    dataIndex: 'action',
                     render: (text, record, /*index*/) => (
                         <Space size='middle'>
                             <Link to={`/indicator/graph/${record.name}`}>查看图表</Link>
@@ -44,11 +43,11 @@ export default class IndicatorList extends React.Component {
             ],
             loading: false,
         };
-
-        this.updateIndicator = this.updateIndicator.bind(this);
     }
 
-    updateIndicator(name) {
+    addRow = () => {}
+
+    updateIndicator = (name) => {
         if (name) {
             this.setState({loading: true});
             fetch(`/api/update?name=${name}`)
@@ -60,10 +59,28 @@ export default class IndicatorList extends React.Component {
         }
     }
 
+    componentDidMount() {
+        fetch(`/api/getIndicatorList`)
+            .then(res => res.json())
+            .then(({ data }) => {
+                this.setState({ indicatorList: data });
+            });
+    }
+
     render() {
+        const { indicatorList, columns } = this.state;
         return (
             <Spin spinning={this.state.loading}>
-                <Table dataSource={indicators} columns={this.state.columns} pagination={{hideOnSinglePage: true}} rowKey='name'/>
+                <div className="indicator-list-container">
+                    <Button
+                        onClick={this.addRow}
+                        type='primary'
+                        className='add-row-btn'
+                    >
+                        新增指标
+                    </Button>
+                    <Table dataSource={indicatorList} columns={columns} pagination={{hideOnSinglePage: true}} rowKey='name' bordered />
+                </div>
             </Spin>
         );
     }

@@ -24,7 +24,15 @@ app.get('/api/update', async (req, res) => {
         });
     }
 });
- 
+
+app.get('/api/getIndicatorList', async (req, res) => {
+    const data = fs.readFileSync(path.join(DATA_STORE_PATH, 'indicatorList.json'));
+    res.json({
+        code: 200,
+        data: JSON.parse(data)
+    });
+});
+
 app.listen(3000);
 
 console.log(`listening 3000`);
