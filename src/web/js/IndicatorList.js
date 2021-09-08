@@ -5,6 +5,9 @@ import {
     Spin,
     message,
     Button,
+    Modal,
+    Form,
+    Input
 } from 'antd';
 import {
     Link
@@ -14,6 +17,8 @@ import 'antd/dist/antd.css';
 import './IndicatorList.css';
 
 export default class IndicatorList extends React.Component {
+
+    newIndicatorForm = React.createRef()
 
     constructor(props) {
         super(props);
@@ -42,10 +47,34 @@ export default class IndicatorList extends React.Component {
                 }
             ],
             loading: false,
+            newIndicatorVisible: false,
         };
     }
 
-    addRow = () => {}
+    addIndicator = () => {
+        this.newIndicatorForm.current.validateFields()
+            .then((values) => {
+                this.setState({ loading: true });
+                fetch(`/api/addIndicator`, {
+                    body: JSON.stringify(values),
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json'
+                    }
+                })
+                    .then(res => res.json())
+                    .then(({ code, msg, data }) => {
+                        if (code === 200) {
+                            const { indicatorList } = this.state;
+                            this.setState({ indicatorList: [...indicatorList, data]});
+                            this.hideNewIndicatorModal();
+                        } else {
+                            message.error(msg);
+                        }
+                    })
+                    .finally(() => this.setState({ loading: false }));
+        });
+    }
 
     updateIndicator = (name) => {
         if (name) {
@@ -59,6 +88,14 @@ export default class IndicatorList extends React.Component {
         }
     }
 
+    showNewIndicatorModal = () => {
+        this.setState({ newIndicatorVisible: true });
+    }
+
+    hideNewIndicatorModal = () => {
+        this.setState({ newIndicatorVisible: false });
+    }
+
     componentDidMount() {
         fetch(`/api/getIndicatorList`)
             .then(res => res.json())
@@ -68,18 +105,51 @@ export default class IndicatorList extends React.Component {
     }
 
     render() {
-        const { indicatorList, columns } = this.state;
+        const { indicatorList, columns, newIndicatorVisible } = this.state;
+        const validateMessages = {
+            required: '${label} is required!',
+        };
+
         return (
             <Spin spinning={this.state.loading}>
                 <div className="indicator-list-container">
                     <Button
-                        onClick={this.addRow}
+                        onClick={this.showNewIndicatorModal}
                         type='primary'
                         className='add-row-btn'
                     >
                         新增指标
                     </Button>
                     <Table dataSource={indicatorList} columns={columns} pagination={{hideOnSinglePage: true}} rowKey='name' bordered />
+                    <Modal
+                        title="新增指标"
+                        visible={newIndicatorVisible}
+                        onOk={this.addIndicator}
+                        onCancel={this.hideNewIndicatorModal}
+                        okText="确认"
+                        cancelText="取消"
+                    >
+                        <Form
+                            name="newIndicator"
+                            ref={this.newIndicatorForm}
+                            labelCol={{ span: 4 }}
+                            wrapperCol={{ span: 18 }}
+                            validateMessages={validateMessages}
+                        >
+                            <Form.Item name="name" label="标记" rules={[{ required: true }]}>
+                                <Input />
+                            </Form.Item>
+                            <Form.Item name="title" label="名称" rules={[{ required: true }]}>
+                                <Input />
+                            </Form.Item>
+                            <Form.Item name="keyList" label="字段列表" rules={[{ required: true }]}>
+                                <Input />
+                            </Form.Item>
+                            <Form.Item name="desc" label="描述">
+                                <Input.TextArea />
+                            </Form.Item>
+                        </Form>
+                    </Modal>
                 </div>
             </Spin>
         );
