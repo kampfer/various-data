@@ -11,25 +11,44 @@ export default function IndicatorTable() {
     const [data, setData] = useState([]);
 
     useEffect(() => {
-        fetch(`data/${name}.json`)
-            .then(response => response.json())
-            .then(({ data }) => {
-                setColumns([
-                    {
+        fetch(`/api/getIndicatorList`)
+            .then(res => res.json())
+            .then(({ data: indicatorList }) => {
+                const indicator = indicatorList.find(d => d.name === name);
+                if (!indicator) return;
+                if (indicator.type === 1) {
+                    return fetch(`data/${name}.json`)
+                        .then(response => response.json())
+                        .then(({ data }) => {
+                            setColumns([
+                                {
+                                    title: 'date',
+                                    dataIndex: 'date',
+                                    fixed: 'left',
+                                },
+                                ...Object.keys(data[0]).filter(d => d !== 'date').map((d) => ({ title: d, dataIndex: d })),
+                                {
+                                    title: '操作',
+                                    dataIndex: 'operation',
+                                    render: () => 1
+                                }
+                            ]);
+                            setData(data);
+                        });
+                } else if (indicator.type === 0) {
+                    setColumns([{
                         title: 'date',
                         dataIndex: 'date',
                         fixed: 'left',
                     },
-                    ...Object.keys(data[0]).filter(d => d !== 'date').map((d) => ({ title: d, dataIndex: d })),
+                    ...indicator.keyList.split(',').filter(d => d !== 'date').map((d) => ({ title: d, dataIndex: d })),
                     {
                         title: '操作',
                         dataIndex: 'operation',
                         render: () => 1
-                    }
-                ]);
-                setData(data);
+                    }])
+                }
             });
-
     }, [name]);
 
     const addRow = () => {};

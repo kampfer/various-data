@@ -2,8 +2,11 @@ import React from 'react';
 import {
     Switch,
     Route,
-    useRouteMatch,
+    useRouteMatch
 } from 'react-router-dom';
+import {
+    Empty
+} from 'antd';
 import BalanceSheetOfMonetaryAuthorityGraph from './BalanceSheetOfMonetaryAuthorityGraph.js';
 import CpiGraph from './CpiGraph.js';
 import FrFdrGraph from './FrFdrGraph.js';
@@ -38,6 +41,9 @@ export default function IndicatorGraphRouter() {
             <Route path={`${path}/balanceSheetOfMonetaryAuthority`}>
                 <BalanceSheetOfMonetaryAuthorityGraph />
             </Route>
+            <Route path='*'>
+                <Empty description={'暂无数据'}/>
+          </Route>
         </Switch>
     );
 
