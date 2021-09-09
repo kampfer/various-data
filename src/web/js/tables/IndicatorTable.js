@@ -13,6 +13,14 @@ import {
 } from 'antd';
 import moment from 'moment';
 
+const genKey = (() => {
+    let i = 0;
+    return (d) => {
+        d._key = i++;
+        return d;
+    };
+})();
+
 const EditableCell = ({
     editing,
     dataIndex,
@@ -56,55 +64,60 @@ export default function IndicatorTable() {
     const [canAdd, setCanAdd] = useState(false);
     const [editingKey, setEditingKey] = useState('');
 
-    const isEditing = (record) => record.key === editingKey;
+    const isEditing = (record) => record._key === editingKey;
 
     useEffect(() => {
         fetch(`/api/getIndicatorList`)
             .then(res => res.json())
-            .then(({ data: indicatorList }) => {
-                const indicator = indicatorList.find(d => d.name === name);
-                if (!indicator) return;
+            .then(({ data: indicatorList }) => indicatorList.find(d => d.name === name))
+            .then((indicator) => {
+                if (!indicator) return [];
                 if (indicator.type === 1) {
                     return fetch(`data/${name}.json`)
                         .then(response => response.json())
                         .then(({ data }) => {
-                            setColumns([
-                                {
-                                    title: 'date',
-                                    dataIndex: 'date',
-                                    fixed: 'left',
-                                    editable: true,
-                                },
-                                ...Object.keys(data[0]).filter(d => d !== 'date').map((d) => ({ title: d, dataIndex: d, editable: true })),
-                                {
-                                    title: '操作',
-                                    dataIndex: 'operation',
-                                    editable: false,
-                                    render: () => 1
-                                }
-                            ]);
+                            data.forEach(d => genKey(d));
                             setData(data);
+                            return Object.keys(data[0]);
                         });
                 } else if (indicator.type === 0) {
-                    setColumns([{
+                    setCanAdd(true);
+                    return indicator.keyList.split(',');
+                }
+            })
+            .then((keys) => {
+                const columns = [
+                    {
                         title: 'date',
                         dataIndex: 'date',
                         fixed: 'left',
                         editable: true,
+                        render: (text, record, index) => {
+                            console.log(record, editingKey);
+                            return isEditing(record) ? <DatePicker /> : text;
+                        }
                     },
-                    ...indicator.keyList.split(',').filter(d => d !== 'date').map((d) => ({ title: d, dataIndex: d, editable: true })),
+                    ...keys.filter(d => d !== 'date')
+                        .map((d) => ({
+                            title: d,
+                            dataIndex: d,
+                            editable: true,
+                            render: (text, record, index) => <span>{index}</span>
+                        })),
                     {
                         title: '操作',
                         dataIndex: 'operation',
-                        render: () => 1
-                    }]);
-                    setCanAdd(true);
-                }
+                        editable: false,
+                        render: (text, record, index) => 1
+                    }
+                ];
+                setColumns(columns);
             });
     }, [name]);
 
     const addRow = () => {
         const newData = {};
+        genKey(newData);
         columns.forEach(d => {
             if (d.dataIndex === 'date') {
                 newData.date = moment().format('YYYY-MM-DD');
@@ -113,6 +126,7 @@ export default function IndicatorTable() {
             }
         });
         setData([...data, newData]);
+        setEditingKey(newData._key);
     };
 
     const mergedColumns = columns.map((col) => {
@@ -122,13 +136,13 @@ export default function IndicatorTable() {
 
         return {
             ...col,
-            onCell: (record) => ({
+            onCell: (record, rowIndex) => ({
                 record,
                 // inputType: col.dataIndex === 'age' ? 'number' : 'text',
                 dataIndex: col.dataIndex,
                 title: col.title,
                 editing: isEditing(record),
-            } && console.log(record)),
+            } && console.log(record, rowIndex)),
         };
     });
 
@@ -143,18 +157,20 @@ export default function IndicatorTable() {
             >
                 Add a row
             </Button>}
-            <Table 
-                components={{
-                    body: {
-                        cell: EditableCell,
-                    },
-                }}
-                dataSource={data}
-                columns={mergedColumns}
-                scroll={{ x: true }}
-                rowKey='date'
-                bordered
-            ></Table>
+            <Form>
+                <Table
+                    // components={{
+                    //     body: {
+                    //         cell: EditableCell,
+                    //     },
+                    // }}
+                    dataSource={data}
+                    columns={columns}
+                    scroll={{ x: true }}
+                    rowKey='_key'
+                    bordered
+                ></Table>
+            </Form>
         </div>
     );
 
