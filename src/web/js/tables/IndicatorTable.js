@@ -19,41 +19,6 @@ const genKey = (() => {
     };
 })();
 
-const EditableCell = ({
-    editing,
-    dataIndex,
-    title,
-    // inputType,
-    // record,
-    // index,
-    children,
-    ...restProps
-}) => {
-    const inputNode = dataIndex === 'date' ? <DatePicker /> : <InputNumber />;
-    return (
-      <td {...restProps}>
-        {editing ? (
-          <Form.Item
-            name={dataIndex}
-            style={{
-              margin: 0,
-            }}
-            rules={[
-              {
-                required: true,
-                message: `Please Input ${title}!`,
-              },
-            ]}
-          >
-            {inputNode}
-          </Form.Item>
-        ) : (
-          children
-        )}
-      </td>
-    );
-};
-
 export default class IndicatorTable extends React.Component {
 
     constructor(props) {
@@ -82,6 +47,10 @@ export default class IndicatorTable extends React.Component {
             data: [...data, newData],
             editingKey: newData._key
         });
+    }
+
+    save = () => {
+        this.setState({ editingKey: '' });
     }
 
     isEditing(record) {
@@ -114,24 +83,30 @@ export default class IndicatorTable extends React.Component {
                         title: 'date',
                         dataIndex: 'date',
                         fixed: 'left',
-                        editable: true,
+                        width: 150,
                         render: (text, record, index) => this.isEditing(record) ? <DatePicker /> : text
                     },
                     ...keys.filter(d => d !== 'date')
                         .map((d) => ({
                             title: d,
                             dataIndex: d,
-                            editable: true,
                             render: (text, record, index) => this.isEditing(record) ? <InputNumber /> : text
                         })),
                     {
                         title: '操作',
                         dataIndex: 'operation',
-                        editable: false,
+                        align: 'center',
+                        width: 200,
                         render: (text, record, index) => {
                             return this.isEditing(record) ?
-                            (<><a>保存</a><a>取消</a></>) :
-                            (<><a>编辑</a><a>删除</a></>);
+                            (<>
+                                <Button type="link" onClick={this.save}>保存</Button>
+                                <Button type="link">取消</Button>
+                            </>) :
+                            (<>
+                                <Button type="link" onClick={this.save}>编辑</Button>
+                                <Button type="link">删除</Button>
+                            </>);
                         }
                     }
                 ];
