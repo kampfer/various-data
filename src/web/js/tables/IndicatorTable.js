@@ -19,6 +19,8 @@ const genKey = (() => {
     };
 })();
 
+const dateFormat = 'YYYY-MM-DD';
+
 export default class IndicatorTable extends React.Component {
 
     constructor(props) {
@@ -30,6 +32,7 @@ export default class IndicatorTable extends React.Component {
             canAdd: false,
             editingKey: '',
         };
+        this.formRef = React.createRef();
     }
 
     addRow = () => {
@@ -49,8 +52,25 @@ export default class IndicatorTable extends React.Component {
         });
     }
 
-    save = () => {
-        this.setState({ editingKey: '' });
+    save = async () => {
+        const { editingKey, data } = this.state;
+        this.formRef.current.validateFields().then((values) => {
+            const newData = [...data];
+            const index = newData.findIndex(d => d._key === editingKey);
+            values.date = values.date.format(dateFormat);
+            if (index > -1) {
+                const item = newData[index];
+                newData.splice(index, 1, { ...item, ...values });
+            } else {
+                newData.push(genKey(values));
+            }
+            this.setState({ data: newData, editingKey: '' });
+            this.formRef.current.resetFields();
+        });
+    }
+
+    edit(key) {
+        this.setState({ editingKey: key });
     }
 
     isEditing(record) {
@@ -84,13 +104,33 @@ export default class IndicatorTable extends React.Component {
                         dataIndex: 'date',
                         fixed: 'left',
                         width: 150,
-                        render: (text, record, index) => this.isEditing(record) ? <DatePicker /> : text
+                        render: (text, record, index) => {
+                            if (this.isEditing(record)) {
+                                return (
+                                    <Form.Item name="date" initialValue={moment(text, dateFormat)}>
+                                        <DatePicker format={dateFormat} />
+                                    </Form.Item>
+                                )
+                            } else {
+                                return text;
+                            }
+                        }
                     },
                     ...keys.filter(d => d !== 'date')
                         .map((d) => ({
                             title: d,
                             dataIndex: d,
-                            render: (text, record, index) => this.isEditing(record) ? <InputNumber /> : text
+                            render: (text, record, index) => {
+                                if (this.isEditing(record)) {
+                                    return (
+                                        <Form.Item name={d} initialValue={text}>
+                                            <InputNumber />
+                                        </Form.Item>
+                                    )
+                                } else {
+                                    return text;
+                                }
+                            }
                         })),
                     {
                         title: '操作',
@@ -104,7 +144,7 @@ export default class IndicatorTable extends React.Component {
                                 <Button type="link">取消</Button>
                             </>) :
                             (<>
-                                <Button type="link" onClick={this.save}>编辑</Button>
+                                <Button type="link" onClick={() => this.edit(record._key)}>编辑</Button>
                                 <Button type="link">删除</Button>
                             </>);
                         }
@@ -127,7 +167,7 @@ export default class IndicatorTable extends React.Component {
                 >
                     Add a row
                 </Button>}
-                <Form>
+                <Form ref={this.formRef}>
                     <Table
                         // components={{
                         //     body: {
