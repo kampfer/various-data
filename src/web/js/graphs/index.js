@@ -42,7 +42,7 @@ export default function IndicatorGraphRouter() {
                 <BalanceSheetOfMonetaryAuthorityGraph />
             </Route>
             <Route path='*'>
-                <Empty description={'暂无数据'}/>
+                <Empty />
           </Route>
         </Switch>
     );

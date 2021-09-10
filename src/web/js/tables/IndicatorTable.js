@@ -1,15 +1,13 @@
 /* eslint-disable react/prop-types */
 
-import React, { useState, useEffect } from 'react';
-import {
-    useParams,
-} from 'react-router-dom';
+import React from 'react';
 import {
     Table,
     Button,
     Form,
     InputNumber,
-    DatePicker
+    DatePicker,
+    Empty
 } from 'antd';
 import moment from 'moment';
 
@@ -56,17 +54,42 @@ const EditableCell = ({
     );
 };
 
-export default function IndicatorTable() {
+export default class IndicatorTable extends React.Component {
 
-    const { name } = useParams();
-    const [columns, setColumns] = useState([]);
-    const [data, setData] = useState([]);
-    const [canAdd, setCanAdd] = useState(false);
-    const [editingKey, setEditingKey] = useState('');
+    constructor(props) {
+        super(props);
+        this.state = {
+            indicator: null,
+            colums: [],
+            data: [],
+            canAdd: false,
+            editingKey: '',
+        };
+    }
 
-    const isEditing = (record) => record._key === editingKey;
+    addRow = () => {
+        const { columns, data } = this.state;
+        const newData = {};
+        genKey(newData);
+        columns.forEach(d => {
+            if (d.dataIndex === 'date') {
+                newData.date = moment().format('YYYY-MM-DD');
+            } else if (d.dataIndex !== 'operation') {
+                newData[d.dataIndex] = null;
+            }
+        });
+        this.setState({
+            data: [...data, newData],
+            editingKey: newData._key
+        });
+    }
 
-    useEffect(() => {
+    isEditing(record) {
+        return record._key === this.state.editingKey;
+    }
+
+    componentDidMount() {
+        const { name } = this.props.match.params;
         fetch(`/api/getIndicatorList`)
             .then(res => res.json())
             .then(({ data: indicatorList }) => indicatorList.find(d => d.name === name))
@@ -77,11 +100,11 @@ export default function IndicatorTable() {
                         .then(response => response.json())
                         .then(({ data }) => {
                             data.forEach(d => genKey(d));
-                            setData(data);
+                            this.setState({ data })
                             return Object.keys(data[0]);
                         });
                 } else if (indicator.type === 0) {
-                    setCanAdd(true);
+                    this.setState({ canAdd: true })
                     return indicator.keyList.split(',');
                 }
             })
@@ -92,86 +115,59 @@ export default function IndicatorTable() {
                         dataIndex: 'date',
                         fixed: 'left',
                         editable: true,
-                        render: (text, record, index) => {
-                            console.log(record, editingKey);
-                            return isEditing(record) ? <DatePicker /> : text;
-                        }
+                        render: (text, record, index) => this.isEditing(record) ? <DatePicker /> : text
                     },
                     ...keys.filter(d => d !== 'date')
                         .map((d) => ({
                             title: d,
                             dataIndex: d,
                             editable: true,
-                            render: (text, record, index) => <span>{index}</span>
+                            render: (text, record, index) => this.isEditing(record) ? <InputNumber /> : text
                         })),
                     {
                         title: '操作',
                         dataIndex: 'operation',
                         editable: false,
-                        render: (text, record, index) => 1
+                        render: (text, record, index) => {
+                            return this.isEditing(record) ?
+                            (<><a>保存</a><a>取消</a></>) :
+                            (<><a>编辑</a><a>删除</a></>);
+                        }
                     }
                 ];
-                setColumns(columns);
+                this.setState({ columns: columns });
             });
-    }, [name]);
+    }
 
-    const addRow = () => {
-        const newData = {};
-        genKey(newData);
-        columns.forEach(d => {
-            if (d.dataIndex === 'date') {
-                newData.date = moment().format('YYYY-MM-DD');
-            } else if (d.dataIndex !== 'operation') {
-                newData[d.dataIndex] = null;
-            }
-        });
-        setData([...data, newData]);
-        setEditingKey(newData._key);
-    };
-
-    const mergedColumns = columns.map((col) => {
-        if (!col.editable) {
-          return col;
-        }
-
-        return {
-            ...col,
-            onCell: (record, rowIndex) => ({
-                record,
-                // inputType: col.dataIndex === 'age' ? 'number' : 'text',
-                dataIndex: col.dataIndex,
-                title: col.title,
-                editing: isEditing(record),
-            } && console.log(record, rowIndex)),
-        };
-    });
-
-    return (
-        <div style={{ padding: 10, width: '100%' }}>
-            {canAdd && <Button
-                onClick={addRow}
-                type='primary'
-                style={{
-                    margin: '16px 0',
-                }}
-            >
-                Add a row
-            </Button>}
-            <Form>
-                <Table
-                    // components={{
-                    //     body: {
-                    //         cell: EditableCell,
-                    //     },
-                    // }}
-                    dataSource={data}
-                    columns={columns}
-                    scroll={{ x: true }}
-                    rowKey='_key'
-                    bordered
-                ></Table>
-            </Form>
-        </div>
-    );
+    render() {
+        const { canAdd, columns, data } = this.state;
+        return (
+            <div style={{ padding: 10, width: '100%' }}>
+                {canAdd && <Button
+                    onClick={this.addRow}
+                    type='primary'
+                    style={{
+                        margin: '16px 0',
+                    }}
+                >
+                    Add a row
+                </Button>}
+                <Form>
+                    <Table
+                        // components={{
+                        //     body: {
+                        //         cell: EditableCell,
+                        //     },
+                        // }}
+                        dataSource={data}
+                        columns={columns}
+                        scroll={{ x: true }}
+                        rowKey='_key'
+                        bordered
+                    ></Table>
+                </Form>
+            </div>
+        );
+    }
 
 }
