@@ -7,9 +7,12 @@ import {
     Form,
     InputNumber,
     DatePicker,
-    Empty
+    message
 } from 'antd';
 import moment from 'moment';
+import {
+    MANUAL_UPDATE_INDICATOR
+} from '../../../constants/indicatorTypes.js';
 
 const genKey = (() => {
     let i = 0;
@@ -27,7 +30,7 @@ export default class IndicatorTable extends React.Component {
         super(props);
         this.state = {
             indicator: null,
-            colums: [],
+            columns: [],
             data: [],
             canAdd: false,
             editingKey: '',
@@ -78,26 +81,20 @@ export default class IndicatorTable extends React.Component {
     }
 
     componentDidMount() {
-        const { name } = this.props.match.params;
+        const { id } = this.props.match.params;
         fetch(`/api/getIndicatorList`)
             .then(res => res.json())
-            .then(({ data: indicatorList }) => indicatorList.find(d => d.name === name))
+            .then(({ data: indicatorList }) => indicatorList.find(d => d.id === id))
             .then((indicator) => {
-                if (!indicator) return [];
-                if (indicator.type === 1) {
-                    return fetch(`data/${name}.json`)
+                if (indicator) {
+                    return fetch(`data/${id}.json`)
                         .then(response => response.json())
-                        .then(({ data }) => {
-                            data.forEach(d => genKey(d));
-                            this.setState({ data })
-                            return Object.keys(data[0]);
-                        });
-                } else if (indicator.type === 0) {
-                    this.setState({ canAdd: true })
-                    return indicator.keyList.split(',');
+                } else {
+                    return Promise.reject('指标不存在');
                 }
             })
-            .then((keys) => {
+            .then(indicator => {
+                const keys = indicator.type === MANUAL_UPDATE_INDICATOR ? indicator.fieldList : Object.keys(indicator.data[0]);
                 const columns = [
                     {
                         title: 'date',
@@ -150,8 +147,14 @@ export default class IndicatorTable extends React.Component {
                         }
                     }
                 ];
-                this.setState({ columns: columns });
-            });
+                if (indicator.data) indicator.data.forEach(d => genKey(d));
+                this.setState({
+                    data: indicator.data || [],
+                    canAdd: indicator.type === MANUAL_UPDATE_INDICATOR,
+                    columns: columns
+                });
+            })
+            .catch(e => message.error(e.toString()));
     }
 
     render() {

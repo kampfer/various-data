@@ -10,7 +10,7 @@ export default function IndicatorTableRouter() {
     const { path } = useRouteMatch();
     return (
         <Switch>
-            <Route path={`${path}/:name`} component={IndicatorTable} />
+            <Route path={`${path}/:id`} component={IndicatorTable} />
         </Switch>
     );
 }

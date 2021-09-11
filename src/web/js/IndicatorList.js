@@ -32,15 +32,15 @@ export default class IndicatorList extends React.Component {
                 },
                 {
                     title: '描述',
-                    dataIndex: 'desc',
+                    dataIndex: 'description',
                 },
                 {
                     title: '操作',
                     dataIndex: 'action',
                     render: (text, record, /*index*/) => (
                         <Space size='middle'>
-                            <Link to={`/indicator/graph/${record.name}`}>查看图表</Link>
-                            <Link to={`/indicator/table/${record.name}`}>查看表格</Link>
+                            <Link to={`/indicator/graph/${record.id}`}>查看图表</Link>
+                            <Link to={`/indicator/table/${record.id}`}>查看表格</Link>
                             <a onClick={() => this.updateIndicator(record.name)}>更新</a>
                         </Space>
                     )
@@ -136,16 +136,13 @@ export default class IndicatorList extends React.Component {
                             wrapperCol={{ span: 18 }}
                             validateMessages={validateMessages}
                         >
-                            <Form.Item name="name" label="标记" rules={[{ required: true }]}>
+                            <Form.Item name="name" label="名称" rules={[{ required: true }]}>
                                 <Input />
                             </Form.Item>
-                            <Form.Item name="title" label="名称" rules={[{ required: true }]}>
+                            <Form.Item name="fieldList" label="字段列表" rules={[{ required: true }]}>
                                 <Input />
                             </Form.Item>
-                            <Form.Item name="keyList" label="字段列表" rules={[{ required: true }]}>
-                                <Input />
-                            </Form.Item>
-                            <Form.Item name="desc" label="描述">
+                            <Form.Item name="description" label="描述">
                                 <Input.TextArea />
                             </Form.Item>
                         </Form>
