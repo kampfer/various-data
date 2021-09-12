@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
     MANUAL_UPDATE_INDICATOR
 }  from './constants/indicatorTypes.js';
+import moment from 'moment';
 
 const app = express();
 app.use(bodyParser.json());
@@ -61,7 +62,7 @@ app.post('/api/addIndicator', async(req, res) => {
     const now = Date.now();
     const newIndicator = {
         ...req.body,
-        fieldList: req.body.fieldList.split(','),
+        fieldList: ['date', ...req.body.fieldList.split(',')],
         id: indicatorId,
         data: [],
         dataPath: path.join(DATA_STORE_PATH, `${indicatorId}.json`),    // 注意不允许保存在DATA_STORE_PATH的子目录中!
@@ -82,6 +83,24 @@ app.post('/api/addIndicator', async(req, res) => {
         fs.writeFileSync(newIndicator.dataPath, JSON.stringify(newIndicator, null, 4));
         // fs.writeFileSync(newIndicator.dataPath, JSON.stringify(newIndicator));
         res.json({ code: 200, data: newIndicator });
+    }
+});
+
+app.post('/api/addIndicatorRow', (req, res) => {
+    const id = req.body.id;
+    const row = req.body.row;
+    const indicatorData = JSON.parse(fs.readFileSync(path.join(DATA_STORE_PATH, `${id}.json`)));
+    const fieldList = indicatorData.fieldList;
+    const newRow = {};
+    fieldList.forEach(name => newRow[name] = row[name]);
+    const index = indicatorData.data.findIndex(d => d.date === newRow.date);
+    if (index > -1) {   // 存在date相同的数据，提示错误
+        res.json({ code: 201, msg: `${moment(newRow.date).format('YYYY-MM-DD')}已存在！` });
+    } else {
+        indicatorData.data.push(newRow);
+        indicatorData.updateTime = Date.now();
+        fs.writeFileSync(indicatorData.dataPath, JSON.stringify(indicatorData, null, 4));
+        res.json({ code: 200, data: newRow });
     }
 });
 

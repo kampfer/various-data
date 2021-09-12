@@ -14,13 +14,16 @@ import {
     MANUAL_UPDATE_INDICATOR
 } from '../../../constants/indicatorTypes.js';
 
+const KEY_NAME = '_key';
 const genKey = (() => {
     let i = 0;
     return (d) => {
-        d._key = i++;
+        d[KEY_NAME] = i++;
         return d;
     };
 })();
+
+const getKey = (d) => d[KEY_NAME];
 
 const dateFormat = 'YYYY-MM-DD';
 
@@ -51,24 +54,40 @@ export default class IndicatorTable extends React.Component {
         });
         this.setState({
             data: [...data, newData],
-            editingKey: newData._key
+            editingKey: getKey(newData)
         });
     }
 
-    save = async () => {
-        const { editingKey, data } = this.state;
+    save(rowKey) {
+        const { data } = this.state;
+        const { id } = this.props.match.params;
         this.formRef.current.validateFields().then((values) => {
-            const newData = [...data];
-            const index = newData.findIndex(d => d._key === editingKey);
-            values.date = values.date.format(dateFormat);
-            if (index > -1) {
-                const item = newData[index];
-                newData.splice(index, 1, { ...item, ...values });
-            } else {
-                newData.push(genKey(values));
-            }
-            this.setState({ data: newData, editingKey: '' });
-            this.formRef.current.resetFields();
+            values.date = values.date.valueOf();
+            fetch(`/api/addIndicatorRow`, {
+                body: JSON.stringify({ id, row: values }),
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(json => {
+                if (json.code === 200) return json;
+                return Promise.reject(json.msg);
+            })
+            .then(({ code, data: newRow }) => {
+                const newData = [...data];
+                const index = newData.findIndex(d => getKey(d) === rowKey);
+                if (index > -1) {
+                    const item = newData[index];
+                    newData.splice(index, 1, { ...item, ...newRow });
+                } else {
+                    newData.push(genKey(newRow));
+                }
+                this.setState({ data: newData, editingKey: '' });
+                this.formRef.current.resetFields();
+            })
+            .catch(e => message.error(e.toString()));
         });
     }
 
@@ -77,7 +96,7 @@ export default class IndicatorTable extends React.Component {
     }
 
     isEditing(record) {
-        return record._key === this.state.editingKey;
+        return getKey(record) === this.state.editingKey;
     }
 
     componentDidMount() {
@@ -137,11 +156,11 @@ export default class IndicatorTable extends React.Component {
                         render: (text, record, index) => {
                             return this.isEditing(record) ?
                             (<>
-                                <Button type="link" onClick={this.save}>保存</Button>
+                                <Button type="link" onClick={() => this.save(getKey(record))}>保存</Button>
                                 <Button type="link">取消</Button>
                             </>) :
                             (<>
-                                <Button type="link" onClick={() => this.edit(record._key)}>编辑</Button>
+                                <Button type="link" onClick={() => this.edit(getKey(record))}>编辑</Button>
                                 <Button type="link">删除</Button>
                             </>);
                         }
@@ -180,7 +199,7 @@ export default class IndicatorTable extends React.Component {
                         dataSource={data}
                         columns={columns}
                         scroll={{ x: true }}
-                        rowKey='_key'
+                        rowKey={KEY_NAME}
                         bordered
                     ></Table>
                 </Form>
