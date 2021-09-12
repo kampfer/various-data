@@ -13,6 +13,7 @@ import moment from 'moment';
 import {
     MANUAL_UPDATE_INDICATOR
 } from '../../../constants/indicatorTypes.js';
+import * as request from '../utils/request.js';
 
 const KEY_NAME = '_key';
 const genKey = (() => {
@@ -37,66 +38,84 @@ export default class IndicatorTable extends React.Component {
             data: [],
             canAdd: false,
             editingKey: '',
+            addingKey: undefined,
         };
         this.formRef = React.createRef();
     }
 
     addRow = () => {
         const { columns, data } = this.state;
-        const newData = {};
-        genKey(newData);
+        const { id } = this.props.match.params;
+        const newData = genKey({});
         columns.forEach(d => {
-            if (d.dataIndex === 'date') {
-                newData.date = moment().format('YYYY-MM-DD');
-            } else if (d.dataIndex !== 'operation') {
-                newData[d.dataIndex] = null;
+            if (d.dataIndex !== 'operation') {
+                newData[d.dataIndex] = undefined;
             }
         });
         this.setState({
             data: [...data, newData],
-            editingKey: getKey(newData)
+            // editingKey: getKey(newData),
+            addingKey: getKey(newData)
         });
     }
 
     save(rowKey) {
-        const { data } = this.state;
+        const { data, addingKey, editingKey } = this.state;
         const { id } = this.props.match.params;
         this.formRef.current.validateFields().then((values) => {
-            values.date = values.date.valueOf();
-            fetch(`/api/addIndicatorRow`, {
-                body: JSON.stringify({ id, row: values }),
-                method: 'POST',
-                headers: {
-                    'content-type': 'application/json'
-                }
-            })
+            values.date = values.date.millisecond(0).second(0).minute(0).hour(0).valueOf();
+            request.post(
+                addingKey ? '/api/addIndicatorRow' : '/api/updateIndicatorRow',
+                { id, row: values }
+            )
+                .then(({ code, data: newRow }) => {
+                    const newData = [...data];
+                    const index = newData.findIndex(d => getKey(d) === rowKey);
+                    if (index > -1) {
+                        const item = newData[index];
+                        newData.splice(index, 1, { ...item, ...newRow });
+                    } else {
+                        newData.push(genKey(newRow));
+                    }
+                    this.setState({ data: newData, editingKey: undefined, addingKey: undefined });
+                    this.formRef.current.resetFields();
+                })
+                .catch(e => message.error(e.toString()));
+        });
+    }
+
+    delete(id, date) {
+        fetch(`/api/deleteIndicatorRow?id=${id}&date=${date || ''}`)
             .then(res => res.json())
             .then(json => {
                 if (json.code === 200) return json;
                 return Promise.reject(json.msg);
             })
-            .then(({ code, data: newRow }) => {
+            .then(() => {
+                const { data } = this.state;
                 const newData = [...data];
-                const index = newData.findIndex(d => getKey(d) === rowKey);
+                const index = newData.findIndex(d => d.date === date);
                 if (index > -1) {
-                    const item = newData[index];
-                    newData.splice(index, 1, { ...item, ...newRow });
-                } else {
-                    newData.push(genKey(newRow));
+                    newData.splice(index, 1);
+                    this.setState({ data: newData });
                 }
-                this.setState({ data: newData, editingKey: '' });
-                this.formRef.current.resetFields();
             })
-            .catch(e => message.error(e.toString()));
-        });
     }
 
     edit(key) {
         this.setState({ editingKey: key });
     }
 
+    cancel() {
+        this.setState({ editingKey: undefined, addingKey: undefined });
+    }
+
     isEditing(record) {
         return getKey(record) === this.state.editingKey;
+    }
+
+    isAdding(record) {
+        return getKey(record) === this.state.addingKey;
     }
 
     componentDidMount() {
@@ -121,9 +140,9 @@ export default class IndicatorTable extends React.Component {
                         fixed: 'left',
                         width: 150,
                         render: (text, record, index) => {
-                            if (this.isEditing(record)) {
+                            if (this.isEditing(record) || this.isAdding(record)) {
                                 return (
-                                    <Form.Item name="date" initialValue={moment(text, dateFormat)}>
+                                    <Form.Item name="date" initialValue={moment(text)}>
                                         <DatePicker format={dateFormat} />
                                     </Form.Item>
                                 )
@@ -137,7 +156,7 @@ export default class IndicatorTable extends React.Component {
                             title: d,
                             dataIndex: d,
                             render: (text, record, index) => {
-                                if (this.isEditing(record)) {
+                                if (this.isEditing(record) || this.isAdding(record)) {
                                     return (
                                         <Form.Item name={d} initialValue={text}>
                                             <InputNumber />
@@ -154,14 +173,15 @@ export default class IndicatorTable extends React.Component {
                         align: 'center',
                         width: 200,
                         render: (text, record, index) => {
-                            return this.isEditing(record) ?
+                            const { addingKey, editingKey } = this.state;
+                            return (this.isEditing(record) || this.isAdding(record)) ?
                             (<>
                                 <Button type="link" onClick={() => this.save(getKey(record))}>保存</Button>
-                                <Button type="link">取消</Button>
+                                <Button type="link" onClick={() => this.cancel()}>取消</Button>
                             </>) :
                             (<>
-                                <Button type="link" onClick={() => this.edit(getKey(record))}>编辑</Button>
-                                <Button type="link">删除</Button>
+                                <Button type="link" onClick={() => this.edit(getKey(record))} disabled={addingKey || editingKey}>编辑</Button>
+                                <Button type="link" onClick={() => this.delete(id, record.date)} disabled={addingKey || editingKey}>删除</Button>
                             </>);
                         }
                     }

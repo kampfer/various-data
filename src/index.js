@@ -104,6 +104,41 @@ app.post('/api/addIndicatorRow', (req, res) => {
     }
 });
 
+// TODO addIndicatorRow和saveIndicatorRow逻辑类似，可以考虑提取共用逻辑
+app.post('/api/updateIndicatorRow', (req, res) => {
+    const id = req.body.id;
+    const row = req.body.row;
+    const indicatorData = JSON.parse(fs.readFileSync(path.join(DATA_STORE_PATH, `${id}.json`)));
+    const fieldList = indicatorData.fieldList;
+    const newRow = {};
+    fieldList.forEach(name => newRow[name] = row[name]);
+    const index = indicatorData.data.findIndex(d => d.date === newRow.date);
+    if (index > -1) {
+        const row = indicatorData.data[index];
+        indicatorData.data.splice(index, 1, { ...row, ...newRow });
+        fs.writeFileSync(indicatorData.dataPath, JSON.stringify(indicatorData, null, 4));
+        res.json({ code: 200, data: newRow });
+    } else {
+        // indicatorData.data.push(newRow);
+        // indicatorData.updateTime = Date.now();
+        // fs.writeFileSync(indicatorData.dataPath, JSON.stringify(indicatorData, null, 4));
+        // res.json({ code: 200, data: newRow });
+        res.json({ code: 201, msg: `${moment(newRow.date).format('YYYY-MM-DD')}不存在！` });
+    }
+});
+
+app.get('/api/deleteIndicatorRow', (req, res) => {
+    const id = req.query.id;
+    const date = parseFloat(req.query.date, 10);
+    const indicatorData = JSON.parse(fs.readFileSync(path.join(DATA_STORE_PATH, `${id}.json`)));
+    const index = indicatorData.data.findIndex(d => d.date === date);
+    if (index > -1) {
+        indicatorData.data.splice(index, 1);
+        fs.writeFileSync(indicatorData.dataPath, JSON.stringify(indicatorData, null, 4));
+    }
+    res.json({ code: 200 });
+});
+
 app.listen(3000);
 
 console.log(`listening 3000`);
