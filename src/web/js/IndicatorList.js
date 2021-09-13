@@ -41,7 +41,7 @@ export default class IndicatorList extends React.Component {
                         <Space size='middle'>
                             <Link to={`/indicator/graph/${record.id}`}>查看图表</Link>
                             <Link to={`/indicator/table/${record.id}`}>查看表格</Link>
-                            <a onClick={() => this.updateIndicator(record.name)}>更新</a>
+                            <a onClick={() => this.updateIndicator(record.id)}>更新</a>
                         </Space>
                     )
                 }
@@ -76,13 +76,13 @@ export default class IndicatorList extends React.Component {
         });
     }
 
-    updateIndicator = (name) => {
-        if (name) {
+    updateIndicator = (id) => {
+        if (id) {
             this.setState({loading: true});
-            fetch(`/api/update?name=${name}`)
+            fetch(`/api/update?name=${id}`)
                 .then(res => res.json())
                 .then(json => {
-                    if (json.code === 200) message.success(`${name}更新成功`);
+                    if (json.code === 200) message.success(`${id}更新成功`);
                 })
                 .finally(() => this.setState({ loading: false }));
         }

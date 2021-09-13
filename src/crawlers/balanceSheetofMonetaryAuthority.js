@@ -81,7 +81,7 @@ export default async function balanceSheetofMonetaryAuthority() {
     // console.log(data);
     await driver.quit();
     return {
-        name: 'Balance Sheet of Monetary Authority',
+        name: 'balanceSheetOfMonetaryAuthority',
         description: '货币当局资产负债表',
         source: 'http://www.pbc.gov.cn/diaochatongjisi/116219/116319/index.html',
         data

@@ -24,7 +24,8 @@ export default function MoneySupplyGraph() {
                     },
                     tooltip: {
                         dateTimeLabelFormats: {
-                            day: '%Y-%m-%d'
+                            day: '%Y-%m-%d',
+                            month: '%Y-%m'
                         }
                     },
                     series: [{

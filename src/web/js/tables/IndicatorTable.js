@@ -37,7 +37,7 @@ export default class IndicatorTable extends React.Component {
             columns: [],
             data: [],
             canAdd: false,
-            editingKey: '',
+            editingKey: undefined,
             addingKey: undefined,
         };
         this.formRef = React.createRef();
@@ -65,7 +65,7 @@ export default class IndicatorTable extends React.Component {
         this.formRef.current.validateFields().then((values) => {
             values.date = values.date.millisecond(0).second(0).minute(0).hour(0).valueOf();
             request.post(
-                addingKey ? '/api/addIndicatorRow' : '/api/updateIndicatorRow',
+                addingKey !== undefined ? '/api/addIndicatorRow' : '/api/updateIndicatorRow',
                 { id, row: values }
             )
                 .then(({ code, data: newRow }) => {
@@ -108,6 +108,7 @@ export default class IndicatorTable extends React.Component {
 
     cancel() {
         this.setState({ editingKey: undefined, addingKey: undefined });
+        this.formRef.current.resetFields();
     }
 
     isEditing(record) {
@@ -147,7 +148,7 @@ export default class IndicatorTable extends React.Component {
                                     </Form.Item>
                                 )
                             } else {
-                                return text;
+                                return moment(text).format(dateFormat);
                             }
                         }
                     },
@@ -180,8 +181,20 @@ export default class IndicatorTable extends React.Component {
                                 <Button type="link" onClick={() => this.cancel()}>取消</Button>
                             </>) :
                             (<>
-                                <Button type="link" onClick={() => this.edit(getKey(record))} disabled={addingKey || editingKey}>编辑</Button>
-                                <Button type="link" onClick={() => this.delete(id, record.date)} disabled={addingKey || editingKey}>删除</Button>
+                                <Button
+                                    type="link"
+                                    onClick={() => this.edit(getKey(record))}
+                                    disabled={addingKey !== undefined || editingKey !== undefined}
+                                >
+                                    编辑
+                                </Button>
+                                <Button
+                                    type="link"
+                                    onClick={() => this.delete(id, record.date)}
+                                    disabled={addingKey !== undefined || editingKey !== undefined}
+                                >
+                                    删除
+                                </Button>
                             </>);
                         }
                     }
