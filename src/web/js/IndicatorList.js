@@ -12,6 +12,9 @@ import {
 import {
     Link
 } from "react-router-dom";
+import {
+    AUTO_UPDATE_INDICATOR
+} from '../../constants/indicatorTypes.js';
 
 import 'antd/dist/antd.css';
 import './IndicatorList.css';
@@ -24,7 +27,6 @@ export default class IndicatorList extends React.Component {
         super(props);
 
         this.state = {
-            indicatorList: [],
             columns: [
                 {
                     title: '名称',
@@ -37,13 +39,15 @@ export default class IndicatorList extends React.Component {
                 {
                     title: '操作',
                     dataIndex: 'action',
-                    render: (text, record, /*index*/) => (
-                        <Space size='middle'>
-                            <Link to={`/indicator/graph/${record.id}`}>查看图表</Link>
-                            <Link to={`/indicator/table/${record.id}`}>查看表格</Link>
-                            <a onClick={() => this.updateIndicator(record.id)}>更新</a>
-                        </Space>
-                    )
+                    render: (text, record, /*index*/) => {
+                        return (
+                            <Space size='middle'>
+                                <Link to={`/indicator/graph/${record.graph}`}>查看图表</Link>
+                                <Link to={`/indicator/table/${record.id}`}>查看表格</Link>
+                                { !record.type && <a onClick={() => this.updateIndicator(record.id)}>更新</a> }
+                            </Space>
+                        );
+                    }
                 }
             ],
             loading: false,
@@ -65,8 +69,7 @@ export default class IndicatorList extends React.Component {
                     .then(res => res.json())
                     .then(({ code, msg, data }) => {
                         if (code === 200) {
-                            const { indicatorList } = this.state;
-                            this.setState({ indicatorList: [...indicatorList, data]});
+                            this.props.onAddIndicator(data);
                             this.hideNewIndicatorModal();
                         } else {
                             message.error(msg);
@@ -96,16 +99,9 @@ export default class IndicatorList extends React.Component {
         this.setState({ newIndicatorVisible: false });
     }
 
-    componentDidMount() {
-        fetch(`/api/getIndicatorList`)
-            .then(res => res.json())
-            .then(({ data }) => {
-                this.setState({ indicatorList: data });
-            });
-    }
-
     render() {
-        const { indicatorList, columns, newIndicatorVisible } = this.state;
+        const { columns, newIndicatorVisible } = this.state;
+        const { indicatorList } = this.props;
         const validateMessages = {
             required: '${label} is required!',
         };
@@ -140,6 +136,9 @@ export default class IndicatorList extends React.Component {
                                 <Input />
                             </Form.Item>
                             <Form.Item name="fieldList" label="字段列表" rules={[{ required: true }]}>
+                                <Input />
+                            </Form.Item>
+                            <Form.Item name="graph" label="图表" rules={[{ required: true }]}>
                                 <Input />
                             </Form.Item>
                             <Form.Item name="description" label="描述">

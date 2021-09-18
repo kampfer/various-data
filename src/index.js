@@ -39,6 +39,7 @@ app.get('/api/getIndicatorList', async (req, res) => {
     const data = indicatorFiles.map(filePath => {
             const indicatorData = JSON.parse(fs.readFileSync(filePath));
             if (!indicatorData.id) indicatorData.id = indicatorData.name;   // 旧数据没有id，用name代替
+            if (!indicatorData.graph) indicatorData.graph = indicatorData.name;
             if (!indicatorData.fieldList) indicatorData.fieldList = Object.keys(indicatorData.data[0]);
             delete indicatorData.data;  // 这个接口不需要data，而且data可能很大，所以删除掉
             return indicatorData;

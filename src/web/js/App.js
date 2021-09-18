@@ -6,16 +6,31 @@ import {
     Redirect,
 } from 'react-router-dom';
 import IndicatorList from './IndicatorList.js';
-import IndicatorGraphRouter from './graphs/index.js';
-import IndicatorTableRouter from './tables/index.js';
+import IndicatorGraphRouter from './IndicatorGraphRouter.js';
+import IndicatorTableRouter from './IndicatorTableRouter.js';
 
 export default class App extends React.Component {
 
-    // constructor(props) {
-    //     super(props);
-    // }
+    constructor(props) {
+        super(props);
+        this.state = { indicatorList: [] };
+    }
+
+    addIndicator(data) {
+        const { indicatorList } = this.state;
+        this.setState({ indicatorList: [...indicatorList, data]});
+    }
+
+    componentDidMount() {
+        fetch(`/api/getIndicatorList`)
+            .then(res => res.json())
+            .then(({ data }) => {
+                this.setState({ indicatorList: data });
+            });
+    }
 
     render() {
+        const { indicatorList } = this.state;
         return (
             <Router>
                 <Switch>
@@ -23,13 +38,13 @@ export default class App extends React.Component {
                         <Redirect to='/indicators' />
                     </Route>
                     <Route path='/indicators'>
-                        <IndicatorList />
+                        <IndicatorList indicatorList={indicatorList} onAddIndicator={this.addIndicator}/>
                     </Route>
                     <Route path='/indicator/table'>
-                        <IndicatorTableRouter />
+                        <IndicatorTableRouter indicatorList={indicatorList} />
                     </Route>
                     <Route path='/indicator/graph'>
-                        <IndicatorGraphRouter />
+                        <IndicatorGraphRouter indicatorList={indicatorList} />
                     </Route>
                 </Switch>
             </Router>

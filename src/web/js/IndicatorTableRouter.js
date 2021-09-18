@@ -4,7 +4,7 @@ import {
     Route,
     useRouteMatch,
 } from 'react-router-dom';
-import IndicatorTable from './IndicatorTable.js';
+import IndicatorTable from './tables/IndicatorTable.js';
 
 export default function IndicatorTableRouter() {
     const { path } = useRouteMatch();
