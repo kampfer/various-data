@@ -7,13 +7,15 @@ import {
     Button,
     Modal,
     Form,
-    Input
+    Input,
+    Radio
 } from 'antd';
 import {
     Link
 } from "react-router-dom";
 import {
-    AUTO_UPDATE_INDICATOR
+    AUTO_UPDATE_INDICATOR,
+    MANUAL_UPDATE_INDICATOR,
 } from '../../constants/indicatorTypes.js';
 
 import 'antd/dist/antd.css';
@@ -27,6 +29,7 @@ export default class IndicatorList extends React.Component {
         super(props);
 
         this.state = {
+            indicatorType: AUTO_UPDATE_INDICATOR,
             columns: [
                 {
                     title: '名称',
@@ -45,6 +48,7 @@ export default class IndicatorList extends React.Component {
                                 <Link to={`/indicator/graph/${record.graph}`}>查看图表</Link>
                                 <Link to={`/indicator/table/${record.id}`}>查看表格</Link>
                                 { !record.type && <a onClick={() => this.updateIndicator(record.id)}>更新</a> }
+                                <a onClick={() => this.deleteIndicator(record.id)}>删除</a>
                             </Space>
                         );
                     }
@@ -79,13 +83,28 @@ export default class IndicatorList extends React.Component {
         });
     }
 
-    updateIndicator = (id) => {
+    updateIndicator(id) {
         if (id) {
             this.setState({loading: true});
-            fetch(`/api/update?name=${id}`)
+            fetch(`/api/updateIndicator?name=${id}`)
                 .then(res => res.json())
                 .then(json => {
                     if (json.code === 200) message.success(`${id}更新成功`);
+                })
+                .finally(() => this.setState({ loading: false }));
+        }
+    }
+
+    deleteIndicator(id) {
+        if (id) {
+            this.setState({loading: true});
+            fetch(`/api/deleteIndicator?id=${id}`)
+                .then(res => res.json())
+                .then(json => {
+                    if (json.code === 200) {
+                        this.props.onDeleteIndicator(id);
+                        message.success(`删除成功`);
+                    }
                 })
                 .finally(() => this.setState({ loading: false }));
         }
@@ -100,7 +119,7 @@ export default class IndicatorList extends React.Component {
     }
 
     render() {
-        const { columns, newIndicatorVisible } = this.state;
+        const { columns, newIndicatorVisible, indicatorType } = this.state;
         const { indicatorList } = this.props;
         const validateMessages = {
             required: '${label} is required!',
@@ -132,15 +151,27 @@ export default class IndicatorList extends React.Component {
                             wrapperCol={{ span: 18 }}
                             validateMessages={validateMessages}
                         >
-                            <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+                            <Form.Item name="name" label="指标名称" rules={[{ required: true }]}>
                                 <Input />
+                            </Form.Item>
+                            <Form.Item name="type" label="维护方式" rules={[{ required: true }]}>
+                                <Radio.Group value={indicatorType} onChange={(e) => this.setState({ indicatorType: e.target.value })}>
+                                    <Radio value={AUTO_UPDATE_INDICATOR}>自动</Radio>
+                                    <Radio value={MANUAL_UPDATE_INDICATOR}>手动</Radio>
+                                </Radio.Group>
                             </Form.Item>
                             <Form.Item name="fieldList" label="字段列表" rules={[{ required: true }]}>
                                 <Input />
                             </Form.Item>
-                            <Form.Item name="graph" label="图表" rules={[{ required: true }]}>
+                            <Form.Item name="graph" label="图表名" rules={[{ required: true }]}>
                                 <Input />
                             </Form.Item>
+                            {
+                                indicatorType === AUTO_UPDATE_INDICATOR &&
+                                <Form.Item name="graph" label="爬虫名" rules={[{ required: true }]}>
+                                    <Input />
+                                </Form.Item>
+                            }
                             <Form.Item name="description" label="描述">
                                 <Input.TextArea />
                             </Form.Item>

@@ -6,16 +6,19 @@ import { ROOT_PATH, DATA_STORE_PATH } from './constants.js';
 import bodyParser from 'body-parser';    //解析,用req.body获取post参数
 import { v4 as uuidv4 } from 'uuid';
 import {
+    AUTO_UPDATE_INDICATOR,
     MANUAL_UPDATE_INDICATOR
 }  from './constants/indicatorTypes.js';
 import moment from 'moment';
+
+const getDataPath = (id) => path.join(DATA_STORE_PATH, `${id}.json`);
 
 const app = express();
 app.use(bodyParser.json());
 app.use(express.static(path.resolve(ROOT_PATH, 'dist/web')));
 app.use('/data', express.static(DATA_STORE_PATH));
 
-app.get('/api/update', async (req, res) => {
+app.get('/api/updateIndicator', async (req, res) => {
     const name = req.query.name;
     const crawler = crawlers[name];
     if (crawler) {
@@ -41,6 +44,8 @@ app.get('/api/getIndicatorList', async (req, res) => {
             if (!indicatorData.id) indicatorData.id = indicatorData.name;   // 旧数据没有id，用name代替
             if (!indicatorData.graph) indicatorData.graph = indicatorData.name;
             if (!indicatorData.fieldList) indicatorData.fieldList = Object.keys(indicatorData.data[0]);
+            if (indicatorData.type === undefined) indicatorData.type = AUTO_UPDATE_INDICATOR;   // 旧数据没有type，设置一个默认值
+            indicatorData.dataCount = indicatorData.data.length;
             delete indicatorData.data;  // 这个接口不需要data，而且data可能很大，所以删除掉
             return indicatorData;
         })
@@ -61,13 +66,17 @@ app.get('/api/getIndicatorList', async (req, res) => {
 app.post('/api/addIndicator', async(req, res) => {
     const indicatorId = uuidv4();
     const now = Date.now();
+    const { name, description, graph, fieldList, crawler, type } = req.body;
     const newIndicator = {
-        ...req.body,
-        fieldList: ['date', ...req.body.fieldList.split(',')],
+        name,
+        description,
+        graph,
+        crawler,
+        type,
+        fieldList: ['date', ...fieldList.split(',')],
         id: indicatorId,
         data: [],
         dataPath: path.join(DATA_STORE_PATH, `${indicatorId}.json`),    // 注意不允许保存在DATA_STORE_PATH的子目录中!
-        type: MANUAL_UPDATE_INDICATOR,
         createTime: now,
         updateTime: now,
     };
@@ -85,6 +94,16 @@ app.post('/api/addIndicator', async(req, res) => {
         // fs.writeFileSync(newIndicator.dataPath, JSON.stringify(newIndicator));
         res.json({ code: 200, data: newIndicator });
     }
+});
+
+app.get('/api/deleteIndicator', (req, res) => {
+    const { id } = req.query;
+    try {
+        fs.rmSync((getDataPath(id)));
+    } catch(e) {
+        // noop
+    }
+    res.json({ code: 200 });
 });
 
 app.post('/api/addIndicatorRow', (req, res) => {

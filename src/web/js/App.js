@@ -18,7 +18,14 @@ export default class App extends React.Component {
 
     addIndicator(data) {
         const { indicatorList } = this.state;
-        this.setState({ indicatorList: [...indicatorList, data]});
+        this.setState({ indicatorList: [...indicatorList, data] });
+    }
+
+    deleteIndicator(id) {
+        const { indicatorList } = this.state;
+        const index = indicatorList.findIndex(d => d.id === id);
+        indicatorList.splice(index, 1);
+        this.setState({ indicatorList: [...indicatorList] });
     }
 
     componentDidMount() {
@@ -38,7 +45,7 @@ export default class App extends React.Component {
                         <Redirect to='/indicators' />
                     </Route>
                     <Route path='/indicators'>
-                        <IndicatorList indicatorList={indicatorList} onAddIndicator={this.addIndicator}/>
+                        <IndicatorList indicatorList={indicatorList} onAddIndicator={(data) => this.addIndicator(data)} onDeleteIndicator={(id) => this.deleteIndicator(id)} />
                     </Route>
                     <Route path='/indicator/table'>
                         <IndicatorTableRouter indicatorList={indicatorList} />
