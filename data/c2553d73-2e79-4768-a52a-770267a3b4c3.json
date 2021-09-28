@@ -1,0 +1,13 @@
+{
+    "name": "创业板日k",
+    "description": "创业板日k数据，来源：东方财富",
+    "graph": "ZS399006Graph",
+    "crawler": "zs399006",
+    "type": 0,
+    "fieldList": null,
+    "id": "c2553d73-2e79-4768-a52a-770267a3b4c3",
+    "data": [],
+    "dataPath": "d:\\work\\various-data\\data\\c2553d73-2e79-4768-a52a-770267a3b4c3.json",
+    "createTime": 1632795975525,
+    "updateTime": 1632795975525
+}

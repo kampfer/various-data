@@ -13,31 +13,7 @@ import moment from 'moment';
 
 const getDataPath = (id) => path.join(DATA_STORE_PATH, `${id}.json`);
 
-const app = express();
-app.use(bodyParser.json());
-app.use(express.static(path.resolve(ROOT_PATH, 'dist/web')));
-app.use('/data', express.static(DATA_STORE_PATH));
-
-app.get('/api/updateIndicator', async (req, res) => {
-    const name = req.query.name;
-    const crawler = crawlers[name];
-    if (crawler) {
-        console.log(`开始抓取${name}数据`);
-        const data = await crawler();
-        console.log(`成功抓取${name}数据`);
-        fs.writeFileSync(
-            path.join(DATA_STORE_PATH, `${name}.json`),
-            JSON.stringify(data)
-        );
-        res.json({
-            code: 200
-        });
-    } else {
-        res.json({ code: 202, msg: '爬虫不存在' });
-    }
-});
-
-app.get('/api/getIndicatorList', async (req, res) => {
+const getIndicatorList = () => {
     const indicatorFiles = fs.readdirSync(DATA_STORE_PATH)
         .filter(fileName => path.extname(fileName) === '.json')
         .map(fileName => path.join(DATA_STORE_PATH, fileName));
@@ -62,6 +38,38 @@ app.get('/api/getIndicatorList', async (req, res) => {
                 return 0;
             }
         });
+    return data;
+};
+
+const indicatorList = getIndicatorList();
+
+const app = express();
+app.use(bodyParser.json());
+app.use(express.static(path.resolve(ROOT_PATH, 'dist/web')));
+app.use('/data', express.static(DATA_STORE_PATH));
+
+app.get('/api/updateIndicator', async (req, res) => {
+    const name = req.query.name;
+    let crawler = crawlers[name];
+    if (!crawler) crawler= crawlers[indicatorList.find(d => d.id === name).crawler];
+    if (crawler) {
+        console.log(`开始抓取${name}数据`);
+        const data = await crawler();
+        console.log(`成功抓取${name}数据`);
+        fs.writeFileSync(
+            path.join(DATA_STORE_PATH, `${name}.json`),
+            JSON.stringify(data)
+        );
+        res.json({
+            code: 200
+        });
+    } else {
+        res.json({ code: 202, msg: '爬虫不存在' });
+    }
+});
+
+app.get('/api/getIndicatorList', async (req, res) => {
+    const data = getIndicatorList();
     res.json({code: 200, data });
 });
 
