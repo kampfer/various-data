@@ -11,7 +11,7 @@ import {
     Radio
 } from 'antd';
 import {
-    Link
+    NavLink
 } from "react-router-dom";
 import {
     AUTO_UPDATE_INDICATOR,
@@ -45,8 +45,8 @@ export default class IndicatorList extends React.Component {
                     render: (text, record, /*index*/) => {
                         return (
                             <Space size='middle'>
-                                <Link to={`/indicator/graph/${record.graph}`}>查看图表</Link>
-                                <Link to={`/indicator/table/${record.id}`}>查看表格</Link>
+                                { record.dataCount > 0 && <NavLink to={`/indicator/graph/${record.graph}`}>查看图表</NavLink> }
+                                { record.type === MANUAL_UPDATE_INDICATOR || record.dataCount > 0 && <NavLink to={`/indicator/table/${record.id}`}>查看表格</NavLink> }
                                 { !record.type && <a onClick={() => this.updateIndicator(record.id)}>更新</a> }
                                 <a onClick={() => this.deleteIndicator(record.id)}>删除</a>
                             </Space>
@@ -89,7 +89,11 @@ export default class IndicatorList extends React.Component {
             fetch(`/api/updateIndicator?name=${id}`)
                 .then(res => res.json())
                 .then(json => {
-                    if (json.code === 200) message.success(`${id}更新成功`);
+                    if (json.code === 200) {
+                        message.success(`${id}更新成功`);
+                    } else {
+                        message.error(json.msg);
+                    }
                 })
                 .finally(() => this.setState({ loading: false }));
         }
@@ -160,15 +164,18 @@ export default class IndicatorList extends React.Component {
                                     <Radio value={MANUAL_UPDATE_INDICATOR}>手动</Radio>
                                 </Radio.Group>
                             </Form.Item>
-                            <Form.Item name="fieldList" label="字段列表" rules={[{ required: true }]}>
-                                <Input />
-                            </Form.Item>
                             <Form.Item name="graph" label="图表名" rules={[{ required: true }]}>
                                 <Input />
                             </Form.Item>
                             {
+                                indicatorType === MANUAL_UPDATE_INDICATOR &&
+                                <Form.Item name="fieldList" label="字段列表" rules={[{ required: true }]}>
+                                    <Input />
+                                </Form.Item>
+                            }
+                            {
                                 indicatorType === AUTO_UPDATE_INDICATOR &&
-                                <Form.Item name="graph" label="爬虫名" rules={[{ required: true }]}>
+                                <Form.Item name="crawler" label="爬虫名" rules={[{ required: true }]}>
                                     <Input />
                                 </Form.Item>
                             }

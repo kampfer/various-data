@@ -119,94 +119,89 @@ export default class IndicatorTable extends React.Component {
         return getKey(record) === this.state.addingKey;
     }
 
-    componentDidMount() {
-        const { id } = this.props.match.params;
-        fetch(`/api/getIndicatorList`)
-            .then(res => res.json())
-            .then(({ data: indicatorList }) => indicatorList.find(d => d.id === id))
-            .then((indicator) => {
-                if (indicator) {
-                    return fetch(`data/${id}.json`)
-                        .then(response => response.json())
-                } else {
-                    return Promise.reject('指标不存在');
-                }
-            })
-            .then(indicator => {
-                const keys = indicator.type === MANUAL_UPDATE_INDICATOR ? indicator.fieldList : Object.keys(indicator.data[0]);
-                const columns = [
-                    {
-                        title: 'date',
-                        dataIndex: 'date',
-                        fixed: 'left',
-                        width: 150,
-                        render: (text, record, index) => {
-                            if (this.isEditing(record) || this.isAdding(record)) {
-                                return (
-                                    <Form.Item name="date" initialValue={moment(text)}>
-                                        <DatePicker format={dateFormat} />
-                                    </Form.Item>
-                                )
-                            } else {
-                                return moment(text).format(dateFormat);
-                            }
-                        }
-                    },
-                    ...keys.filter(d => d !== 'date')
-                        .map((d) => ({
-                            title: d,
-                            dataIndex: d,
+    componentDidUpdate() {
+        const { indicatorList, id } = this.props;
+        const indicator = indicatorList.find(d => d.id === id);
+        if (indicator) {
+            fetch(`data/${id}.json`)
+                .then(response => response.json())
+                .then(indicator => {
+                    const keys = indicator.type === MANUAL_UPDATE_INDICATOR ? indicator.fieldList : Object.keys(indicator.data[0]);
+                    const columns = [
+                        {
+                            title: 'date',
+                            dataIndex: 'date',
+                            fixed: 'left',
+                            width: 150,
                             render: (text, record, index) => {
                                 if (this.isEditing(record) || this.isAdding(record)) {
                                     return (
-                                        <Form.Item name={d} initialValue={text}>
-                                            <InputNumber />
+                                        <Form.Item name="date" initialValue={moment(text)}>
+                                            <DatePicker format={dateFormat} />
                                         </Form.Item>
                                     )
                                 } else {
-                                    return text;
+                                    return moment(text).format(dateFormat);
                                 }
                             }
-                        })),
-                    {
-                        title: '操作',
-                        dataIndex: 'operation',
-                        align: 'center',
-                        width: 200,
-                        render: (text, record, index) => {
-                            const { addingKey, editingKey } = this.state;
-                            return (this.isEditing(record) || this.isAdding(record)) ?
-                            (<>
-                                <Button type="link" onClick={() => this.save(getKey(record))}>保存</Button>
-                                <Button type="link" onClick={() => this.cancel()}>取消</Button>
-                            </>) :
-                            (<>
-                                <Button
-                                    type="link"
-                                    onClick={() => this.edit(getKey(record))}
-                                    disabled={addingKey !== undefined || editingKey !== undefined}
-                                >
-                                    编辑
-                                </Button>
-                                <Button
-                                    type="link"
-                                    onClick={() => this.delete(id, record.date)}
-                                    disabled={addingKey !== undefined || editingKey !== undefined}
-                                >
-                                    删除
-                                </Button>
-                            </>);
+                        },
+                        ...keys.filter(d => d !== 'date')
+                            .map((d) => ({
+                                title: d,
+                                dataIndex: d,
+                                render: (text, record, index) => {
+                                    if (this.isEditing(record) || this.isAdding(record)) {
+                                        return (
+                                            <Form.Item name={d} initialValue={text}>
+                                                <InputNumber />
+                                            </Form.Item>
+                                        )
+                                    } else {
+                                        return text;
+                                    }
+                                }
+                            })),
+                        {
+                            title: '操作',
+                            dataIndex: 'operation',
+                            align: 'center',
+                            width: 200,
+                            render: (text, record, index) => {
+                                const { addingKey, editingKey } = this.state;
+                                return (this.isEditing(record) || this.isAdding(record)) ?
+                                (<>
+                                    <Button type="link" onClick={() => this.save(getKey(record))}>保存</Button>
+                                    <Button type="link" onClick={() => this.cancel()}>取消</Button>
+                                </>) :
+                                (<>
+                                    <Button
+                                        type="link"
+                                        onClick={() => this.edit(getKey(record))}
+                                        disabled={addingKey !== undefined || editingKey !== undefined}
+                                    >
+                                        编辑
+                                    </Button>
+                                    <Button
+                                        type="link"
+                                        onClick={() => this.delete(id, record.date)}
+                                        disabled={addingKey !== undefined || editingKey !== undefined}
+                                    >
+                                        删除
+                                    </Button>
+                                </>);
+                            }
                         }
-                    }
-                ];
-                if (indicator.data) indicator.data.forEach(d => genKey(d));
-                this.setState({
-                    data: indicator.data || [],
-                    canAdd: indicator.type === MANUAL_UPDATE_INDICATOR,
-                    columns: columns
-                });
-            })
-            .catch(e => message.error(e.toString()));
+                    ];
+                    if (indicator.data) indicator.data.forEach(d => genKey(d));
+                    this.setState({
+                        data: indicator.data || [],
+                        canAdd: indicator.type === MANUAL_UPDATE_INDICATOR,
+                        columns: columns
+                    });
+                })
+        } else {
+            message.error('指标不存在');
+        }
     }
 
     render() {

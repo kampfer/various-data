@@ -6,11 +6,14 @@ import {
 } from 'react-router-dom';
 import IndicatorTable from './tables/IndicatorTable.js';
 
-export default function IndicatorTableRouter() {
+export default function IndicatorTableRouter({ indicatorList }) {
     const { path } = useRouteMatch();
     return (
         <Switch>
-            <Route path={`${path}/:id`} component={IndicatorTable} />
+            <Route
+                path={`${path}/:id`}
+                render={({ match: { params: { id }}}) => <IndicatorTable id={id} indicatorList={indicatorList} />}
+            />
         </Switch>
     );
 }

@@ -32,6 +32,8 @@ app.get('/api/updateIndicator', async (req, res) => {
         res.json({
             code: 200
         });
+    } else {
+        res.json({ code: 202, msg: '爬虫不存在' });
     }
 });
 
@@ -43,7 +45,7 @@ app.get('/api/getIndicatorList', async (req, res) => {
             const indicatorData = JSON.parse(fs.readFileSync(filePath));
             if (!indicatorData.id) indicatorData.id = indicatorData.name;   // 旧数据没有id，用name代替
             if (!indicatorData.graph) indicatorData.graph = indicatorData.name;
-            if (!indicatorData.fieldList) indicatorData.fieldList = Object.keys(indicatorData.data[0]);
+            if (!indicatorData.fieldList && indicatorData.data.length > 0) indicatorData.fieldList = Object.keys(indicatorData.data[0]);
             if (indicatorData.type === undefined) indicatorData.type = AUTO_UPDATE_INDICATOR;   // 旧数据没有type，设置一个默认值
             indicatorData.dataCount = indicatorData.data.length;
             delete indicatorData.data;  // 这个接口不需要data，而且data可能很大，所以删除掉
@@ -73,7 +75,7 @@ app.post('/api/addIndicator', async(req, res) => {
         graph,
         crawler,
         type,
-        fieldList: ['date', ...fieldList.split(',')],
+        fieldList: fieldList ? ['date', ...fieldList.split(',')] : null,
         id: indicatorId,
         data: [],
         dataPath: path.join(DATA_STORE_PATH, `${indicatorId}.json`),    // 注意不允许保存在DATA_STORE_PATH的子目录中!
