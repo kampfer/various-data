@@ -16,5 +16,15 @@ export default async function () {
             fqt: '0'
         }
     });
-    console.log(res.json());
+    // open close top bottom
+    return res.json().data.klines.map(s => {
+        const parts = s.split(',');
+        return {
+            date: moment(parts[0], 'YYYY-MM-DD').valueOf(),
+            open: parts[1],
+            close: parts[2],
+            top: parts[3],
+            bottom: parts[4],
+        };
+    });
 }

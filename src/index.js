@@ -56,10 +56,17 @@ app.get('/api/updateIndicator', async (req, res) => {
         console.log(`开始抓取${name}数据`);
         const data = await crawler();
         console.log(`成功抓取${name}数据`);
-        fs.writeFileSync(
-            path.join(DATA_STORE_PATH, `${name}.json`),
-            JSON.stringify(data)
-        );
+        if (data.source !== undefined) {  // 老crawler返回完整的json
+            fs.writeFileSync(
+                path.join(DATA_STORE_PATH, `${name}.json`),
+                JSON.stringify(data)
+            );
+        } else {    // 新crawler只返回data
+            const oldJson = JSON.parse(fs.readFileSync(getDataPath(name)));
+            const newJson = { ...oldJson, data };
+            fs.writeFileSync(getDataPath(name), JSON.stringify(newJson));
+        }
+
         res.json({
             code: 200
         });
