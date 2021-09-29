@@ -35,7 +35,7 @@ export default class IndicatorTable extends React.Component {
         this.state = {
             indicator: null,
             columns: [],
-            data: [],
+            data: null,
             canAdd: false,
             editingKey: undefined,
             addingKey: undefined,
@@ -45,7 +45,7 @@ export default class IndicatorTable extends React.Component {
 
     addRow = () => {
         const { columns, data } = this.state;
-        const { id } = this.props.match.params;
+        const { id } = this.props;
         const newData = genKey({});
         columns.forEach(d => {
             if (d.dataIndex !== 'operation') {
@@ -61,7 +61,7 @@ export default class IndicatorTable extends React.Component {
 
     save(rowKey) {
         const { data, addingKey, editingKey } = this.state;
-        const { id } = this.props.match.params;
+        const { id } = this.props;
         this.formRef.current.validateFields().then((values) => {
             values.date = values.date.millisecond(0).second(0).minute(0).hour(0).valueOf();
             request.post(
@@ -119,7 +119,7 @@ export default class IndicatorTable extends React.Component {
         return getKey(record) === this.state.addingKey;
     }
 
-    componentDidUpdate() {
+    updateData() {
         const { indicatorList, id } = this.props;
         const indicator = indicatorList.find(d => d.id === id);
         if (indicator) {
@@ -160,8 +160,10 @@ export default class IndicatorTable extends React.Component {
                                         return text;
                                     }
                                 }
-                            })),
-                        {
+                            }))
+                    ];
+                    if (indicator.type === MANUAL_UPDATE_INDICATOR) {
+                        columns.push({
                             title: '操作',
                             dataIndex: 'operation',
                             align: 'center',
@@ -190,8 +192,8 @@ export default class IndicatorTable extends React.Component {
                                     </Button>
                                 </>);
                             }
-                        }
-                    ];
+                        });
+                    }
                     if (indicator.data) indicator.data.forEach(d => genKey(d));
                     this.setState({
                         data: indicator.data || [],
@@ -199,9 +201,17 @@ export default class IndicatorTable extends React.Component {
                         columns: columns
                     });
                 })
-        } else {
-            message.error('指标不存在');
         }
+    }
+
+    componentDidMount() {
+        this.updateData();
+    }
+
+    componentDidUpdate(prevProps) {
+        const { id } = this.props;
+        if (id === prevProps.id && this.state.data) return;
+        this.updateData();
     }
 
     render() {

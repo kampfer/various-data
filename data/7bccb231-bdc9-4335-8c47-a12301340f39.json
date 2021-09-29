@@ -1,0 +1,20 @@
+{
+    "name": "超额存款准备金率",
+    "description": "超额存款准备金率",
+    "graph": "ExcessDepositReserveGraph",
+    "type": 1,
+    "fieldList": [
+        "date",
+        "value"
+    ],
+    "id": "7bccb231-bdc9-4335-8c47-a12301340f39",
+    "data": [
+        {
+            "date": 1632844800000,
+            "value": 2
+        }
+    ],
+    "dataPath": "d:\\work\\various-data\\data\\7bccb231-bdc9-4335-8c47-a12301340f39.json",
+    "createTime": 1632896531500,
+    "updateTime": 1632896540319
+}
