@@ -1,122 +1,45 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import * as crawlers from './crawlers/index.js';
 import { ROOT_PATH, DATA_STORE_PATH } from './constants.js';
 import bodyParser from 'body-parser';    //解析,用req.body获取post参数
-import { v4 as uuidv4 } from 'uuid';
-import {
-    AUTO_UPDATE_INDICATOR,
-    MANUAL_UPDATE_INDICATOR
-}  from './constants/indicatorTypes.js';
 import moment from 'moment';
+import IndicatorManager from './IndicatorManager.js';
 
-const getDataPath = (id) => path.join(DATA_STORE_PATH, `${id}.json`);
-
-const getIndicatorList = () => {
-    const indicatorFiles = fs.readdirSync(DATA_STORE_PATH)
-        .filter(fileName => path.extname(fileName) === '.json')
-        .map(fileName => path.join(DATA_STORE_PATH, fileName));
-    const data = indicatorFiles.map(filePath => {
-            const indicatorData = JSON.parse(fs.readFileSync(filePath));
-            if (!indicatorData.id) indicatorData.id = indicatorData.name;   // 旧数据没有id，用name代替
-            if (!indicatorData.graph) indicatorData.graph = indicatorData.name;
-            if (!indicatorData.fieldList && indicatorData.data.length > 0) indicatorData.fieldList = Object.keys(indicatorData.data[0]);
-            if (indicatorData.type === undefined) indicatorData.type = AUTO_UPDATE_INDICATOR;   // 旧数据没有type，设置一个默认值
-            indicatorData.dataCount = indicatorData.data.length;
-            delete indicatorData.data;  // 这个接口不需要data，而且data可能很大，所以删除掉
-            return indicatorData;
-        })
-        .sort((a, b) => {
-            if (a.createTime && b.createTime) {
-                return a.createTime - b.createTime;
-            } else if (!a.createTime) {
-                return -1;
-            } else if (!b.createTime) {
-                return 1;
-            } else {
-                return 0;
-            }
-        });
-    return data;
-};
-
-const indicatorList = getIndicatorList();
+const indicatorManager = new IndicatorManager({ storePath: DATA_STORE_PATH });
 
 const app = express();
 app.use(bodyParser.json());
 app.use(express.static(path.resolve(ROOT_PATH, 'dist/web')));
 app.use('/data', express.static(DATA_STORE_PATH));
 
-app.get('/api/updateIndicator', async (req, res) => {
-    const name = req.query.name;
-    let crawler = crawlers[name];
-    if (!crawler) crawler= crawlers[indicatorList.find(d => d.id === name).crawler];
-    if (crawler) {
-        console.log(`开始抓取${name}数据`);
-        const data = await crawler();
-        console.log(`成功抓取${name}数据`);
-        if (data.source !== undefined) {  // 老crawler返回完整的json
-            fs.writeFileSync(
-                path.join(DATA_STORE_PATH, `${name}.json`),
-                JSON.stringify(data)
-            );
-        } else {    // 新crawler只返回data
-            const oldJson = JSON.parse(fs.readFileSync(getDataPath(name)));
-            const newJson = { ...oldJson, data };
-            fs.writeFileSync(getDataPath(name), JSON.stringify(newJson));
-        }
-
-        res.json({
-            code: 200
-        });
+app.get('/api/crawlIndicator', async (req, res) => {
+    const id = req.query.id;
+    const indicator = indicatorManager.getIndicator(id);
+    if (indicator) {
+        console.log(`开始抓取${indicator.name}数据`);
+        const data = await indicatorManager.crawlIndicator(id);
+        console.log(`成功抓取${indicator.name}数据`);
+        res.json({ code: 200, data });
     } else {
         res.json({ code: 202, msg: '爬虫不存在' });
     }
 });
 
 app.get('/api/getIndicatorList', async (req, res) => {
-    const data = getIndicatorList();
+    const data = indicatorManager.getIndicatorList();
     res.json({code: 200, data });
 });
 
 app.post('/api/addIndicator', async(req, res) => {
-    const indicatorId = uuidv4();
-    const now = Date.now();
-    const { name, description, graph, fieldList, crawler, type } = req.body;
-    const newIndicator = {
-        name,
-        description,
-        graph,
-        crawler,
-        type,
-        fieldList: fieldList ? ['date', ...fieldList.split(',')] : null,
-        id: indicatorId,
-        data: [],
-        dataPath: path.join(DATA_STORE_PATH, `${indicatorId}.json`),    // 注意不允许保存在DATA_STORE_PATH的子目录中!
-        createTime: now,
-        updateTime: now,
-    };
-
-    const indicatorIdList = fs.readdirSync(DATA_STORE_PATH)
-        .filter(fileName => path.extname(fileName) === '.json')
-        .map(fileName => path.basename(fileName, '.json'));
-    const exited = indicatorIdList.find(id => id === newIndicator.id);
-
-    if (exited) {
-        res.json({ code: 201, msg: `${newIndicator.name}已存在` });
-    } else {
-        // 创建数据存储文件
-        fs.writeFileSync(newIndicator.dataPath, JSON.stringify(newIndicator, null, 4));
-        // fs.writeFileSync(newIndicator.dataPath, JSON.stringify(newIndicator));
-        res.json({ code: 200, data: newIndicator });
-    }
+    const newIndicator = indicatorManager.addIndicator(req.body);
+    res.json({ code: 200, data: newIndicator });
 });
 
 app.get('/api/deleteIndicator', (req, res) => {
     const { id } = req.query;
     try {
-        fs.rmSync((getDataPath(id)));
+        indicatorManager.deleteIndicator(id);
     } catch(e) {
         // noop
     }
