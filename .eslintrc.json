@@ -9,6 +9,7 @@
         "plugin:react-hooks/recommended",
         "eslint:recommended"
     ],
+    "parser": "@babel/eslint-parser",
     "parserOptions": {
         "ecmaVersion": 12,
         "sourceType": "module",
@@ -18,8 +19,7 @@
     },
     "rules": {
         "semi": ["error", "always"],
-        "react/display-name": 0,
-        "jsx-quotes": ["error", "prefer-single"]
+        "react/display-name": 0
     },
     "globals": {
         "Highcharts": "readonly"
