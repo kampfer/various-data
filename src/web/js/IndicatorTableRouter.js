@@ -12,7 +12,14 @@ export default function IndicatorTableRouter({ indicatorList }) {
         <Switch>
             <Route
                 path={`${path}/:id`}
-                render={({ match: { params: { id }}}) => <IndicatorTable id={id} indicatorList={indicatorList} />}
+                render={({ match: { params: { id }}}) => {
+                    const indicator = indicatorList.find(d => d.id === id);
+                    if (indicator) {
+                        return <IndicatorTable indicator={indicator} />;
+                    } else {
+                        return '指标数据不存在';
+                    }
+                }}
             />
         </Switch>
     );

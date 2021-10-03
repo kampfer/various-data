@@ -3,84 +3,152 @@ import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import * as crawlers from './crawlers/index.js';
+import { MANUAL_UPDATE_INDICATOR } from "./constants/indicatorTypes.js";
+
+function readFile(path) {
+    let data = null;
+    try {
+        data = JSON.parse(fs.readFileSync(path));
+    } catch(e) {
+        console.log(e);
+    }
+    return data;
+}
+
+function writeFile(path, data) {
+    // fs.writeFileSync(path, JSON.stringify(data, null, 4));   // 带换行
+    fs.writeFileSync(path, JSON.stringify(data));
+}
+
+class Indicator {
+
+    static props = [
+        'id', 'createTime', 'dataPath',
+        'name', 'description', 'graph', 'fieldList',
+        'crawler', 'type', 'updateTime', 'dataCount',
+    ]
+
+    constructor(props, storePath = DATA_STORE_PATH) {
+        this.update(props);
+        if (this.id === undefined) this.id = uuidv4();
+        if (this.createTime === undefined) this.createTime = Date.now();
+        if (this.updateTime === undefined) this.updateTime = Date.now();
+        if (this.dataPath === undefined) this.dataPath = path.join(storePath, `${this.id}.json`);
+    }
+
+    update(props) {
+        Indicator.props.forEach(key => {
+            if (props[key] !== undefined) this[key] = props[key];
+        });
+    }
+
+    addRow(props) {
+        let meta = readFile(this.dataPath);
+        if (!meta) {
+            meta = this.toJSON();
+            meta.data = [];
+        }
+        let newRow = {};
+        this.fieldList.forEach(key => newRow[key] = props[key]);
+        meta.data.push(newRow);
+        writeFile(this.dataPath, meta);
+        return newRow;
+    }
+
+    updateRow(props) {
+        const meta = readFile(this.dataPath);
+        const index = meta.data.findIndex(d => d.date === props.date);
+        if (index > -1) {
+            const row = meta.data[index];
+            const newRow = { ...row, ...props };
+            meta.data.splice(index, 1, { ...row, ...props });
+            writeFile(this.dataPath, meta);
+            return newRow;
+        }
+    }
+
+    deleteRow(date) {
+        const meta = readFile(this.dataPath);
+        const index = meta.data.findIndex(d => d.date === date);
+        if (index > -1) {
+            meta.data.splice(index, 1);
+            writeFile(this.dataPath, meta);
+        }
+    }
+
+    async crawl() {
+        let crawler = crawlers[this.crawler];
+        if (crawler) {
+            const data = await crawler();
+            writeFile(this.dataPath, data);
+            this.update({ updateTime: Date.now() });
+            return data;
+        }
+    }
+
+    toJSON() {
+        let data = {
+            id: this.id,
+            createTime: this.createTime,
+            dataPath: this.dataPath,
+        };
+        Indicator.props.forEach(key => data[key] = this[key]);
+        return data;
+    }
+
+}
 
 export default class IndicatorManager {
 
     constructor({
         storePath = DATA_STORE_PATH,
     }) {
+        this._storePath = storePath;
         this._indicatorListPath = path.join(storePath, 'indicators.json');
-        this._indicatorList = this.readIndicatorList() || [];
+        this._indicatorList = this.readIndicatorList();
     }
 
-    readFile(path) {
-        let data = null;
-        try {
-            data = JSON.parse(fs.readFileSync(path));
-        } catch(e) {
-            console.log(e);
-        }
-        return data;
-    }
-
-    writeFile(path, data) {
-        // fs.writeFileSync(path, JSON.stringify(data, null, 4));   // 带换行
-        fs.writeFileSync(path, JSON.stringify(data));
+    saveIndicatorList() {
+        writeFile(this._indicatorListPath, this.getIndicatorList());
     }
 
     readIndicatorList() {
-        return this.readFile(this._indicatorListPath);
+        const data = readFile(this._indicatorListPath);
+        let list = [];
+        if (data) list = data.map(props => new Indicator(props));
+        return list;
     }
 
     getIndicatorList() {
-        return this._indicatorList;
+        return this._indicatorList.map(i => i.toJSON());
     }
 
     getIndicator(id) {
         return this._indicatorList.find(d => d.id === id);
     }
 
-    addIndicator({ name, description, graph, fieldList, crawler, type }) {
-        const indicatorId = uuidv4();
-        const now = Date.now();
-        const newIndicator = {
-            name,
-            description,
-            graph,
-            crawler,
-            type,
-            fieldList: fieldList ? ['date', ...fieldList.split(',')] : null,
-            id: indicatorId,
-            data: [],
-            dataPath: path.join(DATA_STORE_PATH, `${indicatorId}.json`),
-            createTime: now,
-            updateTime: now,
-        };
+    addIndicator(props) {
+        if (props.type === MANUAL_UPDATE_INDICATOR) props.fieldList = props.fieldList.split(',');
+        const newIndicator = new Indicator(props);
         this._indicatorList.push(newIndicator);
-        return newIndicator;
+        this.saveIndicatorList();
+        return newIndicator.toJSON();
     }
 
     deleteIndicator(id) {
         const index = this._indicatorList.findIndex(d => d.id === id);
         if (index > -1) {
-            return this._indicatorList.splice(index, 1);
+            const deletedIndicator = this._indicatorList.splice(index, 1);
+            this.saveIndicatorList();
+            fs.rmSync(deletedIndicator.dataPath);
+            return deletedIndicator;
         }
-    }
-
-    updateIndicator(id, { name, description, graph, fieldList, crawler, type, updateTime }) {
-        let indicator = this.getIndicator(id);
-        Object.assign(indicator, { name, description, graph, fieldList, crawler, type, updateTime });
-        return indicator;
     }
 
     async crawlIndicator(id) {
         const indicator = this.getIndicator(id);
-        let crawler = crawlers[indicator.crawler];
-        if (crawler) {
-            const data = await crawler();
-            this.writeFile(indicator.dataPath, data);
-            return data;
-        }
+        const ret = await indicator.crawl();
+        return ret;
     }
 
 }
