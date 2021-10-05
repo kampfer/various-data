@@ -15,15 +15,10 @@ export default async function () {
 
     // 从远到近排序
 
-    return {
-        name: 'CFETSRMBIndex',
-        description: 'CFETS人民币汇率指数',
-        source: 'http://www.chinamoney.com.cn/chinese/bkrmbidx/',
-        data: records.reverse().map(d => ({
-            date: moment(d.showDateCn, 'YYYY-MM-DD').valueOf(),
-            displayDate: d.showDateCn,
-            indexRate: d.indexRate
-        }))
-    };
+    return records.reverse().map(d => ({
+        date: moment(d.showDateCn, 'YYYY-MM-DD').valueOf(),
+        displayDate: d.showDateCn,
+        indexRate: d.indexRate
+    }));
 
 }

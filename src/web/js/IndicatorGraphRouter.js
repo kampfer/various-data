@@ -15,7 +15,7 @@ export default function IndicatorGraphRouter({ indicatorList }) {
 
     useEffect(() => {
         if (!indicator) return;
-        fetch(`data/${indicator.id}.json`)
+        fetch(`api/getIndicator?id=${indicator.id}`)
             .then(response => response.json())
             .then(({ data }) => setData(data));
     }, [indicator]);

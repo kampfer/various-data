@@ -6,7 +6,7 @@ import  { DATA_STORE_PATH } from '../constants.js';
 import fs from 'fs';
 import path from 'path';
 
-export default async function () {
+export default async function (indicator) {
 
     // 接口只能查最近一年的数据
     const endTime = moment();
@@ -23,8 +23,8 @@ export default async function () {
     });
 
     const json = res.json();
-    const { data } = JSON.parse(
-        fs.readFileSync(path.join(DATA_STORE_PATH, 'fr_fdr.json'))
+    const data = JSON.parse(
+        fs.readFileSync(path.join(DATA_STORE_PATH, `${indicator.id}.json`))
     );
     const lastest = moment(data[data.length - 1].date);
     const { records: newData } = json;
@@ -38,11 +38,6 @@ export default async function () {
         }
     }
 
-    return {
-        name: 'fr_fdr',
-        description: '回购定盘利率和银银间回购定盘利率',
-        source: 'http://www.chinamoney.com.cn/chinese/bkfrr/',
-        data,
-    };
+    return data;
 
 }

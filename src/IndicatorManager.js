@@ -15,9 +15,12 @@ function readFile(path) {
     return data;
 }
 
-function writeFile(path, data) {
-    // fs.writeFileSync(path, JSON.stringify(data, null, 4));   // 带换行
-    fs.writeFileSync(path, JSON.stringify(data));
+function writeFile(path, data, formatted = false) {
+    if (formatted) {
+        fs.writeFileSync(path, JSON.stringify(data, null, 4));   // 带换行
+    } else {
+        fs.writeFileSync(path, JSON.stringify(data));
+    }
 }
 
 class Indicator {
@@ -79,20 +82,21 @@ class Indicator {
     async crawl() {
         let crawler = crawlers[this.crawler];
         if (crawler) {
-            const data = await crawler();
+            const data = await crawler(this);
             writeFile(this.dataPath, data);
             this.update({ updateTime: Date.now() });
             return data;
         }
     }
 
-    toJSON() {
+    toJSON(readData = false) {
         let data = {
             id: this.id,
             createTime: this.createTime,
             dataPath: this.dataPath,
         };
         Indicator.props.forEach(key => data[key] = this[key]);
+        if (readData) data.data = readFile(this.dataPath);
         return data;
     }
 
@@ -109,7 +113,7 @@ export default class IndicatorManager {
     }
 
     saveIndicatorList() {
-        writeFile(this._indicatorListPath, this.getIndicatorList());
+        writeFile(this._indicatorListPath, this.getIndicatorList(), true);
     }
 
     readIndicatorList() {

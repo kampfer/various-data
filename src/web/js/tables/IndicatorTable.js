@@ -118,7 +118,8 @@ export default class IndicatorTable extends React.Component {
     updateData() {
         const { indicator } = this.props;
         if (indicator) {
-            fetch(`data/${indicator.id}.json`)
+            // fetch(`data/${indicator.id}.json`)
+            fetch(`api/getIndicator?id=${indicator.id}`)
                 .then(response => response.json())
                 .then(
                     ({ data }) => {
@@ -149,7 +150,7 @@ export default class IndicatorTable extends React.Component {
                                 }
                             }
                         },
-                        ...keys.filter(d => d !== 'date')
+                        ...keys.filter(d => d !== 'date' && d.indexOf('_') < 0)
                             .map((d) => ({
                                 title: d,
                                 dataIndex: d,

@@ -1,9 +1,7 @@
 import express from 'express';
 import path from 'path';
-import fs from 'fs';
 import { ROOT_PATH, DATA_STORE_PATH } from './constants.js';
 import bodyParser from 'body-parser';    //解析,用req.body获取post参数
-import moment from 'moment';
 import IndicatorManager from './IndicatorManager.js';
 
 const indicatorManager = new IndicatorManager({ storePath: DATA_STORE_PATH });
@@ -13,16 +11,26 @@ app.use(bodyParser.json());
 app.use(express.static(path.resolve(ROOT_PATH, 'dist/web')));
 app.use('/data', express.static(DATA_STORE_PATH));
 
+app.get('/api/getIndicator', async (req, res) => {
+    const id = req.query.id;
+    const indicator = indicatorManager.getIndicator(id);
+    return res.json({ code: 200, ...indicator.toJSON(true) });
+});
+
 app.get('/api/crawlIndicator', async (req, res) => {
     const id = req.query.id;
     const indicator = indicatorManager.getIndicator(id);
     if (indicator) {
         console.log(`开始抓取${indicator.name}数据`);
         const data = await indicatorManager.crawlIndicator(id);
-        console.log(`成功抓取${indicator.name}数据`);
-        res.json({ code: 200, data });
+        if (data) {
+            console.log(`成功抓取${indicator.name}数据`);
+            res.json({ code: 200, data });
+        } else {
+            res.json({ code: 300, msg: '爬虫不存在' });
+        }
     } else {
-        res.json({ code: 202, msg: '爬虫不存在' });
+        res.json({ code: 202, msg: '指标不存在' });
     }
 });
 
