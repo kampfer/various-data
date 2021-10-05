@@ -45,7 +45,7 @@ export default class IndicatorList extends React.Component {
                     render: (text, record, /*index*/) => {
                         return (
                             <Space size='middle'>
-                                { <NavLink to={`/indicator/graph/${record.graph}`}>查看图表</NavLink> }
+                                { <NavLink to={`/indicator/graph/${record.id}`}>查看图表</NavLink> }
                                 { <NavLink to={`/indicator/table/${record.id}`}>查看表格</NavLink> }
                                 { !record.type && <a onClick={() => this.crawlIndicator(record.id)}>更新</a> }
                                 <a onClick={() => this.deleteIndicator(record.id)}>删除</a>

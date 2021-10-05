@@ -50,7 +50,7 @@ export default class App extends React.Component {
                     <Route path='/indicator/table'>
                         <IndicatorTableRouter indicatorList={indicatorList} />
                     </Route>
-                    <Route path='/indicator/graph'>
+                    <Route path='/indicator/graph/:id'>
                         <IndicatorGraphRouter indicatorList={indicatorList} />
                     </Route>
                 </Switch>

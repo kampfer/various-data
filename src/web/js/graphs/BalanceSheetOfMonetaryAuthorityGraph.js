@@ -8,55 +8,51 @@ const itemMap = {
     DepositsofOtherDepositoryCorporations: '其他存款性公司存款'     // 法定存款准备金+超额存款准备金
 };
 
-export default function BalanceSheetOfMonetaryAuthorityGraph() {
+export default function BalanceSheetOfMonetaryAuthorityGraph({ data }) {
 
     useEffect(() => {
-        let chart;
-        fetch('data/balanceSheetOfMonetaryAuthority.json')
-            .then(response => response.json())
-            .then(({ data }) => {
-                chart = Highcharts.chart('BalanceSheetOfMonetaryAuthorityGraph', {
-                    chart: {
-                        type: 'line',
-                        width: window.innerWidth,
-                        height: window.innerHeight,
-                    },
-                    plotOptions: {
-                        area: {
-                            stacking: 'normal',
-                        }
-                    },
-                    title: {
-                        text: '央行资产负债表'
-                    },
-                    xAxis: {
-                        type: 'datetime',
-                        tickPixelInterval: window.innerWidth / 10,
-                        dateTimeLabelFormats: {
-                            month: '%Y-%m'
-                        }
-                    },
-                    tooltip: {
-                        dateTimeLabelFormats: {
-                            day: '%Y-%m-%d',
-                            month: '%Y-%m'
-                        }
-                    },
-                    series: Object.keys(data[0]).filter(key => key in itemMap).map((key) => ({
-                        name: itemMap[key],
-                        data: data.map(d => {
-                            if (!d[key]) console.log(`${d.date}不存在${key}`);
-                            return {
-                                x: d.date,
-                                y: d[key]
-                            };
-                        })
-                    }))
-                });
-            });
+        if (data.length <= 0) return;
+        let chart = Highcharts.chart('BalanceSheetOfMonetaryAuthorityGraph', {
+            chart: {
+                type: 'line',
+                width: window.innerWidth,
+                height: window.innerHeight,
+            },
+            plotOptions: {
+                area: {
+                    stacking: 'normal',
+                }
+            },
+            title: {
+                text: '央行资产负债表'
+            },
+            xAxis: {
+                type: 'datetime',
+                tickPixelInterval: window.innerWidth / 10,
+                dateTimeLabelFormats: {
+                    month: '%Y-%m'
+                }
+            },
+            tooltip: {
+                dateTimeLabelFormats: {
+                    day: '%Y-%m-%d',
+                    month: '%Y-%m'
+                }
+            },
+            series: Object.keys(data[0]).filter(key => key in itemMap).map((key) => ({
+                name: itemMap[key],
+                data: data.map(d => {
+                    if (!d[key]) console.log(`${d.date}不存在${key}`);
+                    return {
+                        x: d.date,
+                        y: d[key]
+                    };
+                })
+            }))
+        });
 
         return () => chart && chart.destroy();
-    });
+    }, [data]);
 
     return (<div id='BalanceSheetOfMonetaryAuthorityGraph'></div>);
 
