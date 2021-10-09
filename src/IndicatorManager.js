@@ -26,7 +26,7 @@ function writeFile(path, data, formatted = false) {
 class Indicator {
 
     static props = [
-        'id', 'createTime', 'dataPath',
+        'id', 'createTime',
         'name', 'description', 'graph', 'fieldList',
         'crawler', 'type', 'updateTime', 'dataCount',
     ]
@@ -92,8 +92,7 @@ class Indicator {
     toJSON(readData = false) {
         let data = {
             id: this.id,
-            createTime: this.createTime,
-            dataPath: this.dataPath,
+            createTime: this.createTime
         };
         Indicator.props.forEach(key => data[key] = this[key]);
         if (readData) data.data = readFile(this.dataPath);
