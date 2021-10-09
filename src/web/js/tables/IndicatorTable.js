@@ -33,10 +33,10 @@ export default class IndicatorTable extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            indicator: null,
-            columns: [],
+            // indicator: null,
+            columns: null,
             data: null,
-            canAdd: false,
+            // canAdd: false,
             editingKey: undefined,
             addingKey: undefined,
         };
@@ -44,14 +44,10 @@ export default class IndicatorTable extends React.Component {
     }
 
     addRow = () => {
-        const { columns, data } = this.state;
-        const { id } = this.props;
+        const { data } = this.state;
+        const { indicator } = this.props;
         const newData = genKey({});
-        columns.forEach(d => {
-            if (d.dataIndex !== 'operation') {
-                newData[d.dataIndex] = undefined;
-            }
-        });
+        indicator.fieldList.forEach(key => newData[key] = undefined);
         this.setState({
             data: [...data, newData],
             // editingKey: getKey(newData),
@@ -61,7 +57,7 @@ export default class IndicatorTable extends React.Component {
 
     save(rowKey) {
         const { data, addingKey, editingKey } = this.state;
-        const { id } = this.props;
+        const id = this.props.indicator.id;
         this.formRef.current.validateFields().then((values) => {
             values.date = values.date.millisecond(0).second(0).minute(0).hour(0).valueOf();
             request.post(
@@ -99,7 +95,7 @@ export default class IndicatorTable extends React.Component {
                     newData.splice(index, 1);
                     this.setState({ data: newData });
                 }
-            })
+            });
     }
 
     edit(key) {
@@ -120,42 +116,51 @@ export default class IndicatorTable extends React.Component {
     }
 
     updateData() {
-        const { indicatorList, id } = this.props;
-        const indicator = indicatorList.find(d => d.id === id);
+        const { indicator } = this.props;
         if (indicator) {
-            fetch(`data/${id}.json`)
+            // fetch(`data/${indicator.id}.json`)
+            fetch(`api/getIndicator?id=${indicator.id}`)
                 .then(response => response.json())
-                .then(indicator => {
-                    const keys = indicator.type === MANUAL_UPDATE_INDICATOR ? indicator.fieldList : Object.keys(indicator.data[0]);
+                .then(
+                    ({ data }) => {
+                        if (data) data.forEach(d => genKey(d));
+                        this.setState({ data: data });
+                        return indicator.type === MANUAL_UPDATE_INDICATOR ? indicator.fieldList : Object.keys(data[0]);
+                    },
+                    () => {
+                        this.setState({ data: [] });
+                        return indicator.fieldList;
+                    }
+                ).then(keys => {
                     const columns = [
                         {
                             title: 'date',
                             dataIndex: 'date',
                             fixed: 'left',
                             width: 150,
-                            render: (text, record, index) => {
+                            render: (text, record) => {
                                 if (this.isEditing(record) || this.isAdding(record)) {
                                     return (
                                         <Form.Item name="date" initialValue={moment(text)}>
                                             <DatePicker format={dateFormat} />
                                         </Form.Item>
-                                    )
+                                    );
                                 } else {
                                     return moment(text).format(dateFormat);
                                 }
                             }
                         },
-                        ...keys.filter(d => d !== 'date')
+                        ...keys.filter(d => d !== 'date' && d.indexOf('_') < 0)
                             .map((d) => ({
                                 title: d,
                                 dataIndex: d,
-                                render: (text, record, index) => {
+                                render: (text, record) => {
                                     if (this.isEditing(record) || this.isAdding(record)) {
                                         return (
                                             <Form.Item name={d} initialValue={text}>
                                                 <InputNumber />
                                             </Form.Item>
-                                        )
+                                        );
                                     } else {
                                         return text;
                                     }
@@ -168,7 +173,7 @@ export default class IndicatorTable extends React.Component {
                             dataIndex: 'operation',
                             align: 'center',
                             width: 200,
-                            render: (text, record, index) => {
+                            render: (text, record) => {
                                 const { addingKey, editingKey } = this.state;
                                 return (this.isEditing(record) || this.isAdding(record)) ?
                                 (<>
@@ -185,7 +190,7 @@ export default class IndicatorTable extends React.Component {
                                     </Button>
                                     <Button
                                         type="link"
-                                        onClick={() => this.delete(id, record.date)}
+                                        onClick={() => this.delete(indicator.id, record.date)}
                                         disabled={addingKey !== undefined || editingKey !== undefined}
                                     >
                                         删除
@@ -194,13 +199,8 @@ export default class IndicatorTable extends React.Component {
                             }
                         });
                     }
-                    if (indicator.data) indicator.data.forEach(d => genKey(d));
-                    this.setState({
-                        data: indicator.data || [],
-                        canAdd: indicator.type === MANUAL_UPDATE_INDICATOR,
-                        columns: columns
-                    });
-                })
+                    this.setState({ columns: columns });
+                });
         }
     }
 
@@ -208,14 +208,18 @@ export default class IndicatorTable extends React.Component {
         this.updateData();
     }
 
-    componentDidUpdate(prevProps) {
-        const { id } = this.props;
-        if (id === prevProps.id && this.state.data) return;
-        this.updateData();
-    }
+    // componentDidUpdate(prevProps) {
+    //     // const { id } = this.props;
+    //     // if (id === prevProps.id && this.state.data) return;
+    //     // if (id === prevProps.id) return;
+    //     if (this.props.indicator === prevProps.indicator) return;
+    //     this.updateData();
+    // }
 
     render() {
-        const { canAdd, columns, data } = this.state;
+        const { columns, data } = this.state;
+        const { indicator } = this.props;
+        const canAdd = indicator.type === MANUAL_UPDATE_INDICATOR;
         return (
             <div style={{ padding: 10, width: '100%' }}>
                 {canAdd && <Button

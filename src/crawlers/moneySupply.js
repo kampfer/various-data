@@ -18,7 +18,7 @@ function getPage(i) {
 }
 
 // http://data.eastmoney.com/cjsj/hbgyl.html
-// 月份 M2数量 M2同比增长 M2环比增长 M1数量 M1同比增长 M1环比增长 M0数量 M0同比增长 M0环比增长 
+// 月份 M2数量 M2同比增长 M2环比增长 M1数量 M1同比增长 M1环比增长 M0数量 M0同比增长 M0环比增长
 export default async function moneySupply() {
     let json = {
         name: 'moneySupply',
@@ -49,5 +49,5 @@ export default async function moneySupply() {
         });
         total = pages;
     }
-    return json;
+    return json.data;
 }

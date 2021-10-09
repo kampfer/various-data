@@ -45,9 +45,9 @@ export default class IndicatorList extends React.Component {
                     render: (text, record, /*index*/) => {
                         return (
                             <Space size='middle'>
-                                { record.dataCount > 0 && <NavLink to={`/indicator/graph/${record.graph}`}>查看图表</NavLink> }
-                                { (record.type === MANUAL_UPDATE_INDICATOR || record.dataCount > 0) && <NavLink to={`/indicator/table/${record.id}`}>查看表格</NavLink> }
-                                { !record.type && <a onClick={() => this.updateIndicator(record.id)}>更新</a> }
+                                { <NavLink to={`/indicator/graph/${record.id}`}>查看图表</NavLink> }
+                                { <NavLink to={`/indicator/table/${record.id}`}>查看表格</NavLink> }
+                                { !record.type && <a onClick={() => this.crawlIndicator(record.id)}>更新</a> }
                                 <a onClick={() => this.deleteIndicator(record.id)}>删除</a>
                             </Space>
                         );
@@ -83,10 +83,10 @@ export default class IndicatorList extends React.Component {
         });
     }
 
-    updateIndicator(id) {
+    crawlIndicator(id) {
         if (id) {
             this.setState({loading: true});
-            fetch(`/api/updateIndicator?name=${id}`)
+            fetch(`/api/crawlIndicator?id=${id}`)
                 .then(res => res.json())
                 .then(json => {
                     if (json.code === 200) {

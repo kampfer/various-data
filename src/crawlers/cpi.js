@@ -57,12 +57,7 @@ export default async function cpi() {
     const json1 = res.json();
     const json2 = res2.json();
 
-    return {
-        name: 'cpi',
-        description: '全国居民消费价格指数（上月=100）',
-        source: 'https://data.stats.gov.cn/easyquery.htm',
-        data: json1.returndata.datanodes.map(d => makeItem(d)).concat(
-            json2.returndata.datanodes.map(d => makeItem(d))
-        ).reverse()
-    };
+    return json1.returndata.datanodes.map(d => makeItem(d)).concat(
+        json2.returndata.datanodes.map(d => makeItem(d))
+    ).reverse();
 }

@@ -14,13 +14,7 @@ export default {
             {
                 test: /\.js$/,
                 exclude: /(node_modules|bower_components)/,
-                loader: 'babel-loader',
-                options: {
-                    presets: [
-                        '@babel/preset-react'
-                    ],
-                    plugins: ['@babel/plugin-proposal-class-properties'],
-                }
+                loader: 'babel-loader'
             },
             {
                 test: /\.css$/i,
