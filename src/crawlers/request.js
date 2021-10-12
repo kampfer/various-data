@@ -31,11 +31,12 @@ function fetch({
         const requestData = querystring.stringify(data);
 
         const target = new URL(url);
+        data = { ...querystring.parse(target.search.substr(1)), ...data }
         const urlOptions = {
             protocol: target.protocol,
             hostname: target.hostname,
             port: target.port,
-            path: `${target.pathname}${isPost ? target.search : `?${target.search.substr(1)}&${requestData}`}`, // Should include query string if any
+            path: `${target.pathname}${isPost ? target.search : `?${querystring.stringify(data)}`}`, // Should include query string if any
         };
 
         const headersOptions = { ...headers };
@@ -68,7 +69,7 @@ function fetch({
             });
         req.on('error', e => reject(e));
         // write data to request body
-        req.write(requestData);
+        req.write(isPost ? requestData : '');
         req.end();
     });
 }
