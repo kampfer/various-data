@@ -91,5 +91,15 @@
         "crawler": "nationalDebt",
         "type": 0,
         "updateTime": 1633762690926
+    },
+    {
+        "id": "875ee100-a14e-41aa-8c22-ea3fdc106792",
+        "createTime": 1634278674193,
+        "name": "居民消费价格指数(上年=100)",
+        "description": "居民消费价格指数(上年=100)。来源：国家统计局网站。",
+        "graph": "null",
+        "crawler": "cpi2",
+        "type": 0,
+        "updateTime": 1634278674193
     }
 ]
