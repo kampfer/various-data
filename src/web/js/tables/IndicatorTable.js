@@ -148,7 +148,8 @@ export default class IndicatorTable extends React.Component {
                                 } else {
                                     return moment(text).format(dateFormat);
                                 }
-                            }
+                            },
+                            sorter: (a, b) => a.date - b.date,
                         },
                         ...keys.filter(d => d !== 'date' && d.indexOf('_') < 0)
                             .map((d) => ({
@@ -220,8 +221,10 @@ export default class IndicatorTable extends React.Component {
         const { columns, data } = this.state;
         const { indicator } = this.props;
         const canAdd = indicator.type === MANUAL_UPDATE_INDICATOR;
+        const pageSize = Math.floor((window.innerHeight - 300) / 50);
         return (
             <div style={{ padding: 10, width: '100%' }}>
+                <h2>{ indicator.name }</h2>
                 {canAdd && <Button
                     onClick={this.addRow}
                     type='primary'
@@ -243,6 +246,7 @@ export default class IndicatorTable extends React.Component {
                         scroll={{ x: true }}
                         rowKey={KEY_NAME}
                         bordered
+                        pagination={{ pageSize: pageSize }}
                     ></Table>
                 </Form>
             </div>
