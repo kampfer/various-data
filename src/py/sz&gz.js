@@ -19,36 +19,63 @@ function analyse(arr) {
     console.log(`=======================`);
 }
 
-request.get({
-    url: 'http://127.0.0.1:3000/api/getIndicator',
-    data: {
-        id: '3b065983-7795-40dc-b104-48c072803d33'
-    }
-})
-.then(res => res.json())
-.then(({ data }) => {
+Promise.all([
+    request.get({
+        url: 'http://127.0.0.1:3000/api/getIndicator',
+        data: {
+            id: '3b065983-7795-40dc-b104-48c072803d33'
+        }
+    })
+    .then(res => res.json()),
+    request.get({
+        url: 'http://127.0.0.1:3000/api/getIndicator',
+        data: {
+            id: '875ee100-a14e-41aa-8c22-ea3fdc106792'
+        }
+    })
+    .then(res => res.json())
+]).then(([{ data: data }, { data: data2 }]) => {
+
+    // 创业板
     let prevValue;
-    const arr = [];
+    let prevDate;
+    const cybReturns = [];
     for(let i = 0, l = data.length; i < l; i++) {
         let item = data[i];
         let time = moment(data[i].date);
         if (i === 0) {
             prevValue = parseFloat(item.close, 10);
+            prevDate = moment(item.date).format('YYYY-MM-DD');
         } else {
             let nextItem = data[i + 1];
-            if (!nextItem || moment(nextItem.date).year() !== time.year()) {
+            let endDate;
+            if (!nextItem) {
+                endDate = moment(item.date).format('YYYY-MM-DD');
+            } else if(moment(nextItem.date).year() !== time.year()) {
+                endDate = moment(item.date).format('YYYY-MM-DD');
+            }
+            if (endDate) {
                 const end = parseFloat(item.close, 10);
-                arr.push({
+                cybReturns.push({
                     start: prevValue,
                     end: end,
-                    r: (end - prevValue) / prevValue
+                    r: (end - prevValue) / prevValue,
+                    startDate: prevDate,
+                    endDate: endDate
                 });
                 prevValue = end;
+                prevDate = endDate;
             }
         }
     }
-    return arr;
-}).then(arr => {
+
+    // cpi
+    const cpis = data2.map(d => ({
+        value: (d.cpi - 100) / 100,
+        date: moment(d.date).format('YYYY')
+    }));
+
+    // 短期国债
     const xlsxFiles = [
         'data/国债及其他债券收益率曲线/2011年中债国债收益率曲线标准期限信息.xlsx',
         'data/国债及其他债券收益率曲线/2012年中债国债收益率曲线标准期限信息.xlsx',
@@ -61,16 +88,28 @@ request.get({
         'data/国债及其他债券收益率曲线/2019年中债国债收益率曲线标准期限信息.xlsx',
         'data/国债及其他债券收益率曲线/2020年中债国债收益率曲线标准期限信息.xlsx',
     ];
-    let avgReturns = [];
+    let gzReturns = [];
+    let startDate = 2011;
     xlsxFiles.forEach(file => {
         const workbook = XLSX.readFile(path.join(ROOT_PATH, file));
         const sheetName = workbook.SheetNames[0];
         const sheetJson = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
         const tenYearReturns = sheetJson.filter(d => d['标准期限说明'] === '0d').map(d => parseFloat(d['收益率(%)'], 10));
-        avgReturns.push(tenYearReturns.reduce((acc, cur) => cur + acc) / tenYearReturns.length);
+        gzReturns.push({
+            value: tenYearReturns.reduce((acc, cur) => cur + acc) / tenYearReturns.length/ 100,
+            date: startDate++
+        });
     });
-    return [arr, avgReturns];
-}).then(([cybReturns, gzReturns]) => {
+
+    return [cybReturns.slice(1, -1), gzReturns, cpis.slice(0, -1).reverse()];
+
+}).then(([cybReturns, gzReturns, cpis]) => {
+    console.log(cybReturns, gzReturns, cpis);
     analyse(cybReturns.map(d => d.r));
-    analyse(gzReturns.map(v => v / 100));
+    analyse(gzReturns.map(d => d.value));
+    const sjsy = [];
+    for(let i = 0; i < 10; i++) {
+        sjsy.push(cybReturns[i].r - gzReturns[i].value - cpis[i].value);
+    }
+    analyse(sjsy);
 });

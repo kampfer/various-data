@@ -41,5 +41,3 @@ export default async function cpi2() {
     return json.returndata.datanodes.map(d => makeItem(d));
 
 }
-
-cpi2();
