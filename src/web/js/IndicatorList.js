@@ -29,7 +29,6 @@ export default class IndicatorList extends React.Component {
         super(props);
 
         this.state = {
-            indicatorType: AUTO_UPDATE_INDICATOR,
             columns: [
                 {
                     title: '名称',
@@ -45,6 +44,7 @@ export default class IndicatorList extends React.Component {
                     render: (text, record, /*index*/) => {
                         return (
                             <Space size='middle'>
+                                <a onClick={() => this.doEidt(record.id)}>编辑</a>
                                 { <NavLink to={`/indicator/graph/${record.id}`}>查看图表</NavLink> }
                                 { <NavLink to={`/indicator/table/${record.id}`}>查看表格</NavLink> }
                                 { !record.type && <a onClick={() => this.crawlIndicator(record.id)}>更新</a> }
@@ -56,6 +56,7 @@ export default class IndicatorList extends React.Component {
             ],
             loading: false,
             newIndicatorVisible: false,
+            indicatorFields: []
         };
     }
 
@@ -119,15 +120,51 @@ export default class IndicatorList extends React.Component {
     }
 
     hideNewIndicatorModal = () => {
+        this.newIndicatorForm.current.resetFields();
         this.setState({ newIndicatorVisible: false });
     }
 
+    doEidt(id) {
+        const { indicatorList } = this.props;
+        const indicator = indicatorList.find(d => d.id === id);
+        this.setState({ 
+            indicatorFields: [
+                {
+                    name: ['name'],
+                    value: indicator.name
+                },
+                {
+                    name: ['type'],
+                    value: indicator.type
+                },
+                {
+                    name: ['graph'],
+                    value: indicator.graph
+                },
+                {
+                    name: ['fieldList'],
+                    value: indicator.fieldList
+                },
+                {
+                    name: ['crawler'],
+                    value: indicator.crawler
+                },
+                {
+                    name: ['description'],
+                    value: indicator.description
+                }
+            ],
+            newIndicatorVisible: true
+        });
+    }
+
     render() {
-        const { columns, newIndicatorVisible, indicatorType } = this.state;
+        const { columns, newIndicatorVisible, indicatorFields } = this.state;
         const { indicatorList } = this.props;
         const validateMessages = {
             required: '${label} is required!',
         };
+        const indicatorType = (indicatorFields.find(d => d.name[0] === 'type') || {}).value;
 
         return (
             <Spin spinning={this.state.loading}>
@@ -154,12 +191,17 @@ export default class IndicatorList extends React.Component {
                             labelCol={{ span: 4 }}
                             wrapperCol={{ span: 18 }}
                             validateMessages={validateMessages}
+                            fields={indicatorFields}
+                            onChange={(newFields) => {
+                                this.setState({ indicatorFields: newFields });
+                            }}
+                            preserve={false}
                         >
                             <Form.Item name="name" label="指标名称" rules={[{ required: true }]}>
                                 <Input />
                             </Form.Item>
                             <Form.Item name="type" label="维护方式" rules={[{ required: true }]}>
-                                <Radio.Group value={indicatorType} onChange={(e) => this.setState({ indicatorType: e.target.value })}>
+                                <Radio.Group>
                                     <Radio value={AUTO_UPDATE_INDICATOR}>自动</Radio>
                                     <Radio value={MANUAL_UPDATE_INDICATOR}>手动</Radio>
                                 </Radio.Group>
