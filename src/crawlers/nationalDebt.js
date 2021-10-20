@@ -1,15 +1,14 @@
 import chrome from 'selenium-webdriver/chrome.js';
-import {Builder, By, promise} from 'selenium-webdriver';
-import { DRIVER_PATH, DATA_STORE_PATH } from '../constants/path.js';
+import { Builder, By } from 'selenium-webdriver';
+import { DRIVER_PATH } from '../constants/path.js';
 import moment from 'moment';
 import fs from 'fs';
-import path from 'path';
 
 // https://yield.chinabond.com.cn/cbweb-cbrc-web/cbrc/historyQuery?startDate=2021-01-01&endDate=2021-10-09&gjqx=0&qxId=hzsylqx&locale=cn_ZH&mark=1
 function makeUrl(data) {
     let startDate;
     if (data && data.length > 0) {
-        startDate = moment(data[data.length - 1]).add(1, 'days').format('YYYY-MM-DD');
+        startDate = moment(data[0].date).add(1, 'day').format('YYYY-MM-DD');
     } else {
         startDate = moment(`${moment().year()}-01-01`, 'YYYY-MM-DD').format('YYYY-MM-DD');
     }
@@ -30,14 +29,13 @@ export default async function nationalDebt(indicator) {
 
     let data;
     try {
-        let json = JSON.parse(
-            fs.readFileSync(path.join(DATA_STORE_PATH, indicator.dataPath))
+        data = JSON.parse(
+            fs.readFileSync(indicator.dataPath)
         );
-        data = json.data;
     } catch(e) {
-        console.log(e);
         data = [];
     }
+    data.sort((a, b) => a.date - b.date);   // 保证递增排序
     const url = makeUrl(data);
 
     await driver.get(url);
