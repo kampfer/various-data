@@ -221,7 +221,7 @@ export default class IndicatorTable extends React.Component {
         const { columns, data } = this.state;
         const { indicator } = this.props;
         const canAdd = indicator.type === MANUAL_UPDATE_INDICATOR;
-        const pageSize = Math.floor((window.innerHeight - 300) / 50);
+        const pageSize = Math.floor((window.innerHeight - 250) / 50);
         return (
             <div style={{ padding: 10, width: '100%' }}>
                 <h2>{ indicator.name }</h2>
@@ -246,7 +246,7 @@ export default class IndicatorTable extends React.Component {
                         scroll={{ x: true }}
                         rowKey={KEY_NAME}
                         bordered
-                        pagination={{ pageSize: pageSize }}
+                        pagination={{ pageSize: pageSize, showTotal: total => `共${total}条` }}
                     ></Table>
                 </Form>
             </div>
