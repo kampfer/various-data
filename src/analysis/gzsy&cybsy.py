@@ -14,7 +14,7 @@ yearly = df.resample('BA').ffill()  # resample之前必须保证索引是datetim
 shiftedClosePrices = yearly.close.shift(1)
 shiftedClosePrices.iloc[0] = df.iloc[0].open
 returns = (yearly.close - shiftedClosePrices) / shiftedClosePrices
-returns.index = returns.index.year
+returns.index = returns.index.year  # 索引需要对齐
 
 # 年化cpi
 cpiRes = requests.get('http://127.0.0.1:3000/api/getIndicator?id=875ee100-a14e-41aa-8c22-ea3fdc106792')
@@ -24,7 +24,7 @@ cpiDf[['date']] = cpiDf[['date']].apply(pd.to_datetime, unit='ms')
 cpiDf.set_index('date', inplace=True)
 cpis = (cpiDf.cpi - 100) / 100
 cpis.sort_index(inplace=True, ascending=True)
-cpis.index = cpis.index.year
+cpis.index = cpis.index.year    # 索引需要对齐
 
 # 隔夜国债收益率
 xlsxFilenames = [
@@ -47,7 +47,7 @@ for xlsxFilename in xlsxFilenames:
     overnightReturns = df[df['标准期限说明'] == '0d']['收益率(%)'] / 100
     overnightAvgReturn = overnightReturns.mean()
     overnightAvgReturns.append(overnightAvgReturn)
-    overnightReturnIndices.append(overnightReturns.index[0].year)
+    overnightReturnIndices.append(overnightReturns.index[0].year)   # 索引需要对齐
 overnightReturnSerie = pd.Series(overnightAvgReturns, overnightReturnIndices, name='nationDebt')
 
 # print(returns)
