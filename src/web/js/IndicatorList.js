@@ -17,9 +17,12 @@ import {
     AUTO_UPDATE_INDICATOR,
     MANUAL_UPDATE_INDICATOR,
 } from '../../constants/indicatorTypes.js';
+import moment from 'moment';
 
 import 'antd/dist/antd.css';
 import './IndicatorList.css';
+
+const dateFormat = 'YYYY-MM-DD';
 
 export default class IndicatorList extends React.Component {
 
@@ -37,6 +40,18 @@ export default class IndicatorList extends React.Component {
                 {
                     title: '描述',
                     dataIndex: 'description',
+                },
+                {
+                    title: '创建时间',
+                    dataIndex: 'createTime',
+                    render: (text) => moment(text).format(dateFormat),
+                    sorter: (a, b) => a.createTime - b.createTime
+                },
+                {
+                    title: '更新时间',
+                    dataIndex: 'updateTime',
+                    render: (text) => moment(text).format(dateFormat),
+                    sorter: (a, b) => a.updateTime - b.updateTime
                 },
                 {
                     title: '操作',
