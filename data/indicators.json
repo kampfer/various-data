@@ -7,20 +7,7 @@
         "graph": "cpi",
         "crawler": "cpi",
         "type": 0,
-        "updateTime": 1633247172224
-    },
-    {
-        "id": "cc53e0c2-b80a-4dfe-9567-c8f37f7067c7",
-        "createTime": 1633247191386,
-        "name": "超额存款准备金率",
-        "description": "超额存款准备金率",
-        "graph": "test",
-        "fieldList": [
-            "date",
-            "value"
-        ],
-        "type": 1,
-        "updateTime": 1633247191386
+        "updateTime": 1638435876852
     },
     {
         "id": "a13c1a9a-6c4a-42b9-8ec2-2f6945389f65",
