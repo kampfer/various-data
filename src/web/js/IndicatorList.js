@@ -73,61 +73,36 @@ export default class IndicatorList extends React.Component {
             newIndicatorVisible: false,
             indicatorFields: []
         };
-    }
 
-    addIndicator = () => {
-        this.newIndicatorForm.current.validateFields()
-            .then((values) => {
-                this.setState({ loading: true });
-                fetch(`/api/addIndicator`, {
-                    body: JSON.stringify(values),
-                    method: 'POST',
-                    headers: {
-                        'content-type': 'application/json'
-                    }
-                })
-                    .then(res => res.json())
-                    .then(({ code, msg, data }) => {
-                        if (code === 200) {
-                            this.props.onAddIndicator(data);
-                            this.hideNewIndicatorModal();
-                        } else {
-                            message.error(msg);
-                        }
-                    })
-                    .finally(() => this.setState({ loading: false }));
-        });
-    }
+        this.addIndicator = () => {
+            this.newIndicatorForm.current.validateFields()
+                .then((values) => {
+                    this.setState({ loading: true });
+                    props.addIndicator(values)
+                        .catch(({ msg }) => message.error(msg))
+                        .finally(() => this.setState({ loading: false }));
+                });
+        };
 
-    crawlIndicator(id) {
-        if (id) {
+        this.crawlIndicator = (id) => {
             this.setState({loading: true});
-            fetch(`/api/crawlIndicator?id=${id}`)
-                .then(res => res.json())
-                .then(json => {
-                    if (json.code === 200) {
-                        message.success(`${id}更新成功`);
-                    } else {
-                        message.error(json.msg);
-                    }
-                })
+            props.crawlIndicator(id)
+                .then(
+                    () => message.success(`${id}更新成功`),
+                    (json) => message.error(json.msg)
+                )
                 .finally(() => this.setState({ loading: false }));
-        }
-    }
+        };
 
-    deleteIndicator(id) {
-        if (id) {
+        this.deleteIndicator = (id) => {
             this.setState({loading: true});
-            fetch(`/api/deleteIndicator?id=${id}`)
-                .then(res => res.json())
-                .then(json => {
-                    if (json.code === 200) {
-                        this.props.onDeleteIndicator(id);
-                        message.success(`删除成功`);
-                    }
-                })
+            props.deleteIndicator(id)
+                .then(
+                    () => message.success(`删除成功`),
+                    (json) => message.error(json.msg)
+                )
                 .finally(() => this.setState({ loading: false }));
-        }
+        };
     }
 
     showNewIndicatorModal = () => {
@@ -139,7 +114,7 @@ export default class IndicatorList extends React.Component {
         this.setState({ newIndicatorVisible: false });
     }
 
-    doEidt(id) {
+    doEidt = (id) => {
         const { indicatorList } = this.props;
         const indicator = indicatorList.find(d => d.id === id);
         this.setState({ 
