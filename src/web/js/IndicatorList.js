@@ -79,29 +79,29 @@ export default class IndicatorList extends React.Component {
                 .then((values) => {
                     this.setState({ loading: true });
                     props.addIndicator(values)
-                        .catch(({ msg }) => message.error(msg))
-                        .finally(() => this.setState({ loading: false }));
+                        .finally(() => this.setState({ loading: false }))
+                        .catch(({ msg }) => message.error(msg));
                 });
         };
 
         this.crawlIndicator = (id) => {
             this.setState({loading: true});
             props.crawlIndicator(id)
+                .finally(() => this.setState({ loading: false }))
                 .then(
                     () => message.success(`${id}更新成功`),
                     (json) => message.error(json.msg)
-                )
-                .finally(() => this.setState({ loading: false }));
+                );
         };
 
         this.deleteIndicator = (id) => {
             this.setState({loading: true});
             props.deleteIndicator(id)
+                .finally(() => this.setState({ loading: false }))
                 .then(
                     () => message.success(`删除成功`),
                     (json) => message.error(json.msg)
-                )
-                .finally(() => this.setState({ loading: false }));
+                );
         };
     }
 
