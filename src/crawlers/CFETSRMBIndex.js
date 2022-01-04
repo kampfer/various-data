@@ -4,7 +4,7 @@ import * as request from './request.js';
 export default async function () {
 
     const res = await request.get({
-        url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bk-fx/RmbIdxChrt',
+        url: 'https://www.chinamoney.com.cn/ags/ms/cm-u-bk-fx/RmbIdxChrt',
         data: {
             indexType: 3,
             t: Date.now()

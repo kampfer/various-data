@@ -13,7 +13,7 @@ export default async function (indicator) {
     const startTime = moment().subtract(1, 'y').add(1, 'd');
 
     const res = await request.get({
-        url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/FrrHis',
+        url: 'https://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/FrrHis',
         data: {
             lang: 'CN',
             startDate: startTime.format('YYYY-MM-DD'),
