@@ -1,16 +1,16 @@
 import moment from 'moment';
 import * as request from './request.js';
 
-export default async function () {
+export default async function crawl () {
     const { data } = (await request.post({
-        url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bond-publish/TicketPutAndBackMonthRegion',
+        url: 'https://www.chinamoney.com.cn/ags/ms/cm-u-bond-publish/TicketPutAndBackMonthRegion',
     })).json();
 
     const { maxMonth, maxMonthYear, minMonth, minMonthYear } = data.ticketPutAndBackMonthRegion;
     const months = (maxMonthYear - minMonthYear) * 12 + (maxMonth - minMonth) + 1;
 
     const res = await request.post({
-        url: 'http://www.chinamoney.com.cn/ags/ms/cm-u-bond-publish/TicketPutAndBackStatByMonth',
+        url: 'https://www.chinamoney.com.cn/ags/ms/cm-u-bond-publish/TicketPutAndBackStatByMonth',
         data: {
             startMonth: `${minMonthYear}-${minMonth}`,
             endMonth: `${maxMonthYear}-${maxMonth}`,
@@ -36,3 +36,5 @@ export default async function () {
         };
     });
 }
+
+crawl();
