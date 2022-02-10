@@ -150,8 +150,9 @@ export default class IndicatorManager {
 
     async crawlIndicator(id) {
         const indicator = this.getIndicator(id);
-        const ret = await indicator.crawl();
-        return ret;
+        await indicator.crawl();
+        this.saveIndicatorList();
+        return indicator.toJSON();
     }
 
 }

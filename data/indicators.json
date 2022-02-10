@@ -7,7 +7,7 @@
         "graph": "cpi",
         "crawler": "cpi",
         "type": 0,
-        "updateTime": 1638435876852
+        "updateTime": 1644461817750
     },
     {
         "id": "a13c1a9a-6c4a-42b9-8ec2-2f6945389f65",
@@ -17,7 +17,7 @@
         "graph": "balanceSheetOfMonetaryAuthority",
         "crawler": "balanceSheetOfMonetaryAuthority",
         "type": 0,
-        "updateTime": 1633355247337
+        "updateTime": 1644461589269
     },
     {
         "id": "4c767175-7547-4d8e-872b-3595c6f6cf49",
@@ -27,7 +27,7 @@
         "graph": "CFETSRMBIndex",
         "crawler": "CFETSRMBIndex",
         "type": 0,
-        "updateTime": 1633355388505
+        "updateTime": 1644461334810
     },
     {
         "id": "3593b953-d8bb-43d8-8de9-cd741d474924",
@@ -37,7 +37,7 @@
         "graph": "fr_fdr",
         "crawler": "fr_fdr",
         "type": 0,
-        "updateTime": 1633355410642
+        "updateTime": 1644461336289
     },
     {
         "id": "5bb7bc7e-c1e0-47b5-ae1f-3d273f05862b",
@@ -47,7 +47,7 @@
         "graph": "moneySupply",
         "crawler": "moneySupply",
         "type": 0,
-        "updateTime": 1633355427269
+        "updateTime": 1644461338256
     },
     {
         "id": "b5375850-ac95-429e-86b9-b19655e45d71",
@@ -57,7 +57,7 @@
         "graph": "ticketPutAndBackStatByMonth",
         "crawler": "ticketPutAndBackStatByMonth",
         "type": 0,
-        "updateTime": 1633762481311
+        "updateTime": 1644461339238
     },
     {
         "id": "3b065983-7795-40dc-b104-48c072803d33",
@@ -67,7 +67,7 @@
         "graph": "zs399006",
         "crawler": "zs399006",
         "type": 0,
-        "updateTime": 1633420328321
+        "updateTime": 1644461340713
     },
     {
         "id": "239f1880-6f7a-4166-b4df-375734bddc48",
@@ -87,6 +87,6 @@
         "graph": "null",
         "crawler": "cpi2",
         "type": 0,
-        "updateTime": 1634278674193
+        "updateTime": 1644461344868
     }
 ]

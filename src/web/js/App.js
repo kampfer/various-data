@@ -65,6 +65,10 @@ export default class App extends React.Component {
                     .then(res => res.json())
                     .then(json => {
                         if (json.code === 200) {
+                            const { indicatorList } = this.state;
+                            const index = indicatorList.findIndex(d => d.id === id);
+                            indicatorList.splice(index, 1, json.data);
+                            this.setState({ indicatorList: [...indicatorList] });
                             return json.data;
                         } else {
                             return Promise.reject(json.msg);
