@@ -89,10 +89,7 @@ export default class IndicatorList extends React.Component {
             props.crawlIndicator(id)
                 .finally(() => this.setState({ loading: false }))
                 .then(
-                    (data) => {
-                        debugger;
-                        message.success(`${id}更新成功`);
-                    },
+                    () => message.success(`${id}更新成功`),
                     (error) => message.error(error)
                 );
         };
