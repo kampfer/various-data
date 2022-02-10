@@ -22,15 +22,19 @@ app.get('/api/crawlIndicator', async (req, res) => {
     const indicator = indicatorManager.getIndicator(id);
     if (indicator) {
         console.log(`开始抓取${indicator.name}数据`);
-        const data = await indicatorManager.crawlIndicator(id);
+        let data;
+        try {
+            data = await indicatorManager.crawlIndicator(id);
+        } catch(e) {
+            console.error(e);
+            res.json({ code: 300, msg: '爬取失败' });
+        }
         if (data) {
             console.log(`成功抓取${indicator.name}数据`);
-            res.json({ code: 200, data });
-        } else {
-            res.json({ code: 300, msg: '爬虫不存在' });
         }
+        res.json({ code: 200, data });
     } else {
-        res.json({ code: 202, msg: '指标不存在' });
+        res.json({ code: 301, msg: '指标不存在' });
     }
 });
 

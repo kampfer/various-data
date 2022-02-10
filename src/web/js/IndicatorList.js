@@ -80,7 +80,7 @@ export default class IndicatorList extends React.Component {
                     this.setState({ loading: true });
                     props.addIndicator(values)
                         .finally(() => this.setState({ loading: false }))
-                        .catch(({ msg }) => message.error(msg));
+                        .catch((error) => message.error(error));
                 });
         };
 
@@ -90,7 +90,7 @@ export default class IndicatorList extends React.Component {
                 .finally(() => this.setState({ loading: false }))
                 .then(
                     () => message.success(`${id}更新成功`),
-                    (json) => message.error(json.msg)
+                    (error) => message.error(error)
                 );
         };
 
@@ -100,7 +100,7 @@ export default class IndicatorList extends React.Component {
                 .finally(() => this.setState({ loading: false }))
                 .then(
                     () => message.success(`删除成功`),
-                    (json) => message.error(json.msg)
+                    (error) => message.error(error)
                 );
         };
     }
