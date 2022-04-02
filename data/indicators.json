@@ -7,7 +7,7 @@
         "graph": "cpi",
         "crawler": "cpi",
         "type": 0,
-        "updateTime": 1644461817750
+        "updateTime": 1648813351071
     },
     {
         "id": "a13c1a9a-6c4a-42b9-8ec2-2f6945389f65",
@@ -27,7 +27,7 @@
         "graph": "CFETSRMBIndex",
         "crawler": "CFETSRMBIndex",
         "type": 0,
-        "updateTime": 1644461334810
+        "updateTime": 1648813369177
     },
     {
         "id": "3593b953-d8bb-43d8-8de9-cd741d474924",
@@ -37,7 +37,7 @@
         "graph": "fr_fdr",
         "crawler": "fr_fdr",
         "type": 0,
-        "updateTime": 1644461336289
+        "updateTime": 1648813370261
     },
     {
         "id": "5bb7bc7e-c1e0-47b5-ae1f-3d273f05862b",
@@ -47,7 +47,7 @@
         "graph": "moneySupply",
         "crawler": "moneySupply",
         "type": 0,
-        "updateTime": 1644461338256
+        "updateTime": 1648813373081
     },
     {
         "id": "b5375850-ac95-429e-86b9-b19655e45d71",
@@ -67,7 +67,7 @@
         "graph": "zs399006",
         "crawler": "zs399006",
         "type": 0,
-        "updateTime": 1644461340713
+        "updateTime": 1648813374744
     },
     {
         "id": "239f1880-6f7a-4166-b4df-375734bddc48",
@@ -87,6 +87,6 @@
         "graph": "null",
         "crawler": "cpi2",
         "type": 0,
-        "updateTime": 1644461344868
+        "updateTime": 1648813495683
     }
 ]
