@@ -63,4 +63,8 @@ import akshare as ak
 sz399006Df = ak.stock_zh_index_daily(symbol="sz399006")
 bondChinaYieldDf = ak.bond_china_yield(start_date="20210201", end_date="20220201")
 
-print(sz399006Df.describe())
+print(sz399006Df.head())
+print(sz399006Df.tail())
+print(sz399006Df.index)
+sz399006Df.plot()
+# print(sz399006Df.describe())

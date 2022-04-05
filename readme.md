@@ -1,7 +1,3 @@
-## 总体思路
-
-crawlers从各个数据源抓取数据，转换为json格式储存在/data目录中。前端直接通过ajax请求对应json。
-
 ## 数据源列表
 
 1. CFETS人民币汇率指数
@@ -32,3 +28,11 @@ https://yield.chinabond.com.cn/cbweb-cbrc-web/cbrc/historyQuery?startDate=2019-0
 
 ## chromedriver
 https://npm.taobao.org/mirrors/chromedriver/
+
+
+## akshare
+https://www.akshare.xyz/
+
+## 命令
+pipenv run python **.py
+pipenv install ** --pypi-mirror https://mirrors.aliyun.com/pypi/simple/
