@@ -59,12 +59,30 @@
 # print(excessReturns.describe())
 
 import akshare as ak
+import matplotlib.pyplot as plt
+import pandas as pd
 
 sz399006Df = ak.stock_zh_index_daily(symbol="sz399006")
 bondChinaYieldDf = ak.bond_china_yield(start_date="20210201", end_date="20220201")
 
-print(sz399006Df.head())
-print(sz399006Df.tail())
-print(sz399006Df.index)
-sz399006Df.plot()
+sz399006Df[['date']] = sz399006Df[['date']].apply(pd.to_datetime, unit='ms')
+print(sz399006Df.resample('BA').ffill())
+
+# print(sz399006Df.head())
+# print(sz399006Df.tail())
+# print(sz399006Df.index)
+# sz399006Df.plot()
+# plt.show()
 # print(sz399006Df.describe())
+# shiftedClosePrices = sz399006Df.close.shift(1)
+# shiftedClosePrices.iloc[0] = sz399006Df.iloc[0].open
+# returns = (sz399006Df.close - shiftedClosePrices) / shiftedClosePrices
+# print(returns)
+
+# matplotlib后端检查
+# import matplotlib
+# import matplotlib.rcsetup as rcsetup
+# print(rcsetup.all_backends)
+# print(matplotlib.get_backend())
+# print(matplotlib.matplotlib_fname())
+
