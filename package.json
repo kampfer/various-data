@@ -1,0 +1,20 @@
+{
+  "name": "various-data",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "1. CFETS人民币汇率指数\r http://www.chinamoney.com.cn/chinese/bkrmbidx/",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kampfer/various-data.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kampfer/various-data/issues"
+  },
+  "homepage": "https://github.com/kampfer/various-data#readme"
+}
