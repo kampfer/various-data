@@ -9,6 +9,7 @@ matplotlib = "*"
 jupyterlab = "*"
 requests = "*"
 pyquery = "*"
+selenium = "*"
 
 [dev-packages]
 
