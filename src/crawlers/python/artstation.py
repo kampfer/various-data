@@ -5,6 +5,16 @@ import os
 from urllib.parse import urlparse
 from pyquery import PyQuery as pq
 
+# 调试用
+# import http.client as http_client
+# import logging
+# http_client.HTTPConnection.debuglevel = 1
+# logging.basicConfig()
+# logging.getLogger().setLevel(logging.DEBUG)
+# requests_log = logging.getLogger("requests.packages.urllib3")
+# requests_log.setLevel(logging.DEBUG)
+# requests_log.propagate = True
+
 dataPath = 'D:\\模型素材\\artstation'
 
 proxies = {
@@ -22,12 +32,27 @@ def crawlImage(url, savePath):
         for chunk in r.iter_content(chunk_size=128):
             fd.write(chunk)
 
+s = requests.Session()
 def crawlMP4(url, savePath):
     headers = {
-        'Range': 'bytes=0-'
+        'range': 'bytes=0-',
+        # 'referer': 'https://www.artstation.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36 Edg/101.0.1210.47',
+        'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="101", "Microsoft Edge";v="101"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Host': 'cdn-animation.artstation.com',
+        'Upgrade-Insecure-Requests': '1',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,is;q=0.5',
+        'Cache-Control': 'no-cache'
     }
-    r = requests.get(url, proxies=proxies, stream=True, headers=headers)
-    print(r.status_code)
+    r = s.get(url, proxies=proxies, headers=headers)
     with open(savePath, 'wb') as fd:
         for chunk in r.iter_content(chunk_size=1024):
             fd.write(chunk)
@@ -76,5 +101,4 @@ def crawlArtstationProjectByUrl(url):
     id = os.path.basename(urlObj.path)
     crawlArtstationProject(id)
 
-crawlArtstationProjectByUrl('https://www.artstation.com/artwork/035X6y')
-# print(requests.get('https://www.artstation.com/users/user-245566/likes.json?page=1', proxies=proxies).text)
+crawlArtstationProjectByUrl('https://www.artstation.com/artwork/6bXrox')
