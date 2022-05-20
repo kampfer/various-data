@@ -1,4 +1,3 @@
-from turtle import fd
 import requests
 import json
 import os
@@ -101,4 +100,4 @@ def crawlArtstationProjectByUrl(url):
     id = os.path.basename(urlObj.path)
     crawlArtstationProject(id)
 
-crawlArtstationProjectByUrl('https://www.artstation.com/artwork/6bXrox')
+crawlArtstationProjectByUrl('https://www.artstation.com/artwork/Po5vnL')
