@@ -10,6 +10,8 @@ jupyterlab = "*"
 requests = "*"
 pyquery = "*"
 selenium = "*"
+fastapi = "*"
+uvicorn = {extras = ["standard"], version = "*"}
 
 [dev-packages]
 
