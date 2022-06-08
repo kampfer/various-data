@@ -6,14 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <style>
-        html, body, #k-chart {
+        html, body, #app {
             width: 100%;
             height: 100%;
+        }
+        body {
+            margin: 0;
+        }
+        #app {
+            display: flex;
+        }
+        #k-chart {
+            flex: 1;
+        }
+        #news-list {
+            width: 300px;
         }
     </style>
 </head>
 <body>
-    <div id="k-chart"></div>
+    <div id="app">
+        <div id="k-chart"></div>
+        <div id="news-list"></div>
+    </div>
     <script src="./stock.js" type="module"></script>
 </body>
 </html>
