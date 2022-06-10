@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory="src/web/static"), name="static")
+app.mount("/web", StaticFiles(directory="./dist/web"), name="web")
 
 @app.get("/")
 def read_root():

@@ -5,7 +5,7 @@
   "description": "1. CFETS人民币汇率指数\r http://www.chinamoney.com.cn/chinese/bkrmbidx/",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:web": "webpack --config ./scripts/webpack.dev.config.js --watch"
   },
   "repository": {
     "type": "git",
@@ -16,5 +16,21 @@
   "bugs": {
     "url": "https://github.com/kampfer/various-data/issues"
   },
-  "homepage": "https://github.com/kampfer/various-data#readme"
+  "homepage": "https://github.com/kampfer/various-data#readme",
+  "dependencies": {
+    "antd": "^4.19.5",
+    "echarts": "^5.3.2",
+    "moment": "^2.29.3",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
+  },
+  "devDependencies": {
+    "babel-loader": "^8.2.5",
+    "clean-webpack-plugin": "^4.0.0",
+    "css-loader": "^6.7.1",
+    "html-webpack-plugin": "^5.5.0",
+    "style-loader": "^3.3.1",
+    "webpack": "^5.73.0",
+    "webpack-cli": "^4.9.2"
+  }
 }

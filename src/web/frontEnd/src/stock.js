@@ -1,5 +1,5 @@
-import * as echarts from './echarts.esm.min.js';
-import moment from './moment.js';
+import * as echarts from 'echarts';
+import moment from 'moment';
 
 function splitData(data) {
 
@@ -195,3 +195,7 @@ fetch('/stock/sh000001')
             ]
         });
     });
+
+const news = Array.from({ length: 100 }).map((d, i) => ({ title: `测试新闻${i}` }));
+
+
