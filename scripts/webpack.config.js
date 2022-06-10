@@ -11,13 +11,18 @@ const __dirname = path.dirname(__filename);
 const ROOT_PATH = path.resolve(__dirname, '..');
 
 export default {
-    entry: path.join(ROOT_PATH, 'src/web/frontEnd/src/stock.js'),
+    entry: path.join(ROOT_PATH, 'src/web/frontEnd/src/main.js'),
     module: {
         rules: [
             {
                 test: /\.js$/,
                 exclude: /(node_modules|bower_components)/,
-                loader: 'babel-loader'
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                        presets: ['@babel/preset-react']
+                    }
+                }
             },
             {
                 test: /\.css$/i,
