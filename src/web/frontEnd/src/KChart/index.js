@@ -180,7 +180,8 @@ function makeCandleChart(data, container) {
     });
     // chart.on('selectchanged', (...args) => console.log(args));
     // chart.on('axisareaselected', (...args) => console.log(args));
-    chart.on('mouseover', (...args) => console.log(args));
+    // chart.on('mouseover', (...args) => console.log(args));
+    // chart.on('click', (...args) => console.log(args));
     return chart;
 }
 
