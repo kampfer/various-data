@@ -1,6 +1,6 @@
 import React from 'react';
-import KChart from './KChart/index.js';
-import NewsList from './NewsList/index.js';
+import KChart from './components/KChart/index.js';
+import NewsList from './components/NewsList/index.js';
 
 import './main.css';
 

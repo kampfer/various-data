@@ -3,7 +3,7 @@ import { List, Checkbox } from 'antd';
 import VirtualList from 'rc-virtual-list';
 import { connect } from "react-redux";
 
-import { getNews, toggleNews } from '../store/actions.js';
+import { getNews, toggleNews } from '../../store/actions.js';
 
 import 'antd/dist/antd.css';
 import './index.css';
