@@ -33,12 +33,14 @@ r = requests.get(
 res = json.loads(r.text)
 allData = list(map(makeNode, res['returndata']['datanodes']))
 columnCount = len(res['returndata']['wdnodes'][1]['nodes'])
-row = 0
-data = []
-for i in range(columnCount):
-  data.append(allData[columnCount * row + i])
+data = {}
+for rowIndex, row in enumerate(res['returndata']['wdnodes'][0]['nodes']):
+  rowList = []
+  for i in range(columnCount):
+    rowList.append(allData[columnCount * rowIndex + i])
+  data[row['cname']] = rowList
 f = open(storePath, 'w')
-f.write(json.dumps(list(data)))
+f.write(json.dumps(data))
 f.close()
 
 # pipenv run python src/crawlers/python/gdp.py
