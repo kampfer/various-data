@@ -1,0 +1,10 @@
+#app {
+  display: flex;
+}
+.left {
+  flex: 1;
+}
+.right {
+  width: 400px;
+  border-left: 1px solid #f0f0f0;
+}

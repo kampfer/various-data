@@ -31,3 +31,14 @@ def getMyData(name):
         }
     else:
         return { 'code': 404, 'msg': '数据不存在' }
+
+@app.get('/api/getCrawlers')
+def getCrawlers():
+    return {
+        'code': 200,
+        'data': [
+            { 'name': 'yearlyGDP', 'apiName': 'crawlYearlyGDP' },
+            { 'name': 'crawlYearlyGDPIndex', 'apiName': 'crawlYearlyGDPIndex' },
+            { 'name': 'crawlQuarterlyGDP', 'apiName': 'crawlQuarterlyGDP' }
+        ]
+    }

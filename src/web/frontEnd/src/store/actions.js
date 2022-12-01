@@ -1,5 +1,5 @@
-import { FETCHING_NEWS, RECEIVE_NEWS, TOGGLE_NEWS, FETCHING_STOCK, RECEIVE_STOCK } from "./actionTypes.js";
-import { fetchNews, fetchStock } from '../api/index.js';
+import { FETCHING_NEWS, RECEIVE_NEWS, TOGGLE_NEWS, FETCHING_STOCK, RECEIVE_STOCK, FETCHING_CRAWLERS, RECEIVE_CRAWLERS } from "./actionTypes.js";
+import { fetchNews, fetchStock, fetchCrawlers } from '../api/index.js';
 import moment from 'moment';
 
 function fetchingNews() {
@@ -62,5 +62,25 @@ function receiveStock(json) {
             volumes: json.data.map((d, i) => [i, d[4], d[0] > d[3] ? 1 : -1]),
             changes
         }
+    }
+}
+
+export const getCrawlers = () => (dispatch) => {
+    dispatch(fetchingCrawlers());
+    return fetchCrawlers().then((json) => {
+        dispatch(receiveCrawlers(json));
+    });
+}
+
+function fetchingCrawlers() {
+    return {
+        type: FETCHING_CRAWLERS
+    };
+}
+
+function receiveCrawlers(json) {
+    return {
+        type: RECEIVE_CRAWLERS,
+        payload: json.data
     }
 }

@@ -1,16 +1,16 @@
 import React from 'react';
-import KChart from './components/KChart/index.js';
-import NewsList from './components/NewsList/index.js';
+import KChart from '../../components/KChart/index.js';
+import NewsList from '../../components/NewsList/index.js';
 
-import './main.css';
+import './index.css';
 
-export default class App extends React.Component {
+export default class ChartWithNews extends React.Component {
 
     componentDidMount() {}
 
     render() {
         return (
-            <div id="app">
+            <div id="ChartWithNews">
                 <div className="left">
                     <KChart></KChart>
                 </div>

@@ -17,3 +17,8 @@ export function fetchStock(code) {
         .then(res => res.json())
         .then(res => JSON.parse(res));
 }
+
+export function fetchCrawlers() {
+    return fetch(`/api/getCrawlers`)
+        .then(res => res.json());
+}
