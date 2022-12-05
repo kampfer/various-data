@@ -5,7 +5,7 @@ from constants import DATA_PATH, STATS_GOV_CRT_PATH
 
 def makeNode(d):
   return {
-    'gdp': d['data']['data'],
+    'value': d['data']['data'],
     'date': d['wds'][1]['valuecode']
   }
 

@@ -6,6 +6,7 @@ import os
 import sys
 import json
 from importlib import import_module
+import traceback
 
 app = FastAPI()
 DATA_PATH = os.path.join(os.path.dirname(__file__), '../../data')
@@ -60,6 +61,13 @@ def getCrawlers():
                 'moduleName': 'gdp', 
                 'crawlerName': 'crawlQuarterlyGDP',
                 'source': 'https://data.stats.gov.cn/easyquery.htm?cn=B01&zb=A0101&sj=2022C'
+            },
+            {
+                'name': '各种价格定基指数',
+                'moduleName': 'cpi',
+                'crawlerName': 'crawlYearlyPriceFixingIndex',
+                'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A0902&sj=2020',
+                'url': '/data/yearly_price_fix_index'
             }
         ]
     }
@@ -71,4 +79,5 @@ def exeCrawler(moduleName, funcName):
         func()
         return { 'code': 200 }
     except Exception as e:
-        return { 'code': 500 }
+        traceback.print_exc()
+        return { 'code': 500, 'msg': 'Unexpected Error: {}'.format(e) }
