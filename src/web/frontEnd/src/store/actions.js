@@ -1,5 +1,5 @@
-import { FETCHING_NEWS, RECEIVE_NEWS, TOGGLE_NEWS, FETCHING_STOCK, RECEIVE_STOCK, FETCHING_CRAWLERS, RECEIVE_CRAWLERS } from "./actionTypes.js";
-import { fetchNews, fetchStock, fetchCrawlers } from '../api/index.js';
+import { FETCHING_NEWS, RECEIVE_NEWS, TOGGLE_NEWS, FETCHING_STOCK, RECEIVE_STOCK, FETCHING_CRAWLERS, RECEIVE_CRAWLERS, EXEING_CRAWLER, EXE_CRAWLER_SUCCESS, EXE_CRAWLER_FAIL } from "./actionTypes.js";
+import { fetchNews, fetchStock, fetchCrawlers, exeCrawler } from '../api/index.js';
 import moment from 'moment';
 
 function fetchingNews() {
@@ -83,4 +83,28 @@ function receiveCrawlers(json) {
         type: RECEIVE_CRAWLERS,
         payload: json.data
     }
+}
+
+export const callCrawler = (moduleName, crawlerName) => (dispatch) => {
+    dispatch(exeingCrawler());
+    return exeCrawler(moduleName, crawlerName).then(
+        json => dispatch(exeCrawlerSuccess(json)),
+        err => dispatch(exeCrawlerFail(err))
+    );
+}
+
+function exeingCrawler() {
+    return {
+        type: EXEING_CRAWLER
+    };
+}
+function exeCrawlerSuccess() {
+    return {
+        type: EXE_CRAWLER_SUCCESS
+    };
+}
+function exeCrawlerFail() {
+    return {
+        type: EXE_CRAWLER_FAIL
+    };
 }

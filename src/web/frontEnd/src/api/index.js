@@ -22,3 +22,8 @@ export function fetchCrawlers() {
     return fetch(`/api/getCrawlers`)
         .then(res => res.json());
 }
+
+export function exeCrawler(moduleName, crawlerName) {
+    return fetch(`/api/exeCrawler?funcName=${crawlerName}&moduleName=${moduleName}`)
+        .then(res => res.json());
+}

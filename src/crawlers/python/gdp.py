@@ -49,12 +49,14 @@ def saveData(storePath, data):
   f.write(json.dumps(data))
   f.close()
 
+# https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A0201&sj=2021
 def crawlYearlyGDP():
   
   res = fetchData('hgnd', 'A0201', '1990-')
   data = extractData(res)
   saveData(os.path.join(DATA_PATH, 'yearly_gdp.json'), data)
 
+# https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A020201&sj=2021
 def crawlYearlyGDPIndex():
   res = fetchData('hgnd', 'A020201', '1990-')
   data = extractData(res)
