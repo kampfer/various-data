@@ -63,7 +63,7 @@ def crawlYearlyGDPIndex():
   saveData(os.path.join(DATA_PATH, 'yearly_gdp_index.json'), data)
 
 def crawlQuarterlyGDP():
-  storePath = os.path.join(DATA_PATH, 'gdp.json')
+  storePath = os.path.join(DATA_PATH, 'quarterly_gdp.json')
 
   # https://data.stats.gov.cn/easyquery.htm?cn=B01&zb=A0101&sj=2022C
   r = requests.get(

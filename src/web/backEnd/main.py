@@ -22,8 +22,14 @@ def read_root():
     return {"Hello": "World"}
 
 @app.get('/akshare/{funcName}')
-def callAkshare(funcName, params):
-    df = ak[funcName](**params)
+def callAkshare(funcName, p = None):
+    func = getattr(ak, funcName)
+    # print(funcName, json.loads(p))
+    if (p):
+        params = json.loads(p)
+    else:
+        params = {}
+    df = func(**params)
     return df.to_json()
 
 @app.get('/data/{name}')
@@ -41,35 +47,59 @@ def getMyData(name):
 
 @app.get('/api/getCrawlers')
 def getCrawlers():
+    crawlers = [
+        { 
+            'name': '国内生产总值',
+            'moduleName': 'gdp',
+            'crawlerName': 'crawlYearlyGDP',
+            'fileName': 'yearly_gdp',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A0201&sj=2021'
+        },
+        {
+            'name': '国内生产总值指数（上年=100）', 
+            'moduleName': 'gdp', 
+            'crawlerName': 'crawlYearlyGDPIndex',
+            'fileName': 'yearly_gdp_index',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A020201&sj=2021'
+        },
+        { 
+            'name': '国内生产总值（现价）', 
+            'moduleName': 'gdp', 
+            'crawlerName': 'crawlQuarterlyGDP',
+            'fileName': 'quarterly_gdp',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=B01&zb=A0101&sj=2022C',
+        },
+        {
+            'name': '各种价格定基指数',
+            'moduleName': 'cpi',
+            'crawlerName': 'crawlYearlyPriceFixingIndex',
+            'fileName': 'yearly_price_fix_index',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A0902&sj=2020',
+        },
+        {
+            'name': '全国居民消费价格分类指数(上年同期)(2016-)',
+            'moduleName': 'cpi',
+            'crawlerName': 'crawlMonthlyCPIYoY2016_',
+            'fileName': 'monthly_cpi_yoy_2016_',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=A01&zb=A010202&sj=202211',
+        },
+        {
+            'name': '全国居民消费价格分类指数(上年同期)(-2015)',
+            'moduleName': 'cpi',
+            'crawlerName': 'crawlMonthlyCPIYoY_2015',
+            'fileName': 'monthly_cpi_yoy_2015',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=A01&zb=A010202&sj=202211',
+        }
+    ]
+    for crawler in crawlers:
+        fileName= crawler['fileName']
+        crawler['url'] = f'/data/{fileName}'
+        filePath = f'{os.path.join(DATA_PATH, fileName)}.json'
+        if os.path.exists(filePath):
+            crawler['updateTime'] = os.path.getmtime(filePath)
     return {
         'code': 200,
-        'data': [
-            { 
-                'name': '国内生产总值',
-                'moduleName': 'gdp',
-                'crawlerName': 'crawlYearlyGDP',
-                'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A0201&sj=2021'
-            },
-            {
-                'name': '国内生产总值指数（上年=100）', 
-                'moduleName': 'gdp', 
-                'crawlerName': 'crawlYearlyGDPIndex',
-                'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A020201&sj=2021'
-            },
-            { 
-                'name': '国内生产总值（现价）', 
-                'moduleName': 'gdp', 
-                'crawlerName': 'crawlQuarterlyGDP',
-                'source': 'https://data.stats.gov.cn/easyquery.htm?cn=B01&zb=A0101&sj=2022C'
-            },
-            {
-                'name': '各种价格定基指数',
-                'moduleName': 'cpi',
-                'crawlerName': 'crawlYearlyPriceFixingIndex',
-                'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A0902&sj=2020',
-                'url': '/data/yearly_price_fix_index'
-            }
-        ]
+        'data': crawlers
     }
 
 @app.get('/api/exeCrawler')
