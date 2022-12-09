@@ -7,6 +7,7 @@ import sys
 import json
 from importlib import import_module
 import traceback
+# from ..crawlers.python.utils import fetchStatsData, extractStatsData
 
 app = FastAPI()
 DATA_PATH = os.path.join(os.path.dirname(__file__), '../../data')
@@ -32,6 +33,17 @@ def callAkshare(funcName, p = None):
     df = func(**params)
     return df.to_json()
 
+@app.get('/nbs')
+def crawlerNBSData(dbcode, zb, sj):
+    fetchStatsData = getattr(import_module('utils'), 'fetchStatsData')
+    extractStatsData = getattr(import_module('utils'), 'extractStatsData')
+    res = fetchStatsData(dbcode, zb, sj)
+    data = extractStatsData(res)
+    return {
+        'code': 200,
+        'data': data
+    }
+
 @app.get('/data/{name}')
 def getMyData(name):
     targetPath = f'{os.path.join(DATA_PATH, name)}.json'
@@ -53,21 +65,24 @@ def getCrawlers():
             'moduleName': 'gdp',
             'crawlerName': 'crawlYearlyGDP',
             'fileName': 'yearly_gdp',
+            'note': '年度数据；1952年至今',
             'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A0201&sj=2021'
-        },
-        {
-            'name': '国内生产总值指数（上年=100）', 
-            'moduleName': 'gdp', 
-            'crawlerName': 'crawlYearlyGDPIndex',
-            'fileName': 'yearly_gdp_index',
-            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A020201&sj=2021'
         },
         { 
             'name': '国内生产总值（现价）', 
             'moduleName': 'gdp', 
             'crawlerName': 'crawlQuarterlyGDP',
             'fileName': 'quarterly_gdp',
+            'note': '季度数据；1992年第一季度至今',
             'source': 'https://data.stats.gov.cn/easyquery.htm?cn=B01&zb=A0101&sj=2022C',
+        },
+        {
+            'name': '国内生产总值指数（上年=100）', 
+            'moduleName': 'gdp', 
+            'crawlerName': 'crawlYearlyGDPIndex',
+            'fileName': 'yearly_gdp_index',
+            'note': '年度数据；1953年至今',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A020201&sj=2021'
         },
         {
             'name': '各种价格定基指数',

@@ -39,6 +39,10 @@ export default function CrawlersAdmin() {
           render: (_, record) => <a href={record.source} target="_blank">{record.name}</a>
         },
         {
+          title: '备注',
+          dataIndex: 'note'
+        },
+        {
           title: '更新时间',
           dataIndex: 'updateTime'
         },
