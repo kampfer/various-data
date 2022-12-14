@@ -2,32 +2,31 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCrawlers, callCrawler } from '../store/actions.js';
 import { Table, message } from 'antd';
+import moment from 'moment/moment.js';
 
 export default function CrawlersAdmin() {
   const dispatch = useDispatch();
   const crawlers = useSelector(state => state.crawlers.list);
+
   const update = (moduleName, crawlerName) => {
     dispatch(callCrawler(moduleName, crawlerName));
   };
-
-  // const fetchingCrawlers = useSelector(state => state.crawlers.fetchingCrawlers);
-  // if (fetchingCrawlers) {
-  //   message.loading('Loading...');
-  // } else {
-  //   message.destroy();
-  // }
-
-  // const exeingCrawler = useSelector(state => state.crawlers.exeingCrawler);
-  // if (exeingCrawler) {
-  //   message.loading('Loading...');
-  // } else {
-  //   message.destroy();
-  // }
 
   useEffect(() => {
     console.log('effect');
     dispatch(getCrawlers());
   }, []);
+
+  const fetchingCrawlers = useSelector(state => state.crawlers.fetchingCrawlers);
+  const exeingCrawler = useSelector(state => state.crawlers.exeingCrawler);
+  useEffect(() => {
+    console.log('effect 0');
+    if (fetchingCrawlers || exeingCrawler) {
+      message.loading('Loading...');
+    } else {
+      message.destroy();
+    }
+  }, [fetchingCrawlers, exeingCrawler]);
 
   return (
     <Table
@@ -44,7 +43,8 @@ export default function CrawlersAdmin() {
         },
         {
           title: '更新时间',
-          dataIndex: 'updateTime'
+          dataIndex: 'updateTime',
+          render: (_, record) => moment(record.updateTime).format('YYYY-MM-DD HH:MM:SS')
         },
         { 
           title: '数据地址',

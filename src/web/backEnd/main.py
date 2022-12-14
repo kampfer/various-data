@@ -92,18 +92,20 @@ def getCrawlers():
             'source': 'https://data.stats.gov.cn/easyquery.htm?cn=C01&zb=A0902&sj=2020',
         },
         {
-            'name': '全国居民消费价格分类指数(上年同期)(2016-)',
+            'name': '全国居民消费价格分类指数(上年同月=100)(2016-)',
             'moduleName': 'cpi',
             'crawlerName': 'crawlMonthlyCPIYoY2016_',
             'fileName': 'monthly_cpi_yoy_2016_',
-            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=A01&zb=A010202&sj=202211',
+            'note': '月度数据;2016年至今',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=A01&zb=A010101',
         },
         {
-            'name': '全国居民消费价格分类指数(上年同期)(-2015)',
+            'name': '全国居民消费价格分类指数(上年同月=100)(-2015)',
             'moduleName': 'cpi',
             'crawlerName': 'crawlMonthlyCPIYoY_2015',
             'fileName': 'monthly_cpi_yoy_2015',
-            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=A01&zb=A010202&sj=202211',
+            'note': '月度数据;2015年前',
+            'source': 'https://data.stats.gov.cn/easyquery.htm?cn=A01&zb=A010102',
         }
     ]
     for crawler in crawlers:
@@ -111,7 +113,7 @@ def getCrawlers():
         crawler['url'] = f'/data/{fileName}'
         filePath = f'{os.path.join(DATA_PATH, fileName)}.json'
         if os.path.exists(filePath):
-            crawler['updateTime'] = os.path.getmtime(filePath)
+            crawler['updateTime'] = os.path.getmtime(filePath) * 1000
     return {
         'code': 200,
         'data': crawlers

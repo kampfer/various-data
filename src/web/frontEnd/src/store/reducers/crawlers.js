@@ -9,6 +9,7 @@ const initialState = {
 export default function(state = initialState, action) {
   switch (action.type) {
     case RECEIVE_CRAWLERS: {
+      action.payload.forEach((d, i) => d.key = i);
       return {
         fetchingCrawlers: false,
         list: action.payload
