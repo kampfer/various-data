@@ -13,14 +13,12 @@ export default function CrawlersAdmin() {
   };
 
   useEffect(() => {
-    console.log('effect');
     dispatch(getCrawlers());
   }, []);
 
   const fetchingCrawlers = useSelector(state => state.crawlers.fetchingCrawlers);
   const exeingCrawler = useSelector(state => state.crawlers.exeingCrawler);
   useEffect(() => {
-    console.log('effect 0');
     if (fetchingCrawlers || exeingCrawler) {
       message.loading('Loading...');
     } else {
@@ -39,7 +37,8 @@ export default function CrawlersAdmin() {
         },
         {
           title: '备注',
-          dataIndex: 'note'
+          dataIndex: 'note',
+          render: (_, record) => record.note || '-'
         },
         {
           title: '更新时间',
