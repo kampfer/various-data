@@ -1,0 +1,36 @@
+公开市场业务交易公告 [2007]第101号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2007-12-25 11:22:00
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2007年第101号
+人民银行于本周二（12月25日）以价格招标方式发行了2007年第一百三十九期央行票据；并以利率招标方式开展了正回购操作。具体情况如下：
+第一百三十九期央行票据发行情况
+名称
+发行量
+期限
+价格(元)
+参考收益率
+2007年第一百三十九期
+央行票据
+200亿元
+1年
+96.10
+4.0583%
+正回购操作情况
+期限
+交易量
+中标利率
+7天
+580亿元
+2.60%
+28天
+510亿元
+3.30%
+中国人民银行公开市场业务操作室
+二ΟΟ七年十二月二十五日
+打印本页
+关闭窗口

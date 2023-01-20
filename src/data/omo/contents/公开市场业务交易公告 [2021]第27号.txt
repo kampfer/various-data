@@ -1,0 +1,20 @@
+公开市场业务交易公告 [2021]第27号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2021-02-08 09:20:30
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+今年春节前居民提现需求明显少于往年，同时节前财政支出增加较多。为维护春节前流动性平稳，2021年2月8日人民银行以利率招标方式开展了1100亿元逆回购操作。具体情况如下：
+逆回购操作情况
+期限
+中标量
+中标利率
+7天
+1100亿元
+2.20%
+中国人民银行公开市场业务操作室
+二〇二一年二月八日
+打印本页
+关闭窗口

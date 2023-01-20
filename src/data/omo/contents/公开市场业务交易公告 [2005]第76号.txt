@@ -1,0 +1,32 @@
+公开市场业务交易公告 [2005]第76号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2005-10-13 11:26:00
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2005年第76号
+人民银行于本周四（10月13日）以价格招标方式发行了2005年第九十七期、第九十八期央行票据。具体情况如下：
+央行票据发行情况
+名称
+发行量
+期限
+价格
+参考收益率
+2005年第九十七期
+央行票据
+400亿元
+3个月（91天）
+99.71
+1.1666%
+2005年第九十八期
+央行票据
+200亿元
+6个月
+99.39
+1.2309%
+中国人民银行公开市场业务操作室
+二ОО五年十月十三日
+打印本页
+关闭窗口

@@ -1,0 +1,28 @@
+公开市场业务交易公告 [2019]第142号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2019-07-23 09:46:10
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2019年7月23日，人民银行开展定向中期借贷便利（TMLF）操作2977亿元，并开展中期借贷便利（MLF）操作2000亿元，两项操作合计4977亿元，与当日中期借贷便利（MLF）到期量5020亿元基本相当。开展上述操作后，银行体系流动性合理充裕，今日不开展逆回购操作。具体情况如下：
+TMLF操作情况
+期限
+操作量
+操作利率
+1年
+（可展期2次，实际期限为3年）
+2977亿元
+3.15%
+MLF操作情况
+期限
+操作量
+操作利率
+1年
+2000亿元
+3.30%
+中国人民银行公开市场业务操作室
+二〇一九年七月二十三日
+打印本页
+关闭窗口

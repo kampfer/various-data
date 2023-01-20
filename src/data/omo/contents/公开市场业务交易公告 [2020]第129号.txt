@@ -1,0 +1,13 @@
+公开市场业务交易公告 [2020]第129号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2020-07-06 09:00:30
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+目前银行体系流动性总量处于较高水平，可吸收央行逆回购到期、金融机构缴存法定存款准备金等因素的影响，2020年7月6日不开展逆回购操作。
+中国人民银行公开市场业务操作室
+二〇二〇年七月六日
+打印本页
+关闭窗口

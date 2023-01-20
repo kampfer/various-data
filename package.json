@@ -5,7 +5,8 @@
   "description": "1. CFETS人民币汇率指数\r http://www.chinamoney.com.cn/chinese/bkrmbidx/",
   "main": "index.js",
   "scripts": {
-    "dev:web": "webpack --config ./scripts/webpack.dev.config.js --watch"
+    "dev:web": "webpack --config ./scripts/webpack.dev.config.js --watch",
+    "dev:server": "pipenv run uvicorn src.web.backEnd.main:app --reload --port 8000"
   },
   "repository": {
     "type": "git",

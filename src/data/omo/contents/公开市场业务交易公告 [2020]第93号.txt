@@ -1,0 +1,20 @@
+公开市场业务交易公告 [2020]第93号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2020-05-15 09:45:30
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+从2020年4月15日开始，人民银行对农村金融机构和仅在省级行政区域内经营的城市商业银行定向下调存款准备金率1个百分点，分两次实施到位，每次下调0.5个百分点。今日为实施该政策的第二次存款准备金率调整，释放长期资金约2000亿元。同时，人民银行开展中期借贷便利（MLF）操作1000亿元。今日不开展逆回购操作。具体情况如下：
+MLF操作情况
+期限
+操作量
+中标利率
+1年
+1000亿元
+2.95%
+中国人民银行公开市场业务操作室
+二〇二〇年五月十五日
+打印本页
+关闭窗口

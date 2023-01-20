@@ -1,0 +1,26 @@
+公开市场业务交易公告 [2006]第43号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2006-06-14 14:58:00
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2006年第43号
+根据货币调控需要，人民银行于本周三（6月14日）向部分公开市场业务一级交易商发行中央银行票据。具体情况如下：
+央行票据发行情况
+名称
+发行量
+期限
+招标价格
+参考收益率
+2006年第四十期
+央行票据
+1000亿元
+1年
+97.93
+2.1138%
+中国人民银行公开市场业务操作室
+二ΟΟ六年六月十四日
+打印本页
+关闭窗口

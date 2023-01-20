@@ -1,0 +1,27 @@
+公开市场业务交易公告 [2021]第137号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2021-07-15 09:20:30
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2021年7月15日，人民银行下调金融机构存款准备金率0.5个百分点（不含已执行5%存款准备金率的金融机构），释放长期资金约1万亿元。考虑到目前正值税期高峰等因素，金融机构对中长期资金仍有一定需求，为维护银行体系流动性合理充裕，人民银行开展1000亿元中期借贷便利（MLF）操作和100亿元逆回购操作。从交易结果看，中期借贷便利（MLF）和公开市场逆回购利率均维持不变。具体情况如下：
+MLF操作情况
+期限
+操作量
+中标利率
+1年
+1000亿元
+2.95%
+逆回购操作情况
+期限
+中标量
+中标利率
+7天
+100亿元
+2.20%
+中国人民银行公开市场业务操作室
+二〇二一年七月十五日
+打印本页
+关闭窗口

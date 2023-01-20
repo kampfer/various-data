@@ -1,0 +1,53 @@
+公开市场业务交易公告 [2008]第1号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2008-01-03 12:05:00
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2008年第1号
+人民银行于本周四（1月3日）以价格（利率）招标方式发行了2008年第一期、第二期、第三期央行票据，并开展了正回购操作。具体情况如下：
+第一期央行票据发行情况
+名称
+发行量
+期限
+价格
+参考收益率
+2008年第一期央行票据
+100亿元
+1年
+96.10元
+4.0583%
+第二期央行票据发行情况
+名称
+发行量
+期限
+中标利率
+2008年第二期央行票据
+10亿元
+3年
+4.52%
+第三期央行票据发行情况
+名称
+发行量
+期限
+价格
+参考收益率
+2008年第三期央行票据
+50亿元
+3个月
+（90天）
+99.17元
+3.4036%
+正回购操作情况
+期限
+交易量
+中标利率
+7天
+140亿元
+2.70%
+中国人民银行公开市场业务操作室
+二ΟΟ八年一月三日
+打印本页
+关闭窗口

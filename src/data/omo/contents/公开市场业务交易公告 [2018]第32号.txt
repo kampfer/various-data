@@ -1,0 +1,20 @@
+公开市场业务交易公告 [2018]第32号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2018-02-13 09:10:06
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+考虑到春节后第一个工作日银行体系流动性将受到税期、中期借贷便利（MLF）到期、临时准备金动用（CRA）部分到期和法定存款准备金缴存等因素影响，人民银行加强预调微调，于2018年2月13日开展MLF操作3930亿元（无逆回购操作）。
+MLF操作情况
+期限
+操作量
+操作利率
+1年
+3930亿元
+3.25%
+中国人民银行公开市场业务操作室
+二〇一八年二月十三日
+打印本页
+关闭窗口

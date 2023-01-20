@@ -1,0 +1,21 @@
+公开市场业务交易公告 [2020]第142号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2020-07-23 09:20:30
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2020年7月23日，人民银行在开展中央国库现金管理商业银行定期存款操作500亿元的基础上，以利率招标方式开展了500亿元逆回购操作。具体情况如下：
+逆回购操作情况
+期限
+中标量
+中标利率
+7天
+500亿元
+2.20%
+此外，今日到期的中期借贷便利（MLF）和定向中期借贷便利（TMLF）已于7月15日提前续做，充分满足了金融机构需求。
+中国人民银行公开市场业务操作室
+二〇二〇年七月二十三日
+打印本页
+关闭窗口

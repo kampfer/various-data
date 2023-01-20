@@ -1,0 +1,13 @@
+公开市场业务交易公告 [2018]第127号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2018-07-05 09:10:09
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+为进一步推进市场化法治化“债转股”，加大对小微企业的支持力度，2018年7月5日中国人民银行下调国有大型商业银行、股份制商业银行、邮政储蓄银行、城市商业银行、非县域农村商业银行、外资银行人民币存款准备金率0.5个百分点。以上措施释放流动性约7000亿元，可吸收央行逆回购到期等因素的影响，银行体系流动性总量处在较高水平，故今日不开展公开市场操作。
+中国人民银行公开市场业务操作室
+二〇一八年七月五日
+打印本页
+关闭窗口

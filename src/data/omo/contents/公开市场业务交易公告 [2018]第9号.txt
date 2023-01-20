@@ -1,0 +1,23 @@
+公开市场业务交易公告 [2018]第9号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2018-01-12 09:46:02
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+为对冲税期、央行逆回购到期等因素的影响，维护银行体系流动性合理稳定，人民银行于2018年1月12日以利率招标方式开展了2700亿元逆回购操作。具体情况如下：
+逆回购操作情况
+期限
+中标量
+中标利率
+7天
+1400亿元
+2.50%
+14天
+1300亿元
+2.65%
+中国人民银行公开市场业务操作室
+二〇一八年一月十二日
+打印本页
+关闭窗口

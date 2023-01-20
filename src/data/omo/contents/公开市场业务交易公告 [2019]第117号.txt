@@ -1,0 +1,27 @@
+公开市场业务交易公告 [2019]第117号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2019-06-19 09:46:10
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+为维护半年末流动性平稳，2019年6月19日，人民银行在对当日到期的2000亿元中期借贷便利（MLF）等量续做的基础上，对中小银行开展增量操作，总操作量2400亿元，同时开展14天期逆回购操作400亿元。具体情况如下：
+逆回购操作情况
+期限
+中标量
+中标利率
+14天
+400亿元
+2.70%
+MLF操作情况
+期限
+操作量
+操作利率
+1年
+2400亿元
+3.30%
+中国人民银行公开市场业务操作室
+二〇一九年六月十九日
+打印本页
+关闭窗口

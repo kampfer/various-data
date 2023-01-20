@@ -1,0 +1,20 @@
+公开市场业务交易公告 [2016]第61号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2016-04-18 09:45:52
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+人民银行于本周一（4月18日）以利率招标方式开展了逆回购操作。具体情况如下：
+逆回购操作情况
+期限
+交易量
+中标利率
+7天
+300亿元
+2.25%
+中国人民银行公开市场业务操作室
+二〇一六年四月十八日
+打印本页
+关闭窗口

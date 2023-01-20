@@ -1,0 +1,24 @@
+公开市场业务交易公告 [2007]第53号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2007-07-13 11:27:00
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2007年第53号
+根据货币调控需要，人民银行于本周五（7月13日）向部分公开市场业务一级交易商发行中央银行票据。具体情况如下：
+央行票据发行情况
+名称
+发行量
+期限
+票面利率
+2007年第七十四期
+央行票据
+1010亿元
+3年
+3.60%
+中国人民银行公开市场业务操作室
+二○○七年七月十三日
+打印本页
+关闭窗口

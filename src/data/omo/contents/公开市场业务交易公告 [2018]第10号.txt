@@ -1,0 +1,30 @@
+公开市场业务交易公告 [2018]第10号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2018-01-15 09:46:16
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+目前处于税期高峰，叠加金融机构缴存法定存款准备金、央行逆回购和MLF到期等因素，银行体系流动性总量降幅较大。为对冲以上因素的影响，维护银行体系流动性合理稳定，在考虑商业银行灵活有序使用“临时准备金动用安排（CRA）”的基础上，人民银行于2018年1月15日以利率招标方式开展了1500亿元逆回购操作，同时开展1年期MLF操作3980亿元。具体情况如下：
+逆回购操作情况
+期限
+中标量
+中标利率
+7天
+800亿元
+2.50%
+14天
+700亿元
+2.65%
+MLF操作情况
+期限
+操作量
+操作利率
+1年
+3980亿元
+3.25%
+中国人民银行公开市场业务操作室
+二〇一八年一月十五日
+打印本页
+关闭窗口

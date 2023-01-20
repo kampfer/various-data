@@ -1,0 +1,20 @@
+公开市场业务交易公告 [2017]第210号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2017-11-03 09:46:02
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+2017年11月3日人民银行开展MLF操作4040亿元，无逆回购操作。
+MLF操作情况
+期限
+操作量
+操作利率
+1年
+4040亿元
+3.20%
+中国人民银行公开市场业务操作室
+二〇一七年十一月三日
+打印本页
+关闭窗口

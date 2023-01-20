@@ -1,0 +1,20 @@
+公开市场业务交易公告 [2019]第136号
+function doZoom(size){ document.getElementById('zoom').style.fontSize=size+'px' setTailPosition() } $(function(){ if($('#laiyuan').html()==""){ $('#laiyuan').html("货币政策司") } var now_date = $("#shijian").text(); var now_nian = now_date.substring(0,4); var now_yue = now_date.substring(5,7); var now_ri = now_date.substring(8,10); if(now_nian >= 2015){ if(now_yue >= 8){ if(now_ri >= 1){ //$(".content p").css("textIndent",0) } } } })
+字号 大 中 小
+文章来源：
+2019-07-15 09:46:46
+打印本页
+function a(){ window.open('','_parent',''); window.opener = window; window.close(); }
+关闭窗口
+从2019年5月15日开始，人民银行对服务县域的农村商业银行实行较低存款准备金率，分三次实施到位。今日为实施该政策的第三次存款准备金率调整，释放长期资金约1000亿元。同时，为对冲税期等因素的影响，维护银行体系流动性合理充裕，2019年7月15日，人民银行在对当日到期的1885亿元中期借贷便利（MLF）等量续做的基础上，对中小银行开展增量操作，总操作量2000亿元。今日不开展逆回购操作。
+MLF操作情况
+期限
+操作量
+操作利率
+1年
+2000亿元
+3.30%
+中国人民银行公开市场业务操作室
+二〇一九年七月十五日
+打印本页
+关闭窗口
