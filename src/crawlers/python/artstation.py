@@ -3,6 +3,7 @@ import json
 import os
 from urllib.parse import urlparse
 from pyquery import PyQuery as pq
+import argparse
 
 # 调试用
 # import http.client as http_client
@@ -14,12 +15,14 @@ from pyquery import PyQuery as pq
 # requests_log.setLevel(logging.DEBUG)
 # requests_log.propagate = True
 
-dataPath = 'D:\\模型素材\\artstation'
+dataPath = os.path.normpath(os.path.join(__file__, '../../../data'))
+
+useProxy = False
 
 proxies = {
     'http': 'http://127.0.0.1:41091',
     'https': 'http://127.0.0.1:41091'
-}
+} if useProxy else None
 
 def basename(url):
     urlObj = urlparse(url)
@@ -31,8 +34,7 @@ def crawlImage(url, savePath):
         for chunk in r.iter_content(chunk_size=128):
             fd.write(chunk)
 
-s = requests.Session()
-def crawlMP4(url, savePath):
+def crawlMP4(url, savePath, s):
     headers = {
         'range': 'bytes=0-',
         # 'referer': 'https://www.artstation.com/',
@@ -56,8 +58,23 @@ def crawlMP4(url, savePath):
         for chunk in r.iter_content(chunk_size=1024):
             fd.write(chunk)
 
-def crawlArtstationProject(id):
-    r = requests.get(f'https://www.artstation.com/projects/{id}.json', proxies=proxies)
+def crawlArtstationProject(id, session):
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Referer': 'https://www.artstation.com/artwork/nEmaAe',
+        'Sec-Ch-Ua': '"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
+    }
+    r = session.get(f'https://www.artstation.com/projects/{id}.json', proxies=proxies, headers=headers)
     data = json.loads(r.text)
 
     dirPath = os.path.join(dataPath, data['title'])
@@ -89,15 +106,34 @@ def crawlArtstationProject(id):
             source = doc('#video > source').attr('src')
             crawlMP4(
                 source,
-                os.path.join(dirPath, basename(source))
+                os.path.join(dirPath, basename(source)),
+                session
             )
             print(f'下载 {source} 【{index + 1}/{total}】')
         else:
             print(f'不支持的asset_type: {asset["asset_type"]}')
+
+def crawlArtstationCollection(id, s):
+    r = s.get(f'https://www.artstation.com/collections/{id}/projects.json?collection_id={id}', proxies=proxies)
+    data = json.loads(r.text)
+    for item in data['data']:
+        crawlArtstationProject(item['hash_id'], s)
 
 def crawlArtstationProjectByUrl(url):
     urlObj = urlparse(url)
     id = os.path.basename(urlObj.path)
     crawlArtstationProject(id)
 
-crawlArtstationProjectByUrl('https://www.artstation.com/artwork/Po5vnL')
+argParser = argparse.ArgumentParser()
+argParser.add_argument('-p', '--project', default=None)
+argParser.add_argument('-c', '--collection', default=None)
+args = vars(argParser.parse_args())
+
+s = requests.Session()
+
+if (args['project']):
+    crawlArtstationProject(args['project'], s)
+if (args['collection']):
+    crawlArtstationCollection(args['collection'], s)
+
+s.close()
