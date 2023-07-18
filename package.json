@@ -2,7 +2,6 @@
   "name": "various-data",
   "version": "1.0.0",
   "type": "module",
-  "description": "1. CFETS人民币汇率指数\r http://www.chinamoney.com.cn/chinese/bkrmbidx/",
   "main": "index.js",
   "scripts": {
     "dev:web": "webpack --config ./scripts/webpack.dev.config.js --watch",
@@ -20,6 +19,7 @@
   "homepage": "https://github.com/kampfer/various-data#readme",
   "dependencies": {
     "antd": "^4.19.5",
+    "axios": "^1.4.0",
     "echarts": "^5.3.2",
     "moment": "^2.29.3",
     "rc-virtual-list": "^3.4.6",
