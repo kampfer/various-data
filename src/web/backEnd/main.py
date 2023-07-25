@@ -10,7 +10,7 @@ import traceback
 # from ..crawlers.python.utils import fetchStatsData, extractStatsData
 
 app = FastAPI()
-DATA_PATH = os.path.join(os.path.dirname(__file__), '../../data')
+DATA_PATH = os.path.join(os.path.dirname(__file__), '../../../data')
 MODULE_PATH = os.path.join(os.path.dirname(__file__), '../../crawlers/python')
 
 # 这样在运行时才能成功导入模块
@@ -31,7 +31,10 @@ def callAkshare(funcName, p = None):
     else:
         params = {}
     df = func(**params)
-    return df.to_json()
+    return {
+        'code': 200,
+        'data': json.loads(df.to_json(orient='records'))
+    }
 
 @app.get('/nbs')
 def crawlerNBSData(dbcode, zb, sj):

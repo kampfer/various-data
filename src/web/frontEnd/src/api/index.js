@@ -13,7 +13,7 @@ export function fetchNews() {
 }
 
 export function fetchStock(code) {
-    return fetch(`/stock/${code}`)
+    return fetch(`/akshare/stock_zh_index_daily?symbol=${code}`)
         .then(res => res.json())
         .then(res => JSON.parse(res));
 }
