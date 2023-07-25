@@ -38,4 +38,4 @@ pipenv run python **.py
 pipenv install ** --pypi-mirror https://mirrors.aliyun.com/pypi/simple/
 pipenv run python -m ipykernel install --user --name variousData --display-name variousData
 pipenv run jupyter-lab
-pipenv run  uvicorn src.web.backEnd.main:app --reload --port 8000
+pipenv run uvicorn src.web.backEnd.main:app --reload --port 8000

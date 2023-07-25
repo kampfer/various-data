@@ -48,16 +48,12 @@ async function crawlLatestFeed() {
 function mergeList(old, latest) {
   const minId = latest[latest.length - 1].id;
   const idx = old.findIndex(d => d.id === minId);
-  if (idx > -1) {
-    const count = latest.length - (idx + 1);
-    for(let i = count - 1; i >= 0; i--) {
-      old.unshift(latest[i]);
-    }
-    console.log(`【${moment().utcOffset(8).format('YYYY-MM-DD LTS')}】本次执行已添加${count}条新数据，现有总计${old.length}条数据`)
-    return old;
-  } else {
-    return [...latest, ...old];
+  const count = idx > -1 ? (latest.length - (idx + 1)) : latest.length;
+  for(let i = count - 1; i >= 0; i--) {
+    old.unshift(latest[i]);
   }
+  console.log(`【${moment().utcOffset(8).format('YYYY-MM-DD LTS')}】本次执行已添加${count}条新数据，现有总计${old.length}条数据`);
+  return old;
 }
 
 async function crawlSina7x24() {
