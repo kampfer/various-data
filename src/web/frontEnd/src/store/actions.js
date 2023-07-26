@@ -56,10 +56,10 @@ function receiveStock(json) {
     return {
         type: RECEIVE_STOCK,
         payload: {
-            dates: json.index.map(d => moment(d).format('YYYY-MM-DD')),
+            dates: json.data.map(d => moment(d.date).format('YYYY-MM-DD')),
             // open close low high
-            values: json.data.map(d => [d[0], d[3], d[2], d[1]]),
-            volumes: json.data.map((d, i) => [i, d[4], d[0] > d[3] ? 1 : -1]),
+            values: json.data.map(d => [d.open, d.close, d.low, d.high]),
+            volumes: json.data.map((d, i) => [i, d.volume, d.close > d.open ? 1 : -1]),
             changes
         }
     }
