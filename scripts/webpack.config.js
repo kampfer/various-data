@@ -27,7 +27,25 @@ export default {
             {
                 test: /\.css$/i,
                 use: ['style-loader', 'css-loader'],
-            }
+            },
+            {
+                test: /\.s[ac]ss$/i,
+                use: [
+                    "style-loader",
+                    {
+                        loader: 'css-loader',
+                        options: {
+                            modules: {
+                                // https://webpack.js.org/loaders/css-loader/#auto
+                                auto: true,
+                            //     mode: 'local',
+                                localIdentName: '[local]__[hash]'
+                            }
+                        }
+                    },
+                    "sass-loader",
+                ],
+            },
         ]
     },
     plugins: [
@@ -39,8 +57,8 @@ export default {
         })
     ],
     output: {
-        filename: '[name].[hash].js',
-        chunkFilename: '[id].[hash].js',
+        filename: '[name].[fullhash].js',
+        chunkFilename: '[id].[fullhash].js',
         path: path.join(ROOT_PATH, 'dist/web')
     }
 };

@@ -11,11 +11,11 @@ export default class ChartWithNews extends React.Component {
     render() {
         return (
             <div id="ChartWithNews">
-                <div className="left">
-                    <KChart></KChart>
-                </div>
                 <div className="right">
                     <NewsList></NewsList>
+                </div>
+                <div className="left">
+                    <KChart></KChart>
                 </div>
             </div>
         );

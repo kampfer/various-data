@@ -5,8 +5,8 @@ export function fetchNews() {
                 .map((d, i) => ({
                     author: 'liaowei',
                     title: `测试新闻${i}`,
-                    date: `2022-04-01`,
-                    checked: false
+                    createTime: `2018-4-${i+1} 00:00:01`,
+                    checked: Math.round(Math.random())
                 }))
         )
     });
