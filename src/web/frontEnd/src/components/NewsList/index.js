@@ -17,20 +17,13 @@ class App extends React.Component {
     render() {
         const { news, toggleNews } = this.props;
         return (
-            <List split={false}>
-                <VirtualList
-                    data={news}
-                    height={window.innerHeight}
-                    itemHeight={47}
-                    // itemKey='date'
-                >
-                    {(item, index) => (
-                        <List.Item key={index} style={{ padding: 0 }}>
-                            <EventCard data={item} />
-                        </List.Item>
-                    )}
-                </VirtualList>
-            </List>
+            <VirtualList
+                data={news}
+                height={window.innerHeight}
+                itemHeight={100}
+            >
+                { (item, index) => <EventCard key={item.id} data={item} /> }
+            </VirtualList>
         );
     }
 }
