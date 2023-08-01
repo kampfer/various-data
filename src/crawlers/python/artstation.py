@@ -15,7 +15,7 @@ import argparse
 # requests_log.setLevel(logging.DEBUG)
 # requests_log.propagate = True
 
-dataPath = os.path.normpath(os.path.join(__file__, '../../../data'))
+dataPath = os.path.normpath(os.path.join(__file__, '../../../../data'))
 
 useProxy = False
 
