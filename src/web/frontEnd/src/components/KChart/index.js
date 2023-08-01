@@ -228,4 +228,4 @@ class KChart extends React.Component {
     }
 }
 
-export default connect((state) => ({ stock: state.stock, checkedNews: state.news.filter(d => d.checked) }), { getStock })(KChart);
+export default connect((state) => ({ stock: state.stock, checkedNews: state.news.filter(d => d.pinned) }), { getStock })(KChart);

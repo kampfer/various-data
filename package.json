@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/kampfer/various-data#readme",
   "dependencies": {
+    "@ant-design/icons": "^5.2.4",
     "antd": "^4.19.5",
     "axios": "^1.4.0",
     "echarts": "^5.3.2",

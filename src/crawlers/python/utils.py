@@ -49,6 +49,12 @@ def saveData(storePath, data):
   f.write(json.dumps(data))
   f.close()
 
+def readData(storePath):
+  f = open(storePath, 'r')
+  data = json.load(f)
+  f.close()
+  return data
+
 def crawlStatsData(dbcode, zb, sj, saveName):
   res = fetchStatsData(dbcode, zb, sj)
   data = extractStatsData(res)

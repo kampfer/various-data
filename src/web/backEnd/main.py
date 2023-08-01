@@ -7,7 +7,6 @@ import sys
 import json
 from importlib import import_module
 import traceback
-# from ..crawlers.python.utils import fetchStatsData, extractStatsData
 
 app = FastAPI()
 DATA_PATH = os.path.join(os.path.dirname(__file__), '../../../data')
@@ -15,6 +14,9 @@ MODULE_PATH = os.path.join(os.path.dirname(__file__), '../../crawlers/python')
 
 # 这样在运行时才能成功导入模块
 sys.path.append(MODULE_PATH)
+
+saveData = getattr(import_module('utils'), 'saveData')
+readData = getattr(import_module('utils'), 'readData')
 
 app.mount("/web", StaticFiles(directory="./dist/web"), name="web")
 
@@ -131,3 +133,21 @@ def exeCrawler(moduleName, funcName):
     except Exception as e:
         traceback.print_exc()
         return { 'code': 500, 'msg': 'Unexpected Error: {}'.format(e) }
+
+@app.get('/api/pinEvent')
+def pinEvent(id: int):
+    pinedEventsStorePath = f'{os.path.join(DATA_PATH, "pinedEvents")}.json'
+    data = readData(pinedEventsStorePath) if os.path.exists(pinedEventsStorePath) else []
+    if id not in data:
+        data.append(id)
+    saveData(pinedEventsStorePath, data)
+    return { 'code': 200 }
+
+@app.get('/api/unpinEvent')
+def unpinEvent(id: int):
+    pinedEventsStorePath = f'{os.path.join(DATA_PATH, "pinedEvents")}.json'
+    if os.path.exists(pinedEventsStorePath):
+        data = readData(pinedEventsStorePath)
+        data.remove(id)
+        saveData(pinedEventsStorePath, data)
+    return { 'code': 200 }

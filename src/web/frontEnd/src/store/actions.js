@@ -1,110 +1,172 @@
-import { FETCHING_NEWS, RECEIVE_NEWS, TOGGLE_NEWS, FETCHING_STOCK, RECEIVE_STOCK, FETCHING_CRAWLERS, RECEIVE_CRAWLERS, EXEING_CRAWLER, EXE_CRAWLER_SUCCESS, EXE_CRAWLER_FAIL } from "./actionTypes.js";
-import { fetchNews, fetchStock, fetchCrawlers, exeCrawler } from '../api/index.js';
+import {
+  FETCHING_NEWS,
+  RECEIVE_NEWS,
+  TOGGLE_NEWS,
+  FETCHING_STOCK,
+  RECEIVE_STOCK,
+  FETCHING_CRAWLERS,
+  RECEIVE_CRAWLERS,
+  EXEING_CRAWLER,
+  EXE_CRAWLER_SUCCESS,
+  EXE_CRAWLER_FAIL,
+  PIN_EVENT_SUCCESS,
+  PIN_EVENT_FAIL,
+  UNPIN_EVENT_SUCCESS,
+  UNPIN_EVENT_FAIL,
+} from './actionTypes.js';
+import {
+  fetchNews,
+  fetchStock,
+  fetchCrawlers,
+  exeCrawler,
+  pinEvent as pinEventById,
+  unpinEvent as unpinEventById,
+} from '../api/index.js';
 import moment from 'moment';
 
 function fetchingNews() {
-    return {
-        type: FETCHING_NEWS
-    };
+  return {
+    type: FETCHING_NEWS,
+  };
 }
 
 function receiveNews(news) {
-    return {
-        type: RECEIVE_NEWS,
-        payload: {
-            news
-        }
-    };
+  return {
+    type: RECEIVE_NEWS,
+    payload: {
+      news,
+    },
+  };
 }
 
 export const getNews = () => (dispatch) => {
-    dispatch(fetchingNews());
-    return fetchNews().then((json) => {
-        dispatch(receiveNews(json.data));
-    });
+  dispatch(fetchingNews());
+  return fetchNews().then((list) => {
+    dispatch(receiveNews(list));
+  });
 };
 
 export const toggleNews = (index) => ({
-    type: TOGGLE_NEWS,
-    payload: {
-        index
-    }
+  type: TOGGLE_NEWS,
+  payload: {
+    index,
+  },
 });
 
 export const getStock = (code) => (dispatch) => {
-    dispatch(fetchingStock());
-    return fetchStock(code).then((json) => {
-        dispatch(receiveStock(json));
-    });
+  dispatch(fetchingStock());
+  return fetchStock(code).then((json) => {
+    dispatch(receiveStock(json));
+  });
 };
 
 function fetchingStock() {
-    return {
-        type: FETCHING_STOCK
-    };
+  return {
+    type: FETCHING_STOCK,
+  };
 }
 
 function receiveStock(json) {
-    const changes = [];
-    json.data.forEach((d, i) => {
-        if (i === 0) {
-            changes.push(0);
-        } else {
-            changes.push((d[3] - json.data[i - 1][3]) / d[3]);
-        }
-    });
-    return {
-        type: RECEIVE_STOCK,
-        payload: {
-            dates: json.data.map(d => moment(d.date).format('YYYY-MM-DD')),
-            // open close low high
-            values: json.data.map(d => [d.open, d.close, d.low, d.high]),
-            volumes: json.data.map((d, i) => [i, d.volume, d.close > d.open ? 1 : -1]),
-            changes
-        }
+  const changes = [];
+  json.data.forEach((d, i) => {
+    if (i === 0) {
+      changes.push(0);
+    } else {
+      changes.push((d[3] - json.data[i - 1][3]) / d[3]);
     }
+  });
+  return {
+    type: RECEIVE_STOCK,
+    payload: {
+      dates: json.data.map((d) => moment(d.date).format('YYYY-MM-DD')),
+      // open close low high
+      values: json.data.map((d) => [d.open, d.close, d.low, d.high]),
+      volumes: json.data.map((d, i) => [
+        i,
+        d.volume,
+        d.close > d.open ? 1 : -1,
+      ]),
+      changes,
+    },
+  };
 }
 
 export const getCrawlers = () => (dispatch) => {
-    dispatch(fetchingCrawlers());
-    return fetchCrawlers().then((json) => {
-        dispatch(receiveCrawlers(json));
-    });
-}
+  dispatch(fetchingCrawlers());
+  return fetchCrawlers().then((json) => {
+    dispatch(receiveCrawlers(json));
+  });
+};
 
 function fetchingCrawlers() {
-    return {
-        type: FETCHING_CRAWLERS
-    };
+  return {
+    type: FETCHING_CRAWLERS,
+  };
 }
 
 function receiveCrawlers(json) {
-    return {
-        type: RECEIVE_CRAWLERS,
-        payload: json.data
-    }
+  return {
+    type: RECEIVE_CRAWLERS,
+    payload: json.data,
+  };
 }
 
 export const callCrawler = (moduleName, crawlerName) => (dispatch) => {
-    dispatch(exeingCrawler());
-    return exeCrawler(moduleName, crawlerName).then(
-        json => dispatch(exeCrawlerSuccess(json)),
-        err => dispatch(exeCrawlerFail(err))
-    );
-}
+  dispatch(exeingCrawler());
+  return exeCrawler(moduleName, crawlerName).then(
+    (json) => dispatch(exeCrawlerSuccess(json)),
+    (err) => dispatch(exeCrawlerFail(err))
+  );
+};
 
 function exeingCrawler() {
-    return {
-        type: EXEING_CRAWLER
-    };
+  return {
+    type: EXEING_CRAWLER,
+  };
 }
 function exeCrawlerSuccess() {
-    return {
-        type: EXE_CRAWLER_SUCCESS
-    };
+  return {
+    type: EXE_CRAWLER_SUCCESS,
+  };
 }
 function exeCrawlerFail() {
-    return {
-        type: EXE_CRAWLER_FAIL
-    };
+  return {
+    type: EXE_CRAWLER_FAIL,
+  };
+}
+
+export const pinEvent = (id) => (dispatch) => {
+  return pinEventById(id).then(
+    () => dispatch(pinEventSuccess(id)),
+    () => dispatch(pinEventFail())
+  );
+};
+function pinEventSuccess(id) {
+  return {
+    type: PIN_EVENT_SUCCESS,
+    payload: id
+  };
+}
+function pinEventFail() {
+  return {
+    type: PIN_EVENT_FAIL,
+  };
+}
+
+export const unpinEvent = (id) => (dispatch) => {
+  return unpinEventById(id).then(
+    () => dispatch(unpinEventSuccess(id)),
+    () => dispatch(unpinEventFail())
+  );
+};
+function unpinEventSuccess(id) {
+  return {
+    type: UNPIN_EVENT_SUCCESS,
+    payload: id
+  };
+}
+function unpinEventFail() {
+  return {
+    type: UNPIN_EVENT_FAIL,
+  };
 }
