@@ -22,12 +22,12 @@ app.mount("/web", StaticFiles(directory="./dist/web"), name="web")
 def read_root():
     return {"Hello": "World"}
 
-@app.get('/akshare/{funcName}')
-def callAkshare(funcName, p = None):
+@app.get('/akshare')
+def callAkshare(funcName, args):
+    print(funcName, args)
     func = getattr(ak, funcName)
-    # print(funcName, json.loads(p))
-    if (p):
-        params = json.loads(p)
+    if (args):
+        params = json.loads(args)
     else:
         params = {}
     df = func(**params)

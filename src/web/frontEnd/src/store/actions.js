@@ -20,7 +20,7 @@ function receiveNews(news) {
 export const getNews = () => (dispatch) => {
     dispatch(fetchingNews());
     return fetchNews().then((json) => {
-        dispatch(receiveNews(json));
+        dispatch(receiveNews(json.data));
     });
 };
 
