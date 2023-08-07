@@ -16,7 +16,7 @@ export function fetchNews() {
 }
 
 export function fetchStock(code) {
-    return fetch(`/akshare?funcName=stock_zh_index_daily&args=${JSON.stringify({ symbol: code })}`).then(res => res.json());
+    return fetch(`/akshare?funcName=stock_zh_index_daily_em&args=${JSON.stringify({ symbol: code })}`).then(res => res.json());
 }
 
 export function fetchCrawlers() {

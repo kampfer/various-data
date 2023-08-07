@@ -15,7 +15,8 @@ class KChart extends React.Component {
     }
 
     initEchartsInstance() {
-        echarts.init(this.state.containerRef.current);
+        const instance = echarts.init(this.state.containerRef.current);
+        instance.on('dataZoom', (...args) => console.log('dataZoom', args));
     }
 
     getEchartsInstance() {
@@ -24,12 +25,14 @@ class KChart extends React.Component {
 
     makeEchartsOption() {
         const { dates, values: prices, volumes } = this.props.stock;
+
         const newsGroup = this.props.checkedNews.reduce((group, news) => {
-            const date = moment(news.createTime).format('YYYY-MM-DD');
+            const date = moment(news.create_time).format('YYYY-MM-DD');
             if (!group[date]) group[date] = [];
             group[date].push(news);
             return group;
         }, {});
+
         const markPoints = [];
         const xArr = dates.map(d => moment(d).format('YYYY-MM-DD'));
         Object.entries(newsGroup).forEach(([key, arr]) => {
@@ -42,6 +45,10 @@ class KChart extends React.Component {
                 });
             }
         });
+
+        const dataZoomStartValue = dates.length - 1;
+        const dataZoomEndValue = dataZoomStartValue - 100;
+
         return {
             animation: false,
             tooltip: {
@@ -165,16 +172,16 @@ class KChart extends React.Component {
                 {
                     type: 'inside',
                     xAxisIndex: [0, 1],
-                    start: 98,
-                    end: 100
+                    startValue: dataZoomStartValue,
+                    endValue: dataZoomEndValue
                 },
                 {
                     show: true,
                     xAxisIndex: [0, 1],
                     type: 'slider',
                     top: '90%',
-                    start: 98,
-                    end: 100
+                    startValue: dataZoomStartValue,
+                    endValue: dataZoomEndValue
                 }
             ],
             series: [
@@ -228,4 +235,7 @@ class KChart extends React.Component {
     }
 }
 
-export default connect((state) => ({ stock: state.stock, checkedNews: state.news.filter(d => d.pinned) }), { getStock })(KChart);
+export default connect(
+    (state) => ({ stock: state.stock, checkedNews: state.news.filter(d => d.pinned) }), 
+    { getStock }
+)(KChart);

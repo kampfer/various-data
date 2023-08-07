@@ -151,3 +151,12 @@ def unpinEvent(id: int):
         data.remove(id)
         saveData(pinedEventsStorePath, data)
     return { 'code': 200 }
+
+@app.get('/api/stock/daily')
+def getStockHqDaily(code):
+    jsonPath = f'{os.path.join(DATA_PATH, code)}.json'
+    if os.path.exists(jsonPath):
+        data = readData(jsonPath)
+    else:
+        data = ak.stock_zh_index_daily(symbol=code).to_json(orient='records')
+        saveData(jsonPath, data)
