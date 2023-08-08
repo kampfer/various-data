@@ -43,7 +43,7 @@ async function _loop(idx, list) {
   const item = list[idx];
   const url = item.url;
   const imageExtname = extname(url);
-  console.log(`抓取: ${item.id} - ${idx + 1} - ${url}`);
+  console.log(`抓取[${idx + 1}/${list.length}]  id: ${item.id}  url: ${url}`);
   const res = await axios.get(url, { responseType: 'arraybuffer' });
   writeFileSync(join(DATA_PATH, 'civitai', `${item.id}${imageExtname}`), res.data);
   _loop(idx + 1, list);
