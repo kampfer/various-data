@@ -1,5 +1,4 @@
 import React from 'react';
-import { List } from 'antd';
 import VirtualList from 'rc-virtual-list';
 import { connect } from 'react-redux';
 import EventCard from './EventCard/index.js';

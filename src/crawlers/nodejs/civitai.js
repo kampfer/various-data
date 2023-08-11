@@ -46,7 +46,6 @@ async function _loop(idx, list) {
   console.log(`抓取[${idx + 1}/${list.length}]  id: ${item.id}  url: ${url}`);
   const res = await axios.get(url, { responseType: 'arraybuffer' });
   writeFileSync(join(DATA_PATH, 'civitai', `${item.id}${imageExtname}`), res.data);
-  _loop(idx + 1, list);
 }
 
 async function loopImages() {
@@ -60,7 +59,15 @@ async function loopImages() {
     }
     const listContent = readFileSync(dataFile);
     const list = JSON.parse(listContent);
-    _loop(start, list);
+    while (start < list.length) {
+      try {
+        await _loop(start, list);
+        start++;
+      } catch(e) {
+        console.log('error and restart');
+        continue;
+      }
+    }
   }
 }
 
