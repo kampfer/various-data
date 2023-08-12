@@ -1,7 +1,7 @@
 import React from 'react';
 import * as echarts from 'echarts';
 import { connect } from "react-redux";
-import { getStock } from '../../store/actions.js';
+import { getStock, setNewsPeriod } from '../../store/actions.js';
 import moment from 'moment';
 
 import './index.css';
@@ -17,6 +17,14 @@ class KChart extends React.Component {
     initEchartsInstance() {
         const instance = echarts.init(this.state.containerRef.current);
         instance.on('dataZoom', (...args) => console.log('dataZoom', args));
+        instance.on('click', (e) => {
+            if (e.componentType === 'markPoint') {
+                const date = moment(e.data.coord[0], 'YYYY-MM-DD')
+                const start = date.startOf('day').valueOf();
+                const end = date.endOf('day').valueOf();
+                this.props.setNewsPeriod(start, end);
+            }
+        });
     }
 
     getEchartsInstance() {
@@ -51,32 +59,33 @@ class KChart extends React.Component {
 
         return {
             animation: false,
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'cross'
-                },
-                borderWidth: 1,
-                borderColor: '#ccc',
-                padding: 10,
-                textStyle: {
-                    color: '#000'
-                },
-                position: function (pos, params, el, elRect, size) {
-                    const obj = {
-                        top: 10
-                    };
-                    obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 30;
-                    return obj;
-                },
-                // formatter(param) {
-                //   console.log(param);
-                //   const index = param[0].dataIndex;
-                //   return [`涨跌幅: ${data.changes[index]}`].join('');
-                // }
-                // extraCssText: 'width: 170px'
-            },
+            // tooltip: {
+            //     trigger: 'axis',
+            //     axisPointer: {
+            //         type: 'cross'
+            //     },
+            //     borderWidth: 1,
+            //     borderColor: '#ccc',
+            //     padding: 10,
+            //     textStyle: {
+            //         color: '#000'
+            //     },
+            //     position: function (pos, params, el, elRect, size) {
+            //         const obj = {
+            //             top: 10
+            //         };
+            //         obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 30;
+            //         return obj;
+            //     },
+            //     // formatter(param) {
+            //     //   console.log(param);
+            //     //   const index = param[0].dataIndex;
+            //     //   return [`涨跌幅: ${data.changes[index]}`].join('');
+            //     // }
+            //     // extraCssText: 'width: 170px'
+            // },
             axisPointer: {
+                show: true,
                 link: [
                     {
                         xAxisIndex: 'all'
@@ -236,6 +245,6 @@ class KChart extends React.Component {
 }
 
 export default connect(
-    (state) => ({ stock: state.stock, checkedNews: state.news.filter(d => d.pinned) }), 
-    { getStock }
+    (state) => ({ stock: state.stock, checkedNews: state.news.list.filter(d => d.pinned) }), 
+    { getStock, setNewsPeriod }
 )(KChart);

@@ -48,7 +48,7 @@ class EventCard extends React.Component {
             {/* <h4>#1 Product of the day</h4> */}
             <div>{data.rich_text}</div>
           </div>
-          <div className={styles.verticalTimeline}></div>
+          {/* <div className={styles.verticalTimeline}></div> */}
         </a>
       </span>
     );

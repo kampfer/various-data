@@ -1,0 +1,11 @@
+.newsList {
+  position: relative;
+  .verticalLine {
+    width: 0;
+    border-right: 2px dotted #dbe2eb;
+    height: 100%;
+    position: absolute;
+    right: 2px;
+    top: 0;
+  }
+}
