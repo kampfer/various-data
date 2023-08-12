@@ -14,6 +14,7 @@ import {
   UNPIN_EVENT_SUCCESS,
   UNPIN_EVENT_FAIL,
   SET_NEWS_PERIOD,
+  SELECT_MARK,
 } from './actionTypes.js';
 import {
   fetchNews,
@@ -172,11 +173,16 @@ function unpinEventFail() {
   };
 }
 
-export const setNewsPeriod = (start, end) => {
+export const setNewsPeriod = (period) => {
   return {
     type: SET_NEWS_PERIOD,
-    payload: { start, end }
+    payload: period
   }
 }
 
-export const selectMark
+export const selectMark = (key) => {
+  return {
+    type: SELECT_MARK,
+    payload: key
+  }
+}
