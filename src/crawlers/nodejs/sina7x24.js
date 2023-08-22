@@ -52,7 +52,7 @@ function mergeList(old, latest) {
   for(let i = count - 1; i >= 0; i--) {
     old.unshift(latest[i]);
   }
-  console.log(`【${dayjs().utcOffset(8).format('YYYY-MM-DD LTS')}】本次执行已添加${count}条新数据，现有总计${old.length}条数据`);
+  console.log(`【${dayjs().format('YYYY-MM-DD HH:mm:ss')}】本次执行已添加${count}条新数据，现有总计${old.length}条数据`);
   return old;
 }
 

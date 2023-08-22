@@ -6,7 +6,7 @@ import { getNews, setFilters } from '../../store/actions.js';
 import dayjs from 'dayjs';
 import { Input, DatePicker, Select, Form, Button, Space } from 'antd';
 
-import 'antd/dist/antd.css';
+// import 'antd/dist/antd.css';
 import styles from './index.module.scss';
 
 const { RangePicker } = DatePicker;
