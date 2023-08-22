@@ -23,7 +23,6 @@
     "axios": "^1.4.0",
     "dayjs": "^1.11.9",
     "echarts": "^5.3.2",
-    "moment": "^2.29.3",
     "rc-virtual-list": "^3.4.6",
     "react": "^18.1.0",
     "react-dom": "^18.1.0",

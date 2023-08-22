@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCrawlers, callCrawler } from '../store/actions.js';
 import { Table, message } from 'antd';
-import moment from 'moment/moment.js';
+import dayjs from 'dayjs';
 
 export default function CrawlersAdmin() {
   const dispatch = useDispatch();
@@ -43,7 +43,7 @@ export default function CrawlersAdmin() {
         {
           title: '更新时间',
           dataIndex: 'updateTime',
-          render: (_, record) => moment(record.updateTime).format('YYYY-MM-DD HH:MM:SS')
+          render: (_, record) => dayjs(record.updateTime).format('YYYY-MM-DD HH:MM:SS')
         },
         { 
           title: '数据地址',

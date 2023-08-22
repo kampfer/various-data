@@ -2,7 +2,7 @@ import React from 'react';
 import * as echarts from 'echarts';
 import { connect } from 'react-redux';
 import { getStock, setFilters, selectMark } from '../../store/actions.js';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import './index.css';
 
@@ -25,7 +25,7 @@ class KChart extends React.Component {
         } else {
             this.props.selectMark(e.data.coord[0]);
 
-            const date = moment(e.data.coord[0], 'YYYY-MM-DD');
+            const date = dayjs(e.data.coord[0], 'YYYY-MM-DD');
             const start = date.startOf('day').valueOf();
             const end = date.endOf('day').valueOf();
             this.props.setFilters({ period: [start, end], priority: 1 });
@@ -42,14 +42,14 @@ class KChart extends React.Component {
     const { dates, values: prices, volumes, selectedMark } = this.props.stock;
 
     const newsGroup = this.props.checkedNews.reduce((group, news) => {
-      const date = moment(news.create_time).format('YYYY-MM-DD');
+      const date = dayjs(news.create_time).format('YYYY-MM-DD');
       if (!group[date]) group[date] = [];
       group[date].push(news);
       return group;
     }, {});
 
     const markPoints = [];
-    const xArr = dates.map((d) => moment(d).format('YYYY-MM-DD'));
+    const xArr = dates.map((d) => dayjs(d).format('YYYY-MM-DD'));
     Object.entries(newsGroup).forEach(([key, arr]) => {
       const index = xArr.indexOf(key);
       if (index > -1) {

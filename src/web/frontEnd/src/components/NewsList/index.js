@@ -11,6 +11,13 @@ import styles from './index.module.scss';
 
 const { RangePicker } = DatePicker;
 
+const initialValues = {
+  filterWords: '',
+  period: [],
+  priority: 0,
+  sortBy: 0,
+};
+
 class App extends React.Component {
   constructor(props) {
     super(props);
@@ -19,6 +26,7 @@ class App extends React.Component {
 
   onReset = () => {
     this.formRef.current?.resetFields();
+    this.props.setFilters(initialValues);
   };
 
   onFinish = (values) => {
@@ -47,12 +55,7 @@ class App extends React.Component {
           labelCol={{ span: 6 }}
           onFinish={this.onFinish}
           ref={this.formRef}
-          initialValues={{
-            filterWords: '',
-            period: [],
-            priority: 0,
-            sortBy: 0,
-          }}
+          initialValues={initialValues}
         >
           <Form.Item name="filterWords">
             <Input placeholder="搜索" />

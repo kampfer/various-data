@@ -24,7 +24,7 @@ import {
   pinEvent as pinEventById,
   unpinEvent as unpinEventById,
 } from '../api/index.js';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 function fetchingNews() {
   return {
@@ -81,7 +81,7 @@ function receiveStock(json) {
   return {
     type: RECEIVE_STOCK,
     payload: {
-      dates: json.data.map((d) => moment(d.date).format('YYYY-MM-DD')),
+      dates: json.data.map((d) => dayjs(d.date).format('YYYY-MM-DD')),
       // open close low high
       values: json.data.map((d) => [d.open, d.close, d.low, d.high]),
       volumes: json.data.map((d, i) => [

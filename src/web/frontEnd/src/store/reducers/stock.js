@@ -1,8 +1,8 @@
 import { RECEIVE_STOCK, SELECT_MARK } from '../actionTypes.js';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 export default function (
-    state = { zoomStart: moment().subtract(100, 'd'), zoomEnd: moment(),  },
+    state = { zoomStart: dayjs().subtract(100, 'd'), zoomEnd: dayjs(),  },
     action
 ) {
     switch (action.type) {
