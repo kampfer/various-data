@@ -3,12 +3,15 @@ import {
   TOGGLE_NEWS,
   PIN_EVENT_SUCCESS,
   UNPIN_EVENT_SUCCESS,
-  SET_NEWS_PERIOD,
+  SET_FILTERS,
 } from '../actionTypes.js';
 
 const initialState = {
   list: [],
+  filterWords: '',
   period: [],
+  priority: 0,
+  sortBy: 0,
 };
 
 export default function (state = initialState, action) {
@@ -19,10 +22,11 @@ export default function (state = initialState, action) {
         list: action.payload.news,
       };
     }
-    case SET_NEWS_PERIOD: {
+    // case SET_NEWS_PERIOD: {
+    case SET_FILTERS: {
       return {
         ...state,
-        period: action.payload,
+        ...action.payload,
       };
     }
     case PIN_EVENT_SUCCESS: {

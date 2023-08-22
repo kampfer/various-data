@@ -1,7 +1,7 @@
 import React from 'react';
 import * as echarts from 'echarts';
 import { connect } from 'react-redux';
-import { getStock, setNewsPeriod, selectMark } from '../../store/actions.js';
+import { getStock, setFilters, selectMark } from '../../store/actions.js';
 import moment from 'moment';
 
 import './index.css';
@@ -19,17 +19,16 @@ class KChart extends React.Component {
     instance.on('dataZoom', (...args) => console.log('dataZoom', args));
     instance.on('click', (e) => {
       if (e.componentType === 'markPoint') {
-        
         if (this.props.stock.selectedMark === e.data.coord[0]) {
             this.props.selectMark(null);
-            this.props.setNewsPeriod([])
+            this.props.setFilters({ period: [], priority: 0 })
         } else {
             this.props.selectMark(e.data.coord[0]);
 
             const date = moment(e.data.coord[0], 'YYYY-MM-DD');
             const start = date.startOf('day').valueOf();
             const end = date.endOf('day').valueOf();
-            this.props.setNewsPeriod([start, end]);
+            this.props.setFilters({ period: [start, end], priority: 1 });
         }
       }
     });
@@ -260,5 +259,5 @@ export default connect(
     stock: state.stock,
     checkedNews: state.news.list.filter((d) => d.pinned),
   }),
-  { getStock, setNewsPeriod, selectMark }
+  { getStock, setFilters, selectMark }
 )(KChart);

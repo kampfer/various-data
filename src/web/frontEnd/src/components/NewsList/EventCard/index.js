@@ -2,7 +2,7 @@ import React from 'react';
 import { PushpinOutlined, PushpinFilled } from '@ant-design/icons';
 import styles from './index.module.scss';
 import { pinEvent, unpinEvent } from '../../../store/actions.js';
-import { connect } from "react-redux";
+import { connect } from 'react-redux';
 
 class EventCard extends React.Component {
   pin = () => {
@@ -18,7 +18,7 @@ class EventCard extends React.Component {
   };
 
   render() {
-    const { data } = this.props;
+    const { data, filterWords } = this.props;
     return (
       <span className={styles.eventCardWrapper}>
         <a className={styles.eventCard}>
@@ -46,7 +46,14 @@ class EventCard extends React.Component {
           </div>
           <div className={styles.eventContent}>
             {/* <h4>#1 Product of the day</h4> */}
-            <div>{data.rich_text}</div>
+            <div
+              dangerouslySetInnerHTML={{
+                __html: data.rich_text.replaceAll(
+                  filterWords ? filterWords : null,
+                  `<font style="background-color: yellow;">${filterWords}</font>`
+                ),
+              }}
+            ></div>
           </div>
           {/* <div className={styles.verticalTimeline}></div> */}
         </a>

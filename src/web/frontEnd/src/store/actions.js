@@ -13,7 +13,7 @@ import {
   PIN_EVENT_FAIL,
   UNPIN_EVENT_SUCCESS,
   UNPIN_EVENT_FAIL,
-  SET_NEWS_PERIOD,
+  SET_FILTERS,
   SELECT_MARK,
 } from './actionTypes.js';
 import {
@@ -41,10 +41,11 @@ function receiveNews(news) {
   };
 }
 
-export const getNews = () => (dispatch) => {
+export const getNews = (filters) => (dispatch) => {
   dispatch(fetchingNews());
   return fetchNews().then((list) => {
     dispatch(receiveNews(list));
+    dispatch(setFilters(filters));
   });
 };
 
@@ -173,10 +174,10 @@ function unpinEventFail() {
   };
 }
 
-export const setNewsPeriod = (period) => {
+export const setFilters = (filters) => {
   return {
-    type: SET_NEWS_PERIOD,
-    payload: period
+    type: SET_FILTERS,
+    payload: filters
   }
 }
 

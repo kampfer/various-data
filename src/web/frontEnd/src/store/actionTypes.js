@@ -1,7 +1,7 @@
 export const FETCHING_NEWS = 'FETCHING_NEWS';
 export const RECEIVE_NEWS = 'RECEIVE_NEWS';
 export const TOGGLE_NEWS = 'TOGGLE_NEWS';
-export const SET_NEWS_PERIOD = 'SET_NEWS_PERIOD';
+export const SET_FILTERS = 'SET_FILTERS';
 
 export const FETCHING_STOCK = 'FETCHING_STOCK';
 export const RECEIVE_STOCK = 'RECEIVE_STOCK';
