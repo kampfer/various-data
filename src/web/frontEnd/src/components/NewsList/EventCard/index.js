@@ -38,11 +38,11 @@ class EventCard extends React.Component {
               <div className={styles.eventCategory}>新浪新闻</div>
             </div>
             <div className={styles.eventDate}>{data.create_time}</div>
-            <div className={styles.timelineDot}>
+            {/* <div className={styles.timelineDot}>
               <div className={styles.timeline}>
                 <div className={styles.timelineDot}></div>
               </div>
-            </div>
+            </div> */}
           </div>
           <div className={styles.eventContent}>
             {/* <h4>#1 Product of the day</h4> */}

@@ -1,6 +1,4 @@
 .eventCardWrapper {
-  padding-right: 38px;
-
   .eventCard {
     color: #263d49;
     width: 100%;
@@ -10,7 +8,8 @@
     background-color: #fff;
     box-shadow: 3px 3px 12px 0 rgba(45,62,80,.12);
     font-size: 12px;
-    margin: 12.5px 25px 2.5em 12.5px;
+    margin: 12.5px 0;
+    box-sizing: border-box;
     position: relative;
     display: inline-block;
 
@@ -78,6 +77,9 @@
     .eventContent {
       padding: 1em 1.5em 1.25em;
       line-height: 1.4;
+      height: 70px;
+      box-sizing: border-box;
+      overflow-y: auto;
     }
 
     .verticalTimeline {

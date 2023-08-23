@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 import EventCard from './EventCard/index.js';
 import { getNews, setFilters } from '../../store/actions.js';
 import dayjs from 'dayjs';
-import { Input, DatePicker, Select, Form, Button, Space } from 'antd';
+import { Input, DatePicker, Select, Form, Button, Space, Col, Row } from 'antd';
 
 // import 'antd/dist/antd.css';
 import styles from './index.module.scss';
@@ -57,54 +57,68 @@ class App extends React.Component {
           ref={this.formRef}
           initialValues={initialValues}
         >
-          <Form.Item name="filterWords">
-            <Input placeholder="搜索" />
-          </Form.Item>
-          <Form.Item name="period">
-            <RangePicker
-              showTime={{
-                format: 'HH:mm',
-              }}
-              format="YYYY-MM-DD HH:mm"
-              size="middle"
-            />
-          </Form.Item>
-          <Form.Item label="重要性" name="priority">
-            <Select
-              options={[
-                { value: 0, label: '全部' },
-                { value: 1, label: '重要' },
-                { value: 2, label: '不重要' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="排序" name="sortBy">
-            <Select
-              options={[
-                { value: 0, label: '按时间降序' },
-                { value: 1, label: '按时间升序' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item>
-            <Space wrap>
-              <Button
-                type="primary"
-                htmlType="submit"
-                className="login-form-button"
-              >
-                确定
-              </Button>
-              <Button className="login-form-button" onClick={this.onReset}>
-                重置
-              </Button>
-            </Space>
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="filterWords">
+                <Input placeholder="搜索" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+            <Form.Item name="period">
+              <RangePicker
+                showTime={{
+                  format: 'HH:mm',
+                }}
+                format="YYYY-MM-DD HH:mm"
+                size="middle"
+              />
+            </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="重要性" name="priority">
+                <Select
+                  options={[
+                    { value: 0, label: '全部' },
+                    { value: 1, label: '重要' },
+                    { value: 2, label: '不重要' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="排序" name="sortBy">
+                <Select
+                  options={[
+                    { value: 0, label: '按时间降序' },
+                    { value: 1, label: '按时间升序' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row justify="center">
+            <Form.Item>
+              <Space wrap>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  className="login-form-button"
+                >
+                  确定
+                </Button>
+                <Button className="login-form-button" onClick={this.onReset}>
+                  重置
+                </Button>
+              </Space>
+            </Form.Item>
+          </Row>
         </Form>
         <div className={styles.newsList}>
           {/* <div className={styles.verticalLine}></div> */}
           <div>共{news.length}条</div>
-          <VirtualList data={news} height={window.innerHeight} itemHeight={100}>
+          <VirtualList data={news} height={window.innerHeight - 168 - 21 - 10 * 2} itemHeight={100}>
             {(item, index) => (
               <EventCard key={item.id} data={item} filterWords={filterWords} />
             )}

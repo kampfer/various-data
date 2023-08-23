@@ -6,7 +6,6 @@ export function fetchNews() {
         res1.json(),
         res2.json()
     ])).then(([json1, json2]) => {
-        debugger;
         const newsList = json1.data;
         const selectedIds = json2.data || [];
         return newsList.map(d => ({
