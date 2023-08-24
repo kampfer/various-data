@@ -8,10 +8,15 @@ export function fetchNews() {
     ])).then(([json1, json2]) => {
         const newsList = json1.data;
         const selectedIds = json2.data || [];
-        return newsList.map(d => ({
-            pinned: selectedIds.indexOf(d.id) > -1,
-            ...d
-        }));
+        // 去重
+        // TODO 很慢
+        const list = newsList.reduce((acc, cur) => {
+            if (acc.findIndex(d => d.id === cur.id) < 0) {
+                acc.push({ pinned: selectedIds.indexOf(cur.id) > -1, ...cur });
+            }
+            return acc;
+        }, []);
+        return list;
     });
 }
 

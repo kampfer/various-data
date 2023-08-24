@@ -64,15 +64,15 @@ class App extends React.Component {
               </Form.Item>
             </Col>
             <Col span={12}>
-            <Form.Item name="period">
-              <RangePicker
-                showTime={{
-                  format: 'HH:mm',
-                }}
-                format="YYYY-MM-DD HH:mm"
-                size="middle"
-              />
-            </Form.Item>
+              <Form.Item name="period">
+                <RangePicker
+                  showTime={{
+                    format: 'HH:mm',
+                  }}
+                  format="YYYY-MM-DD HH:mm"
+                  size="middle"
+                />
+              </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
@@ -117,10 +117,15 @@ class App extends React.Component {
         </Form>
         <div className={styles.newsList}>
           {/* <div className={styles.verticalLine}></div> */}
-          <div>共{news.length}条</div>
-          <VirtualList data={news} height={window.innerHeight - 168 - 21 - 10 * 2} itemHeight={100}>
+          <div className={styles.total}>共{news.length}条</div>
+          <VirtualList
+            data={news}
+            height={window.innerHeight - 168 - 21 - 10 * 2}
+            itemHeight={96}
+            itemKey="rich_text"
+          >
             {(item, index) => (
-              <EventCard key={item.id} data={item} filterWords={filterWords} />
+              <EventCard data={item} filterWords={filterWords} />
             )}
           </VirtualList>
         </div>

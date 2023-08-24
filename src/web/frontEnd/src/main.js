@@ -7,6 +7,7 @@ import {
     RouterProvider,
 } from 'react-router-dom';
 
+import 'normalize.css';
 import './main.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

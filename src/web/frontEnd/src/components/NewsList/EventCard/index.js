@@ -1,8 +1,9 @@
 import React from 'react';
-import { PushpinOutlined, PushpinFilled } from '@ant-design/icons';
+import { FlagFilled, FlagOutlined, ZoomInOutlined } from '@ant-design/icons';
 import styles from './index.module.scss';
 import { pinEvent, unpinEvent } from '../../../store/actions.js';
 import { connect } from 'react-redux';
+import { Modal } from 'antd';
 
 class EventCard extends React.Component {
   pin = () => {
@@ -17,47 +18,54 @@ class EventCard extends React.Component {
     return unpinEvent(id);
   };
 
-  render() {
+  showDetail = () => {
+    const content = this.highLightContent();
+    Modal.info({ title: '新闻全文', content });
+  };
+
+  highLightContent() {
     const { data, filterWords } = this.props;
+    console.log(filterWords, data.rich_text.replaceAll(
+      filterWords ? filterWords : null,
+      `<font style="background-color: yellow;">${filterWords}</font>`
+    ));
+    const content = (
+      <p
+        key={filterWords}
+        dangerouslySetInnerHTML={{
+          __html: data.rich_text.replaceAll(
+            filterWords ? filterWords : null,
+            `<font style="background-color: yellow;">${filterWords}</font>`
+          ),
+        }}
+      ></p>
+    );
+    return content;
+  }
+
+  render() {
+    const { data } = this.props;
+    const tooLong = data.rich_text.length > 100;
+    const content = this.highLightContent();
     return (
-      <span className={styles.eventCardWrapper}>
-        <a className={styles.eventCard}>
-          <div className={styles.eventTopArrow}>
-            <div className={styles.eventTitle}>
-              {data.pinned ? (
-                <PushpinFilled
-                  className={styles.eventIcon}
-                  onClick={this.unpin}
-                />
-              ) : (
-                <PushpinOutlined
-                  className={styles.eventIcon}
-                  onClick={this.pin}
-                />
-              )}
-              <div className={styles.eventCategory}>新浪新闻</div>
-            </div>
-            <div className={styles.eventDate}>{data.create_time}</div>
-            {/* <div className={styles.timelineDot}>
-              <div className={styles.timeline}>
-                <div className={styles.timelineDot}></div>
-              </div>
-            </div> */}
-          </div>
-          <div className={styles.eventContent}>
-            {/* <h4>#1 Product of the day</h4> */}
-            <div
-              dangerouslySetInnerHTML={{
-                __html: data.rich_text.replaceAll(
-                  filterWords ? filterWords : null,
-                  `<font style="background-color: yellow;">${filterWords}</font>`
-                ),
-              }}
-            ></div>
-          </div>
-          {/* <div className={styles.verticalTimeline}></div> */}
-        </a>
-      </span>
+      <div className={styles.eventCard}>
+        <div className={styles.eventCreateTime}>{data.create_time}</div>
+        <div className={styles.eventContent}>{content}</div>
+        <div className={styles.funcContainer}>
+          {tooLong && (
+            <ZoomInOutlined className={styles.func} onClick={this.showDetail} />
+          )}
+          {data.pinned ? (
+            <FlagFilled
+              onClick={this.unpin}
+              className={styles.func}
+              style={{ color: 'red' }}
+            />
+          ) : (
+            <FlagOutlined onClick={this.pin} className={styles.func} />
+          )}
+        </div>
+      </div>
     );
   }
 }
