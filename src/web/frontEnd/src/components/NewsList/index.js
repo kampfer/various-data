@@ -5,6 +5,7 @@ import EventCard from './EventCard/index.js';
 import { getNews, setFilters } from '../../store/actions.js';
 import dayjs from 'dayjs';
 import { Input, DatePicker, Select, Form, Button, Space, Col, Row } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
 
 // import 'antd/dist/antd.css';
 import styles from './index.module.scss';
@@ -31,6 +32,10 @@ class App extends React.Component {
 
   onFinish = (values) => {
     this.props.setFilters(values);
+  };
+
+  handleClickAtReloadBtn = () => {
+    this.props.getNews();
   };
 
   componentDidMount() {
@@ -66,6 +71,7 @@ class App extends React.Component {
             <Col span={12}>
               <Form.Item name="period">
                 <RangePicker
+                  presets={[{ label: '今天', value: [dayjs().startOf('d'), dayjs().endOf('d')]}]}
                   showTime={{
                     format: 'HH:mm',
                   }}
@@ -117,10 +123,13 @@ class App extends React.Component {
         </Form>
         <div className={styles.newsList}>
           {/* <div className={styles.verticalLine}></div> */}
-          <div className={styles.total}>共{news.length}条</div>
+          <div className={styles.infoBar}>
+            <div className={styles.total}>共{news.length}条</div>
+            <ReloadOutlined style={{ fontSize: 16 }} onClick={this.handleClickAtReloadBtn}/>
+          </div>
           <VirtualList
             data={news}
-            height={window.innerHeight - 168 - 21 - 10 * 2}
+            height={window.innerHeight - 168 - 40 - 10 * 2}
             itemHeight={96}
             itemKey="rich_text"
           >

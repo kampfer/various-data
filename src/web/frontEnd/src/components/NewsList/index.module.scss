@@ -1,9 +1,13 @@
 .newsList {
   position: relative;
-  .total {
+  .infoBar {
     border-bottom: 1px solid #f0f0f0;
     font-size: 14px;
-    padding-bottom: 10px;
     margin-bottom: 10px;
+    height: 30px;
+    box-sizing: border-box;
+    line-height: 20px;
+    display: flex;
+    justify-content: space-between;
   }
 }
