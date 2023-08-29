@@ -25,10 +25,6 @@ class EventCard extends React.Component {
 
   highLightContent() {
     const { data, filterWords } = this.props;
-    console.log(filterWords, data.rich_text.replaceAll(
-      filterWords ? filterWords : null,
-      `<font style="background-color: yellow;">${filterWords}</font>`
-    ));
     const content = (
       <p
         key={filterWords}
