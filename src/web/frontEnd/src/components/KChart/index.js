@@ -39,6 +39,7 @@ class KChart extends React.Component {
   }
 
   makeEchartsOption() {
+    const { code } = this.props;
     const { dates, values: prices, volumes, selectedMark } = this.props.stock;
 
     const newsGroup = this.props.checkedNews.reduce((group, news) => {
@@ -68,6 +69,10 @@ class KChart extends React.Component {
     const dataZoomEndValue = dataZoomStartValue - 100;
 
     return {
+      title: {
+        text: code,
+        left: 'center',
+      },
       animation: false,
       // tooltip: {
       //     trigger: 'axis',
@@ -237,10 +242,15 @@ class KChart extends React.Component {
     if (!this.getEchartsInstance()) {
       this.initEchartsInstance();
     }
-    this.props.getStock('sh000001');
+    if (this.props.code) {
+      this.props.getStock(this.props.code);
+    }
   }
 
   componentDidUpdate(prevProps, prevState) {
+    if (this.props.code && this.props.code !== prevProps.code) {
+      this.props.getStock(this.props.code);
+    }
     const { stock, checkedNews } = this.props;
     if (stock && stock.values && checkedNews) {
       const option = this.makeEchartsOption();

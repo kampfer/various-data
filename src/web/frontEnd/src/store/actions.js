@@ -15,6 +15,7 @@ import {
   UNPIN_EVENT_FAIL,
   SET_FILTERS,
   SELECT_MARK,
+  SET_STOCK_CODE,
 } from './actionTypes.js';
 import {
   fetchNews,
@@ -53,6 +54,8 @@ export const toggleNews = (index) => ({
     index,
   },
 });
+
+export const setStockCode = (code) => ({ type: SET_STOCK_CODE, payload: code });
 
 export const getStock = (code) => (dispatch) => {
   dispatch(fetchingStock());
