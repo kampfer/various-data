@@ -8,15 +8,22 @@ export function fetchNews() {
     ])).then(([json1, json2]) => {
         const newsList = json1.data;
         const selectedIds = json2.data || [];
+        const categories = [{ id: 0, name: '全部' }];
         // 去重
-        // TODO 很慢
         const list = newsList.reduce((acc, cur) => {
+            if (cur.tag && cur.tag.length > 0) {
+                cur.tag.forEach(d => {
+                    if (categories.findIndex(d2 => d2.id === d.id) < 0) {
+                        categories.push(d);
+                    }
+                })
+            }
             if (acc.findIndex(d => d.id === cur.id) < 0) {
                 acc.push({ pinned: selectedIds.indexOf(cur.id) > -1, ...cur });
             }
             return acc;
         }, []);
-        return list;
+        return { list, categories };
     });
 }
 

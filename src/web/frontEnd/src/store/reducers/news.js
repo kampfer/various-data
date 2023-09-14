@@ -12,6 +12,8 @@ const initialState = {
   period: [],
   priority: 0,
   sortBy: 0,
+  category: 0,
+  categories: []
 };
 
 export default function (state = initialState, action) {
@@ -19,7 +21,8 @@ export default function (state = initialState, action) {
     case RECEIVE_NEWS: {
       return {
         ...state,
-        list: action.payload.news,
+        list: action.payload.list,
+        categories: action.payload.categories
       };
     }
     // case SET_NEWS_PERIOD: {

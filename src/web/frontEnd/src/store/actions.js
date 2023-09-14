@@ -35,9 +35,7 @@ function fetchingNews() {
 function receiveNews(news) {
   return {
     type: RECEIVE_NEWS,
-    payload: {
-      news,
-    },
+    payload: news,
   };
 }
 
