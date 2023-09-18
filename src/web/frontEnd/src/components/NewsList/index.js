@@ -193,7 +193,7 @@ class App extends React.Component {
           <VirtualList
             data={news}
             height={window.innerHeight - 40 - 10 * 2}
-            itemHeight={96}
+            itemHeight={118}
             itemKey="rich_text"
           >
             {(item, index) => (

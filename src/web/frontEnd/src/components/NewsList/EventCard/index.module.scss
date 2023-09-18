@@ -2,7 +2,7 @@
   display: flex;
   // align-items: center;
   color: rgb(34, 34, 34);
-  height: 75px;
+  // height: 75px;
   border-bottom: 1px solid #f0f0f0;
   // box-sizing: border-box;
   margin-bottom: 10px;
@@ -14,16 +14,26 @@
   .eventCreateTime {
     width: 80px;
     line-height: 22px;
-  } 
-  .eventContent {
+  }
+  .eventContentContainer {
     flex: 1;
     margin: 0 20px;
-    overflow: hidden;
-    height: 75px;
-    line-height: 25px;
     border-right: 1px dashed #e6e6e6;
     border-left: 1px dashed #e6e6e6;
     padding: 0 20px;
+
+    .eventTagContainer {
+      margin-top: 5px;
+
+      :global(.ant-tag) {
+        margin-top: 5px;
+      }
+    }
+  }
+  .eventContent {
+    overflow: hidden;
+    height: 75px;
+    line-height: 25px;
   }
   .funcContainer {
     width: 20px;
