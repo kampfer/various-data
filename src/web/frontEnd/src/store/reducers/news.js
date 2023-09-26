@@ -1,19 +1,22 @@
 import {
   RECEIVE_NEWS,
-  TOGGLE_NEWS,
+  APPEND_NEWS,
   PIN_EVENT_SUCCESS,
   UNPIN_EVENT_SUCCESS,
   SET_FILTERS,
+  RECEIVE_TAGS,
 } from '../actionTypes.js';
 
 const initialState = {
   list: [],
-  filterWords: '',
-  period: [],
-  priority: 0,
-  sortBy: 0,
-  category: 0,
-  categories: []
+  filters: {
+    filterWords: '',
+    period: [],
+    priority: 0,
+    sortBy: 0,
+    category: 0,
+  },
+  categories: [],
 };
 
 export default function (state = initialState, action) {
@@ -21,15 +24,26 @@ export default function (state = initialState, action) {
     case RECEIVE_NEWS: {
       return {
         ...state,
-        list: action.payload.list,
-        categories: action.payload.categories
+        list: action.payload,
+      };
+    }
+    case APPEND_NEWS: {
+      return {
+        ...state,
+        list: state.list.concat(action.payload),
+      };
+    }
+    case RECEIVE_TAGS: {
+      return {
+        ...state,
+        categories: action.payload,
       };
     }
     // case SET_NEWS_PERIOD: {
     case SET_FILTERS: {
       return {
         ...state,
-        ...action.payload,
+        filters: { ...action.payload },
       };
     }
     case PIN_EVENT_SUCCESS: {

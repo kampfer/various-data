@@ -1,4 +1,5 @@
 import React from 'react';
+import dayjs from 'dayjs';
 import {
   FlagFilled,
   FlagOutlined,
@@ -58,15 +59,15 @@ class EventCard extends React.Component {
   };
 
   handleEditInputChange = (e) => {
-    this.setState({ editInputValue: e.target.value, });
-  }
+    this.setState({ editInputValue: e.target.value });
+  };
 
   handleEditInputConfirm = (e) => {
     const { tags, editInputIndex, editInputValue } = this.state;
     const newTags = [...tags];
     newTags[editInputIndex] = editInputValue;
-    this.setState({ tags: newTags, editInputIndex: -1, editInputValue: ''});
-  }
+    this.setState({ tags: newTags, editInputIndex: -1, editInputValue: '' });
+  };
 
   handleClose(removedTag) {
     const { tags } = this.state;
@@ -80,7 +81,7 @@ class EventCard extends React.Component {
       <p
         key={filterWords}
         dangerouslySetInnerHTML={{
-          __html: data.rich_text.replaceAll(
+          __html: data.content.replaceAll(
             filterWords ? filterWords : null,
             `<font style="background-color: yellow;">${filterWords}</font>`
           ),
@@ -102,12 +103,15 @@ class EventCard extends React.Component {
 
   render() {
     const { data } = this.props;
-    const tooLong = data.rich_text.length > 100;
+    const tooLong = data.content.length > 100;
     const content = this.highLightContent();
-    const { inputValue, inputVisible, tags, editInputValue, editInputIndex } = this.state;
+    const { inputValue, inputVisible, tags, editInputValue, editInputIndex } =
+      this.state;
     return (
       <div className={styles.eventCard}>
-        <div className={styles.eventCreateTime}>{data.create_time}</div>
+        <div className={styles.eventCreateTime}>
+          {dayjs(data.createTime).format('YYYY-MM-DD HH:mm:ss')}
+        </div>
         <div className={styles.eventContentContainer}>
           <div className={styles.eventContent}>{content}</div>
           <div className={styles.eventTagContainer}>
@@ -146,7 +150,10 @@ class EventCard extends React.Component {
                   <span
                     onDoubleClick={(e) => {
                       if (index !== 0) {
-                        this.setState({ editInputIndex: index, editInputValue: tag })
+                        this.setState({
+                          editInputIndex: index,
+                          editInputValue: tag,
+                        });
                         e.preventDefault();
                       }
                     }}

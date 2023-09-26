@@ -1,5 +1,6 @@
 export const FETCHING_NEWS = 'FETCHING_NEWS';
 export const RECEIVE_NEWS = 'RECEIVE_NEWS';
+export const APPEND_NEWS = 'APPEND_NEWS';
 export const TOGGLE_NEWS = 'TOGGLE_NEWS';
 export const SET_FILTERS = 'SET_FILTERS';
 
@@ -20,3 +21,5 @@ export const UNPIN_EVENT_SUCCESS = 'UNPIN_EVENT_SUCCESS';
 export const UNPIN_EVENT_FAIL = 'UNPIN_EVENT_FAIL';
 
 export const SELECT_MARK = 'SELECT_MARK';
+
+export const RECEIVE_TAGS = 'RECEIVE_TAGS';

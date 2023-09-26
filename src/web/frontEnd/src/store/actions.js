@@ -1,6 +1,7 @@
 import {
   FETCHING_NEWS,
   RECEIVE_NEWS,
+  APPEND_NEWS,
   TOGGLE_NEWS,
   FETCHING_STOCK,
   RECEIVE_STOCK,
@@ -16,6 +17,7 @@ import {
   SET_FILTERS,
   SELECT_MARK,
   SET_STOCK_CODE,
+  RECEIVE_TAGS,
 } from './actionTypes.js';
 import {
   fetchNews,
@@ -24,6 +26,7 @@ import {
   exeCrawler,
   pinEvent as pinEventById,
   unpinEvent as unpinEventById,
+  featchTags,
 } from '../api/index.js';
 import dayjs from 'dayjs';
 
@@ -40,12 +43,33 @@ function receiveNews(news) {
   };
 }
 
-export const getNews = (filters) => (dispatch) => {
+function appendNews(news) {
+  return {
+    type: APPEND_NEWS,
+    payload: news
+  }
+}
+
+export const getNews = (opts) => (dispatch) => {
   dispatch(fetchingNews());
-  return fetchNews().then((list) => {
-    dispatch(receiveNews(list));
-    dispatch(setFilters(filters));
+  return fetchNews(opts).then((list) => {
+    if (!opts || opts.page === 0) {
+      dispatch(receiveNews(list));
+    } else {
+      dispatch(appendNews(list));
+    }
   });
+};
+
+function receiveTags(tags) {
+  return {
+    type: RECEIVE_TAGS,
+    payload: tags,
+  };
+}
+
+export const getTags = () => (dispatch) => {
+  return featchTags().then((tags) => dispatch(receiveTags(tags)));
 };
 
 export const toggleNews = (index) => ({
@@ -148,7 +172,7 @@ export const pinEvent = (id) => (dispatch) => {
 function pinEventSuccess(id) {
   return {
     type: PIN_EVENT_SUCCESS,
-    payload: id
+    payload: id,
   };
 }
 function pinEventFail() {
@@ -166,7 +190,7 @@ export const unpinEvent = (id) => (dispatch) => {
 function unpinEventSuccess(id) {
   return {
     type: UNPIN_EVENT_SUCCESS,
-    payload: id
+    payload: id,
   };
 }
 function unpinEventFail() {
@@ -178,13 +202,13 @@ function unpinEventFail() {
 export const setFilters = (filters) => {
   return {
     type: SET_FILTERS,
-    payload: filters
-  }
-}
+    payload: filters,
+  };
+};
 
 export const selectMark = (key) => {
   return {
     type: SELECT_MARK,
-    payload: key
-  }
-}
+    payload: key,
+  };
+};

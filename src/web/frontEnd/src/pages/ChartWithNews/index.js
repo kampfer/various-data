@@ -37,7 +37,7 @@ class ChartWithNews extends React.Component {
             onSearch={this.onSearch}
             style={{ width: 304 }}
           />
-          <div style={{ flex: 1 }}>{code && <KChart code={code}></KChart>}</div>
+          {/* <div style={{ flex: 1 }}>{code && <KChart code={code}></KChart>}</div> */}
         </div>
       </div>
     );

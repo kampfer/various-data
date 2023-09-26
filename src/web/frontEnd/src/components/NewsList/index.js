@@ -2,7 +2,7 @@ import React from 'react';
 import VirtualList from 'rc-virtual-list';
 import { connect } from 'react-redux';
 import EventCard from './EventCard/index.js';
-import { getNews, setFilters } from '../../store/actions.js';
+import { getNews, setFilters, getTags } from '../../store/actions.js';
 import dayjs from 'dayjs';
 import { Input, DatePicker, Select, Form, Button, Space, Col, Row } from 'antd';
 import { ReloadOutlined, FilterOutlined } from '@ant-design/icons';
@@ -20,11 +20,13 @@ const initialValues = {
   category: 0,
 };
 
+const containerHeight = window.innerHeight - 40 - 10 * 2;
+
 class App extends React.Component {
   constructor(props) {
     super(props);
     this.formRef = React.createRef();
-    this.state = { showFitlerPanel: false };
+    this.state = { showFitlerPanel: false, curPage: 0, pageSize: 20 };
   }
 
   onReset = () => {
@@ -39,7 +41,7 @@ class App extends React.Component {
   };
 
   handleClickAtReloadBtn = () => {
-    this.props.getNews();
+    this.setState({ curPage: 0 });
   };
 
   handleClickAtFilterBtn = (e) => {
@@ -49,40 +51,68 @@ class App extends React.Component {
 
   handleClickAtOuter = () => {
     this.setState({ showFitlerPanel: false });
-  }
+  };
+
+  handleScroll = (e) => {
+    if (
+      e.currentTarget.scrollHeight - e.currentTarget.scrollTop ===
+      containerHeight
+    ) {
+      this.setState({ curPage: this.state.curPage + 1 });
+    }
+  };
 
   componentDidMount() {
-    this.props.getNews();
+    const { curPage, pageSize } = this.state;
+    this.props.getNews({ page: curPage, pageSize });
+    this.props.getTags();
   }
 
-  componentDidUpdate() {
-    const { filterWords, sortBy, priority, period } = this.props;
-    this.formRef.current?.setFieldsValue({
-      filterWords,
-      period: period.map((d) => dayjs(d)),
-      priority,
-      sortBy,
-    });
+  componentDidUpdate(prevProps, prevState) {
+    const { filters } = this.props;
+    const { curPage, pageSize } = this.state;
+    if (filters !== prevProps.filters) {
+      const { filterWords, sortBy, priority, period } = filters;
+      this.formRef.current?.setFieldsValue({
+        filterWords,
+        period: period.map((d) => dayjs(d)),
+        priority,
+        sortBy,
+      });
+      this.props.getNews({
+        page: 0,
+        pageSize,
+        startTime: period[0],
+        endTime: period[1],
+        ...filters,
+      });
+    } else if (curPage !== prevState.curPage) {
+      this.props.getNews({
+        page: curPage,
+        pageSize,
+        startTime: period[0],
+        endTime: period[1],
+        ...filters,
+      });
+    }
   }
 
   render() {
-    const {
-      news,
-      filterWords,
-      categories,
-      period,
-      priority,
-      sortBy,
-      category,
-    } = this.props;
+    const { news, categories, filters } = this.props;
+    const { filterWords, period, priority, sortBy, category } = filters;
     const { showFitlerPanel } = this.state;
-    const categoryItem = categories.find(d => d.id == category);
+    const categoryItem = categories.find((d) => d.id == category);
     const info = [];
     if (filterWords) info.push(`关键词: ${filterWords}`);
     if (categoryItem) info.push(`分类: ${categoryItem.name}`);
-    if (period.length > 0) info.push(`时间: ${dayjs(period[0]).format('YY-MM-DD HH:ss')}至${dayjs(period[1]).format('YY-MM-DD HH:ss')}`);
+    if (period && period.length > 0)
+      info.push(
+        `时间: ${dayjs(period[0]).format('YY-MM-DD HH:ss')}至${dayjs(
+          period[1]
+        ).format('YY-MM-DD HH:ss')}`
+      );
     info.push(`重要性: ${['全部', '重要', '不重要'][priority]}`);
-    info.push(`排序: ${sortBy ? '升序': '降序'}`);
+    info.push(`排序: ${sortBy ? '升序' : '降序'}`);
     return (
       <div className={styles.container}>
         <div
@@ -195,6 +225,7 @@ class App extends React.Component {
             height={window.innerHeight - 40 - 10 * 2}
             itemHeight={118}
             itemKey="rich_text"
+            onScroll={this.handleScroll}
           >
             {(item, index) => (
               <EventCard data={item} filterWords={filterWords} />
@@ -207,55 +238,51 @@ class App extends React.Component {
 }
 
 const mapStateToProps = (state) => {
-  const { list, filterWords, period, priority, sortBy, categories, category } =
-    state.news;
-  console.log(category, categories);
-  const news = list
-    .filter((d) => {
-      return d.tag.reduce(
-        (prev, cur) => (category ? cur.id === category || prev : true),
-        false
-      );
-    })
-    .filter((d) => {
-      if (priority === 0) {
-        return true;
-      } else if (priority === 1) {
-        return d.pinned;
-      } else if (priority === 2) {
-        return !d.pinned;
-      }
-    })
-    .filter((d) => d.rich_text.indexOf(filterWords) > -1)
-    .filter((d) => {
-      if (period.length === 2) {
-        const createTime = dayjs(d.create_time, 'YYYY-MM-DD HH:mm:ss');
-        return createTime >= period[0] && createTime <= period[1];
-      } else {
-        return true;
-      }
-    })
-    .sort((a, b) => {
-      const d1 = dayjs(a.create_time, 'YYYY-MM-DD HH:mm:ss');
-      const d2 = dayjs(b.create_time, 'YYYY-MM-DD HH:mm:ss');
-      if (sortBy === 0) {
-        // 降序
-        return d1.isAfter(d2) ? -1 : 1;
-      } else if (sortBy === 1) {
-        // 升序
-        return d1.isAfter(d2) ? 1 : -1;
-      }
-    });
+  const { list, categories, filters } = state.news;
+  // const { filterWords, period, priority, sortBy, category } = filters;
+  // console.log(category, categories);
+  // const news = list
+  //   .filter((d) => {
+  //     return d.tag.reduce(
+  //       (prev, cur) => (category ? cur.id === category || prev : true),
+  //       false
+  //     );
+  //   })
+  //   .filter((d) => {
+  //     if (priority === 0) {
+  //       return true;
+  //     } else if (priority === 1) {
+  //       return d.pinned;
+  //     } else if (priority === 2) {
+  //       return !d.pinned;
+  //     }
+  //   })
+  //   .filter((d) => d.rich_text.indexOf(filterWords) > -1)
+  //   .filter((d) => {
+  //     if (period.length === 2) {
+  //       const createTime = dayjs(d.create_time, 'YYYY-MM-DD HH:mm:ss');
+  //       return createTime >= period[0] && createTime <= period[1];
+  //     } else {
+  //       return true;
+  //     }
+  //   })
+  //   .sort((a, b) => {
+  //     const d1 = dayjs(a.create_time, 'YYYY-MM-DD HH:mm:ss');
+  //     const d2 = dayjs(b.create_time, 'YYYY-MM-DD HH:mm:ss');
+  //     if (sortBy === 0) {
+  //       // 降序
+  //       return d1.isAfter(d2) ? -1 : 1;
+  //     } else if (sortBy === 1) {
+  //       // 升序
+  //       return d1.isAfter(d2) ? 1 : -1;
+  //     }
+  //   });
 
   return {
-    news,
-    filterWords,
-    period,
-    priority,
-    sortBy,
+    news: list,
+    filters,
     categories,
-    category,
   };
 };
 
-export default connect(mapStateToProps, { getNews, setFilters })(App);
+export default connect(mapStateToProps, { getNews, setFilters, getTags })(App);
