@@ -3,6 +3,22 @@ import json
 from datetime import datetime
 
 
+def generateConditionSql(keyword, startTime, endTime, category, significance):
+    print(keyword, startTime, endTime, category, significance)
+    condition = []
+    if keyword != None:
+        condition.append("content LIKE :keyword")
+    if startTime != None and endTime != None:
+        condition.append("create_time >= :startTime AND create_time <= :endTime")
+    if category != None and category != 0:
+        condition.append("tags LIKE :category")
+    if significance != None and significance != 0:
+        condition.append("significance=:significance")
+    conditionStr = f"WHERE {' AND '.join(condition)}" if len(condition) > 0 else ""
+    print(conditionStr)
+    return conditionStr
+
+
 class SinaNews7x24DB:
     def __init__(self, dbFile="data/sina_news_7x24.db"):
         self.conn = sqlite3.connect(dbFile)
@@ -109,16 +125,9 @@ class SinaNews7x24DB:
         endTime=None,
         category=None,
     ):
-        condition = []
-        if keyword != None:
-            condition.append("content LIKE :keyword")
-        if startTime != None and endTime != None:
-            condition.append("create_time >= :startTime AND create_time <= :endTime")
-        if category != None:
-            condition.append("tags LIKE :category")
-        if significance != None:
-            condition.append("significance=:significance")
-        conditionStr = f"WHERE {' AND '.join(condition)}" if len(condition) > 0 else ""
+        conditionStr = generateConditionSql(
+            keyword, startTime, endTime, category, significance
+        )
 
         sql = f"""
             SELECT * FROM sina_news_7x24
@@ -147,10 +156,31 @@ class SinaNews7x24DB:
         cur.execute("SELECT * FROM tag")
         return cur.fetchall()
 
-    def newsCount(self):
+    def newsCount(
+        self,
+        keyword=None,
+        startTime=None,
+        endTime=None,
+        category=None,
+        significance=None,
+    ):
         conn = self.conn
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM sina_news_7x24")
+
+        conditionStr = generateConditionSql(
+            keyword, startTime, endTime, category, significance
+        )
+        cursor.execute(
+            f"SELECT COUNT(*) FROM sina_news_7x24 {conditionStr}",
+            {
+                "keyword": f"%{keyword}%",
+                "startTime": startTime,
+                "endTime": endTime,
+                "significance": significance,
+                "category": f"%{category}%",
+            },
+        )
+
         result = cursor.fetchone()
         return result[0]
 

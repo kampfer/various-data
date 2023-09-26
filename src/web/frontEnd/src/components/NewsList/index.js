@@ -82,16 +82,17 @@ class App extends React.Component {
       this.props.getNews({
         page: 0,
         pageSize,
-        startTime: period[0],
-        endTime: period[1],
+        startTime: period[0]?.valueOf(),
+        endTime: period[1]?.valueOf(),
         ...filters,
       });
-    } else if (curPage !== prevState.curPage && curPage < total / pageSize) {
+    } else if (curPage !== prevState.curPage && (curPage + 1) < total / pageSize) {
+      const { period } = filters;
       this.props.getNews({
         page: curPage,
         pageSize,
-        startTime: period[0],
-        endTime: period[1],
+        startTime: period[0]?.valueOf(),
+        endTime: period[1]?.valueOf(),
         ...filters,
       });
     }

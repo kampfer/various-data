@@ -203,9 +203,15 @@ async def getSina7x24News(
             }
         )
 
-    total = sina7x24DB.newsCount()
-    
-    return {"code": 200, "data": { "list": news, "total": total }}
+    total = sina7x24DB.newsCount(
+        keyword=filterWords,
+        startTime=startTime,
+        endTime=endTime,
+        significance=priority,
+        category=category,
+    )
+
+    return {"code": 200, "data": {"list": news, "total": total}}
 
 
 @app.get("/api/sina7x24/tags")
