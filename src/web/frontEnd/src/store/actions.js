@@ -52,11 +52,11 @@ function appendNews(news) {
 
 export const getNews = (opts) => (dispatch) => {
   dispatch(fetchingNews());
-  return fetchNews(opts).then((list) => {
+  return fetchNews(opts).then((data) => {
     if (!opts || opts.page === 0) {
-      dispatch(receiveNews(list));
+      dispatch(receiveNews(data));
     } else {
-      dispatch(appendNews(list));
+      dispatch(appendNews(data));
     }
   });
 };

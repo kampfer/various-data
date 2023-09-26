@@ -176,7 +176,6 @@ async def getSina7x24News(
     sortBy: int = 0,
     category: int = None,
 ):
-    print(filterWords, priority, category)
     listInDB = sina7x24DB.selectNews(
         page=page,
         pageSize=pageSize,
@@ -203,7 +202,10 @@ async def getSina7x24News(
                 "significance": d[6],
             }
         )
-    return {"code": 200, "data": news}
+
+    total = sina7x24DB.newsCount()
+    
+    return {"code": 200, "data": { "list": news, "total": total }}
 
 
 @app.get("/api/sina7x24/tags")

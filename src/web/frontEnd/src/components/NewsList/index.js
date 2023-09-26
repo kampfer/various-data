@@ -69,7 +69,7 @@ class App extends React.Component {
   }
 
   componentDidUpdate(prevProps, prevState) {
-    const { filters } = this.props;
+    const { filters, total } = this.props;
     const { curPage, pageSize } = this.state;
     if (filters !== prevProps.filters) {
       const { filterWords, sortBy, priority, period } = filters;
@@ -86,7 +86,7 @@ class App extends React.Component {
         endTime: period[1],
         ...filters,
       });
-    } else if (curPage !== prevState.curPage) {
+    } else if (curPage !== prevState.curPage && curPage < total / pageSize) {
       this.props.getNews({
         page: curPage,
         pageSize,
@@ -238,47 +238,9 @@ class App extends React.Component {
 }
 
 const mapStateToProps = (state) => {
-  const { list, categories, filters } = state.news;
-  // const { filterWords, period, priority, sortBy, category } = filters;
-  // console.log(category, categories);
-  // const news = list
-  //   .filter((d) => {
-  //     return d.tag.reduce(
-  //       (prev, cur) => (category ? cur.id === category || prev : true),
-  //       false
-  //     );
-  //   })
-  //   .filter((d) => {
-  //     if (priority === 0) {
-  //       return true;
-  //     } else if (priority === 1) {
-  //       return d.pinned;
-  //     } else if (priority === 2) {
-  //       return !d.pinned;
-  //     }
-  //   })
-  //   .filter((d) => d.rich_text.indexOf(filterWords) > -1)
-  //   .filter((d) => {
-  //     if (period.length === 2) {
-  //       const createTime = dayjs(d.create_time, 'YYYY-MM-DD HH:mm:ss');
-  //       return createTime >= period[0] && createTime <= period[1];
-  //     } else {
-  //       return true;
-  //     }
-  //   })
-  //   .sort((a, b) => {
-  //     const d1 = dayjs(a.create_time, 'YYYY-MM-DD HH:mm:ss');
-  //     const d2 = dayjs(b.create_time, 'YYYY-MM-DD HH:mm:ss');
-  //     if (sortBy === 0) {
-  //       // 降序
-  //       return d1.isAfter(d2) ? -1 : 1;
-  //     } else if (sortBy === 1) {
-  //       // 升序
-  //       return d1.isAfter(d2) ? 1 : -1;
-  //     }
-  //   });
-
+  const { list, categories, filters, total } = state.news;
   return {
+    total,
     news: list,
     filters,
     categories,

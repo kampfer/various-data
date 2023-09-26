@@ -9,6 +9,7 @@ import {
 
 const initialState = {
   list: [],
+  total: 0,
   filters: {
     filterWords: '',
     period: [],
@@ -22,15 +23,19 @@ const initialState = {
 export default function (state = initialState, action) {
   switch (action.type) {
     case RECEIVE_NEWS: {
+      const { list, total } = action.payload;
       return {
         ...state,
-        list: action.payload,
+        total,
+        list,
       };
     }
     case APPEND_NEWS: {
+      const { list, total } = action.payload;
       return {
         ...state,
-        list: state.list.concat(action.payload),
+        total,
+        list: state.list.concat(list),
       };
     }
     case RECEIVE_TAGS: {

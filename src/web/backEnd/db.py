@@ -126,7 +126,6 @@ class SinaNews7x24DB:
             ORDER BY create_time {'DESC' if sort == 0 else 'ASC'}
             LIMIT :pageSize OFFSET :pageSize*:page
         """
-        print(page, pageSize, keyword, significance, startTime, endTime, category, sql)
 
         cursor = self.conn.execute(
             sql,
