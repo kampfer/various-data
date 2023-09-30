@@ -189,26 +189,25 @@ async def getSina7x24News(
     news = []
     for d in listInDB:
         tags = []
-        if len(d[5]) > 0:
-            for x in d[5].split(","):
+        if len(d[4]) > 0:
+            for x in d[4].split(","):
                 tags.append(int(x))
         news.append(
             {
                 "id": d[0],
-                "createTime": d[2],
-                "content": d[3],
-                "url": d[4],
+                "createTime": d[1],
+                "content": d[2],
                 "tags": tags,
-                "significance": d[6],
+                "significance": d[3],
             }
         )
 
     total = sina7x24DB.newsCount(
-        keyword=filterWords,
+        keyword=(filterWords if filterWords else None),
         startTime=startTime,
         endTime=endTime,
-        significance=priority,
-        category=category,
+        significance=(priority if priority else None),
+        category=(category if category else None),
     )
 
     return {"code": 200, "data": {"list": news, "total": total}}

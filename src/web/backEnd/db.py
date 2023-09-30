@@ -4,18 +4,21 @@ from datetime import datetime
 
 
 def generateConditionSql(keyword, startTime, endTime, category, significance):
-    print(keyword, startTime, endTime, category, significance)
     condition = []
     if keyword != None:
         condition.append("n.content LIKE :keyword")
     if startTime != None and endTime != None:
-        condition.append("create_time >= :startTime AND create_time <= :endTime")
+        condition.append(
+            "n.create_time >= :startTime AND n.create_time <= :endTime")
     if category != None and category != 0:
-        condition.append("n.id IN (SELECT news_id from news_tag nt WHERE nt.tag_id = :category)")
+        condition.append(
+            "n.id IN (SELECT news_id from news_tag nt WHERE nt.tag_id = :category)")
     if significance != None and significance != 0:
-        condition.append("significance=:significance")
-    conditionStr = f"WHERE {' AND '.join(condition)}" if len(condition) > 0 else ""
-    print(conditionStr)
+        condition.append("n.significance=:significance")
+    conditionStr = f"WHERE {' AND '.join(condition)}" if len(
+        condition) > 0 else ""
+    # print(keyword, startTime, endTime, category, significance)
+    # print(conditionStr)
     return conditionStr
 
 
@@ -68,13 +71,15 @@ class SinaNews7x24DB:
             # 新闻
             sina_id = item["id"]
             create_time = int(
-                datetime.strptime(item["create_time"], "%Y-%m-%d %H:%M:%S").timestamp()
+                datetime.strptime(item["create_time"],
+                                  "%Y-%m-%d %H:%M:%S").timestamp()
                 * 1000
             )
             content = item["rich_text"]
             url = item["docurl"]
             significance = 0
-            newsId = self.insertNews(sina_id, create_time, content, url, significance)
+            newsId = self.insertNews(
+                sina_id, create_time, content, url, significance)
 
             for d in item["tag"]:
                 tagId = self.insertTag(d["name"], d["id"], True)
@@ -148,7 +153,8 @@ class SinaNews7x24DB:
     def updateNewsSignificance(self, id, significance):
         cur = self.conn.cursor()
         cur.execute(
-            "UPDATE sina_news_7x24 SET significance=? WHERE id=?", (significance, id)
+            "UPDATE sina_news_7x24 SET significance=? WHERE id=?", (
+                significance, id)
         )
         self.conn.commit()
 
@@ -173,21 +179,19 @@ class SinaNews7x24DB:
         )
 
         sql = f"""
-        SELECT n.id, n.create_time, n.content, n.significance, GROUP_CONCAT(t.id, ',') as tags 
+        SELECT n.id, n.create_time, n.content, n.significance, GROUP_CONCAT(t.id, ',') as tags
         FROM sina_news_7x24 n
-        JOIN news_tag nt 
+        JOIN news_tag nt
         ON n.id = nt.news_id
         JOIN tag t
         ON t.id = nt.tag_id
-        WHERE n.id IN (
-            SELECT news_id from news_tag nt
-            WHERE nt.tag_id = 1
-        )
         {conditionStr}
         GROUP BY n.id
         ORDER BY create_time {'DESC' if sort == 0 else 'ASC'}
         LIMIT :pageSize OFFSET :pageSize*:page
         """
+
+        # print(category, sql)
 
         cursor = self.conn.execute(
             sql,
@@ -199,7 +203,7 @@ class SinaNews7x24DB:
                 "significance": significance,
                 "page": page,
                 "pageSize": pageSize,
-                "category": f"%{category}%",
+                "category": category,
             },
         )
         return cursor.fetchall()
@@ -223,14 +227,23 @@ class SinaNews7x24DB:
         conditionStr = generateConditionSql(
             keyword, startTime, endTime, category, significance
         )
+
+        sql = f"""
+            SELECT COUNT(*)
+            FROM sina_news_7x24 n
+            {conditionStr}
+        """
+
+        # print(category, sql)
+
         cursor.execute(
-            f"SELECT COUNT(*) FROM sina_news_7x24 {conditionStr}",
+            sql,
             {
                 "keyword": f"%{keyword}%",
                 "startTime": startTime,
                 "endTime": endTime,
                 "significance": significance,
-                "category": f"%{category}%",
+                "category": category,
             },
         )
 
@@ -239,9 +252,11 @@ class SinaNews7x24DB:
 
     def clear(self):
         self.conn.execute("DROP TABLE sina_news_7x24")
-        self.conn.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'sina_news_7x24'")
+        self.conn.execute(
+            "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'sina_news_7x24'")
         self.conn.execute("DROP TABLE tag")
-        self.conn.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'tag'")
+        self.conn.execute(
+            "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'tag'")
         self.conn.execute("DROP TABLE news_tag")
         self.conn.commit()
 

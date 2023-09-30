@@ -55,10 +55,13 @@ class App extends React.Component {
 
   handleScroll = (e) => {
     if (
-      e.currentTarget.scrollHeight - e.currentTarget.scrollTop ===
-      containerHeight
+      e.currentTarget.scrollHeight - e.currentTarget.scrollTop <
+      containerHeight + 10
     ) {
-      this.setState({ curPage: this.state.curPage + 1 });
+      const page = this.state.curPage + 1;
+      if (page < this.props.total / this.state.pageSize) {
+        this.setState({ curPage: page });
+      }
     }
   };
 
@@ -86,7 +89,7 @@ class App extends React.Component {
         endTime: period[1]?.valueOf(),
         ...filters,
       });
-    } else if (curPage !== prevState.curPage && (curPage + 1) < total / pageSize) {
+    } else if (curPage !== prevState.curPage) {
       const { period } = filters;
       this.props.getNews({
         page: curPage,
@@ -99,7 +102,7 @@ class App extends React.Component {
   }
 
   render() {
-    const { news, categories, filters } = this.props;
+    const { news, categories, filters, total } = this.props;
     const { filterWords, period, priority, sortBy, category } = filters;
     const { showFitlerPanel } = this.state;
     const categoryItem = categories.find((d) => d.id == category);
@@ -108,9 +111,9 @@ class App extends React.Component {
     if (categoryItem) info.push(`分类: ${categoryItem.name}`);
     if (period && period.length > 0)
       info.push(
-        `时间: ${dayjs(period[0]).format('YY-MM-DD HH:ss')}至${dayjs(
+        `时间: ${dayjs(period[0]).format('YY-MM-DD HH:mm:ss')}至${dayjs(
           period[1]
-        ).format('YY-MM-DD HH:ss')}`
+        ).format('YY-MM-DD HH:mm:ss')}`
       );
     info.push(`重要性: ${['全部', '重要', '不重要'][priority]}`);
     info.push(`排序: ${sortBy ? '升序' : '降序'}`);
@@ -206,7 +209,7 @@ class App extends React.Component {
         <div className={styles.newsList} onClick={this.handleClickAtOuter}>
           {/* <div className={styles.verticalLine}></div> */}
           <div className={styles.infoBar}>
-            <div className={styles.total}>共{news.length}条</div>
+            <div className={styles.total}>共{total}条</div>
             <div>{info.join(' ')}</div>
             <div>
               <FilterOutlined
@@ -224,7 +227,7 @@ class App extends React.Component {
           <VirtualList
             data={news}
             height={window.innerHeight - 40 - 10 * 2}
-            itemHeight={118}
+            itemHeight={127}
             itemKey="rich_text"
             onScroll={this.handleScroll}
           >
