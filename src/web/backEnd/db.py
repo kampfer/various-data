@@ -60,11 +60,14 @@ class SinaNews7x24DB:
 
         self.conn.commit()
 
-    def recoverFromJson(self, jsonFile):
+    def recoverFromJson(self, jsonFile, jsonFile2):
         self.clear()
         self.createTable()
 
-        f = open(jsonFile, "r")
+        f = open(jsonFile2, "r", encoding = 'utf-8')
+        pinedNews = json.load(f)
+
+        f = open(jsonFile, "r", encoding = 'utf-8')
         data = json.load(f)
         total = len(data)
         for idx, item in enumerate(data):
@@ -77,7 +80,7 @@ class SinaNews7x24DB:
             )
             content = item["rich_text"]
             url = item["docurl"]
-            significance = 0
+            significance = 1 if sina_id in pinedNews else 0
             newsId = self.insertNews(
                 sina_id, create_time, content, url, significance)
 
@@ -266,7 +269,7 @@ class SinaNews7x24DB:
 
 if __name__ == "__main__":
     db = SinaNews7x24DB()
-    db.recoverFromJson("data/sina7x24.json")
-    print(db.selectNewsTags())
-    print(db.selectNews(10, 100))
+    db.recoverFromJson("data/sina7x24.json", "data/pinedEvents.json")
+    # print(db.selectNewsTags())
+    # print(db.selectNews(10, 100))
     # print(db.newsCount())
