@@ -69,7 +69,10 @@ class SinaNews7x24DB:
 
         f = open(jsonFile, "r", encoding = 'utf-8')
         data = json.load(f)
-        total = len(data)
+
+        news = []
+        tags = {}
+        relationMap = {}
         for idx, item in enumerate(data):
             # 新闻
             sina_id = item["id"]
@@ -81,16 +84,38 @@ class SinaNews7x24DB:
             content = item["rich_text"]
             url = item["docurl"]
             significance = 1 if sina_id in pinedNews else 0
-            newsId = self.insertNews(
-                sina_id, create_time, content, url, significance)
+            news.append((sina_id, create_time, content, url, significance))
 
             for d in item["tag"]:
-                tagId = self.insertTag(d["name"], d["id"], True)
-                self.insertRelation(newsId, tagId)
+                if d["id"] not in tags:
+                    tags[d["id"]] = (d["name"], True, d["id"])
+                if sina_id in relationMap:
+                    relationMap[sina_id].append(d["id"])
+                else:
+                    relationMap[sina_id] = [d["id"]]
 
-            print(
-                f"insert news: {sina_id} {idx + 1}/{total} {((idx + 1) / total)*100}%"
-            )
+        self.insertManyNews(list(reversed(news)))
+        self.insertManyTags([tags[k] for k in tags])
+
+        cursor = self.conn.execute("SELECT id, sina_id FROM sina_news_7x24")
+        rNews = cursor.fetchall()
+        cursor = self.conn.execute("SELECT id, sina_id FROM tag")
+        rTags = cursor.fetchall()
+
+        newsIdMap = {}  # sinaId -> sqlite id
+        for d in rNews:
+            newsIdMap[d[1]] = d[0]
+
+        tagIdMap = {}
+        for d in rTags:
+            tagIdMap[d[1]] = d[0]
+
+        relationList = []
+        for sinaNewsId in relationMap:
+            for sinaTagId in relationMap[sinaNewsId]:
+                relationList.append((newsIdMap[sinaNewsId], tagIdMap[sinaTagId]))
+
+        self.insertManyRelations(relationList)
 
     def insertNews(self, sina_id, create_time, content, url, significance):
         conn = self.conn
@@ -134,7 +159,7 @@ class SinaNews7x24DB:
         sql = """
         INSERT INTO sina_news_7x24
         (sina_id, create_time, content, url, significance)
-        VALUES(?, ?, ?, ?, ?, ?)
+        VALUES(?, ?, ?, ?, ?)
         """
         self.conn.executemany(sql, list)
         self.conn.commit()
@@ -191,7 +216,7 @@ class SinaNews7x24DB:
         {conditionStr}
         GROUP BY n.id
         ORDER BY create_time {'DESC' if sort == 0 else 'ASC'}
-        LIMIT :pageSize OFFSET :pageSize*:page
+        { 'LIMIT :pageSize OFFSET :pageSize*:page' if page != None and pageSize != None else '' }
         """
 
         # print(category, sql)
