@@ -204,7 +204,7 @@ class EventCard extends React.Component {
           {tooLong && (
             <ZoomInOutlined className={styles.func} onClick={this.showDetail} />
           )}
-          {data.pinned ? (
+          {data.significance ? (
             <FlagFilled
               onClick={this.unpin}
               className={styles.func}

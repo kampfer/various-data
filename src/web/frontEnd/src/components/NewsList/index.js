@@ -115,7 +115,7 @@ class App extends React.Component {
           period[1]
         ).format('YY-MM-DD HH:mm:ss')}`
       );
-    info.push(`重要性: ${['全部', '重要', '不重要'][priority]}`);
+    info.push(`重要性: ${['全部', '重要'][priority]}`);
     info.push(`排序: ${sortBy ? '升序' : '降序'}`);
     return (
       <div className={styles.container}>
@@ -162,7 +162,6 @@ class App extends React.Component {
                     options={[
                       { value: 0, label: '全部' },
                       { value: 1, label: '重要' },
-                      { value: 2, label: '不重要' },
                     ]}
                   />
                 </Form.Item>
@@ -180,10 +179,10 @@ class App extends React.Component {
               <Col span={12}>
                 <Form.Item label="分类" name="category">
                   <Select
-                    options={categories.map((d) => ({
+                    options={[{ value: 0, label: '全部' }].concat(categories.map((d) => ({
                       value: d.id,
                       label: d.name,
-                    }))}
+                    })))}
                   />
                 </Form.Item>
               </Col>

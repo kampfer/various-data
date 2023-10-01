@@ -56,7 +56,7 @@ export default function (state = initialState, action) {
       return {
         ...state,
         list: state.list.map((d) => {
-          return { ...d, pinned: d.id === id ? true : d.pinned };
+          return { ...d, significance: d.id === id ? 1 : d.significance };
         }),
       };
     }
@@ -65,7 +65,7 @@ export default function (state = initialState, action) {
       return {
         ...state,
         list: state.list.map((d) => {
-          return { ...d, pinned: d.id === id ? false : d.pinned };
+          return { ...d, significance: d.id === id ? 0 : d.significance };
         }),
       };
     }

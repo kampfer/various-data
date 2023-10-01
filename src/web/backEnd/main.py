@@ -134,24 +134,14 @@ def exeCrawler(moduleName, funcName):
 
 
 @app.get("/api/pinEvent")
-def pinEvent(id: int):
-    pinedEventsStorePath = f'{os.path.join(DATA_PATH, "pinedEvents")}.json'
-    data = (
-        readData(pinedEventsStorePath) if os.path.exists(pinedEventsStorePath) else []
-    )
-    if id not in data:
-        data.append(id)
-    saveData(pinedEventsStorePath, data)
+async def pinEvent(id: int):
+    sina7x24DB.updateNewsSignificance(id, 1)
     return {"code": 200}
 
 
 @app.get("/api/unpinEvent")
-def unpinEvent(id: int):
-    pinedEventsStorePath = f'{os.path.join(DATA_PATH, "pinedEvents")}.json'
-    if os.path.exists(pinedEventsStorePath):
-        data = readData(pinedEventsStorePath)
-        data.remove(id)
-        saveData(pinedEventsStorePath, data)
+async def unpinEvent(id: int):
+    sina7x24DB.updateNewsSignificance(id, 0)
     return {"code": 200}
 
 

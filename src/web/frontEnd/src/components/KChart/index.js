@@ -43,7 +43,7 @@ class KChart extends React.Component {
     const { dates, values: prices, volumes, selectedMark } = this.props.stock;
 
     const newsGroup = this.props.checkedNews.reduce((group, news) => {
-      const date = dayjs(news.create_time).format('YYYY-MM-DD');
+      const date = dayjs(news.createTime).format('YYYY-MM-DD');
       if (!group[date]) group[date] = [];
       group[date].push(news);
       return group;
@@ -265,9 +265,10 @@ class KChart extends React.Component {
 }
 
 export default connect(
-  (state) => ({
-    stock: state.stock,
-    checkedNews: state.news.list.filter((d) => d.pinned),
-  }),
+  (state) => {
+    const stock = state.stock;
+    const checkedNews = state.news.list.filter((d) => d.significance);
+    return { stock, checkedNews };
+  },
   { getStock, setFilters, selectMark }
 )(KChart);
