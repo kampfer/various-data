@@ -278,6 +278,19 @@ class SinaNews7x24DB:
         result = cursor.fetchone()
         return result[0]
 
+    def latestNews(self):
+        conn = self.conn
+        cursor = conn.cursor()
+        sql = """
+            SELECT *
+            FROM sina_news_7x24
+            ORDER BY create_time DESC
+            LIMIT 1
+        """
+
+        cursor.execute(sql)
+        return cursor.fetchone()
+
     def clear(self):
         self.conn.execute("DROP TABLE sina_news_7x24")
         self.conn.execute(
@@ -291,10 +304,11 @@ class SinaNews7x24DB:
     def destroy(self):
         self.conn.close()
 
+dbInstance = SinaNews7x24DB()
 
-if __name__ == "__main__":
-    db = SinaNews7x24DB()
-    db.recoverFromJson("data/sina7x24.json", "data/pinedEvents.json")
+# if __name__ == "__main__":
+#     db = SinaNews7x24DB()
+#     db.recoverFromJson("data/sina7x24.json", "data/pinedEvents.json")
     # print(db.selectNewsTags())
     # print(db.selectNews(10, 100))
     # print(db.newsCount())

@@ -12,6 +12,7 @@ pyquery = "*"
 selenium = "*"
 fastapi = "*"
 uvicorn = {extras = ["standard"], version = "*"}
+apscheduler = "*"
 
 [dev-packages]
 

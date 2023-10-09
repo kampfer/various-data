@@ -2,3 +2,4 @@ node_modules
 dist
 .ipynb_checkpoints
 /data
+**__pycache__**

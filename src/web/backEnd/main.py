@@ -21,9 +21,20 @@ readData = getattr(import_module("utils"), "readData")
 app.mount("/web", StaticFiles(directory="./dist/web"), name="web")
 
 from . import db
+from . import sinaNews
 
-sina7x24DB = db.SinaNews7x24DB()
+sina7x24DB = db.dbInstance
 
+from apscheduler.schedulers.background import BackgroundScheduler
+
+def crawlSinaJob():
+    sinaNews.crawlSinaNews()
+
+# crawlSinaJob()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(crawlSinaJob, 'interval', hours=1)
+scheduler.start()
 
 @app.get("/")
 def read_root():
