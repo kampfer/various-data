@@ -6,8 +6,7 @@ import sys
 import json
 from importlib import import_module
 import traceback
-
-app = FastAPI()
+from db import SinaNews7x24DB
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../../../data")
 MODULE_PATH = os.path.join(os.path.dirname(__file__), "../../crawlers/python")
@@ -18,23 +17,11 @@ sys.path.append(MODULE_PATH)
 saveData = getattr(import_module("utils"), "saveData")
 readData = getattr(import_module("utils"), "readData")
 
+sina7x24DB = SinaNews7x24DB()
+
+app = FastAPI()
+
 app.mount("/web", StaticFiles(directory="./dist/web"), name="web")
-
-from . import db
-from . import sinaNews
-
-sina7x24DB = db.dbInstance
-
-from apscheduler.schedulers.background import BackgroundScheduler
-
-def crawlSinaJob():
-    sinaNews.crawlSinaNews()
-
-# crawlSinaJob()
-
-scheduler = BackgroundScheduler()
-scheduler.add_job(crawlSinaJob, 'interval', hours=1)
-scheduler.start()
 
 @app.get("/")
 def read_root():

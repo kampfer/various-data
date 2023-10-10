@@ -2,11 +2,10 @@ import requests
 import time
 import json
 
-from . import db
-# import db
+from db import SinaNews7x24DB
 from datetime import datetime
 
-dbInstance = db.dbInstance
+dbInstance = SinaNews7x24DB()
 
 
 def crawlFeed(type=None, id=None):
@@ -49,7 +48,9 @@ def crawlFeedAfterMinId(minId):
 def crawlSinaNews():
     last = dbInstance.latestNews()
     minId = last[1]
+    print(f'最近的新闻id {minId}')
     feeds = crawlFeedAfterMinId(minId)
+    print(f'本次新增{len(feeds)}条新闻')
 
     news = []
     relationMap = {}
@@ -87,6 +88,9 @@ def crawlSinaNews():
             relationList.append((idMap[sina_id], tagId))
     dbInstance.insertManyRelations(relationList)
 
+
+if __name__ == "__main__":
+    crawlSinaNews()
 
 # crawlSinaNews()
 # dbInstance.recoverFromJson("data/sina7x24.json", "data/pinedEvents.json")

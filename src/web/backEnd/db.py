@@ -8,15 +8,14 @@ def generateConditionSql(keyword, startTime, endTime, category, significance):
     if keyword != None:
         condition.append("n.content LIKE :keyword")
     if startTime != None and endTime != None:
-        condition.append(
-            "n.create_time >= :startTime AND n.create_time <= :endTime")
+        condition.append("n.create_time >= :startTime AND n.create_time <= :endTime")
     if category != None and category != 0:
         condition.append(
-            "n.id IN (SELECT news_id from news_tag nt WHERE nt.tag_id = :category)")
+            "n.id IN (SELECT news_id from news_tag nt WHERE nt.tag_id = :category)"
+        )
     if significance != None and significance != 0:
         condition.append("n.significance=:significance")
-    conditionStr = f"WHERE {' AND '.join(condition)}" if len(
-        condition) > 0 else ""
+    conditionStr = f"WHERE {' AND '.join(condition)}" if len(condition) > 0 else ""
     # print(keyword, startTime, endTime, category, significance)
     # print(conditionStr)
     return conditionStr
@@ -24,7 +23,8 @@ def generateConditionSql(keyword, startTime, endTime, category, significance):
 
 class SinaNews7x24DB:
     def __init__(self, dbFile="data/sina_news_7x24.db"):
-        self.conn = sqlite3.connect(dbFile)
+        # 先关掉线程检查
+        self.conn = sqlite3.connect(dbFile, check_same_thread=False)
         self.createTable()
 
     def createTable(self):
@@ -64,10 +64,10 @@ class SinaNews7x24DB:
         self.clear()
         self.createTable()
 
-        f = open(jsonFile2, "r", encoding = 'utf-8')
+        f = open(jsonFile2, "r", encoding="utf-8")
         pinedNews = json.load(f)
 
-        f = open(jsonFile, "r", encoding = 'utf-8')
+        f = open(jsonFile, "r", encoding="utf-8")
         data = json.load(f)
 
         news = []
@@ -77,8 +77,7 @@ class SinaNews7x24DB:
             # 新闻
             sina_id = item["id"]
             create_time = int(
-                datetime.strptime(item["create_time"],
-                                  "%Y-%m-%d %H:%M:%S").timestamp()
+                datetime.strptime(item["create_time"], "%Y-%m-%d %H:%M:%S").timestamp()
                 * 1000
             )
             content = item["rich_text"]
@@ -181,8 +180,7 @@ class SinaNews7x24DB:
     def updateNewsSignificance(self, id, significance):
         cur = self.conn.cursor()
         cur.execute(
-            "UPDATE sina_news_7x24 SET significance=? WHERE id=?", (
-                significance, id)
+            "UPDATE sina_news_7x24 SET significance=? WHERE id=?", (significance, id)
         )
         self.conn.commit()
 
@@ -294,21 +292,20 @@ class SinaNews7x24DB:
     def clear(self):
         self.conn.execute("DROP TABLE sina_news_7x24")
         self.conn.execute(
-            "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'sina_news_7x24'")
+            "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'sina_news_7x24'"
+        )
         self.conn.execute("DROP TABLE tag")
-        self.conn.execute(
-            "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'tag'")
+        self.conn.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'tag'")
         self.conn.execute("DROP TABLE news_tag")
         self.conn.commit()
 
     def destroy(self):
         self.conn.close()
 
-dbInstance = SinaNews7x24DB()
 
-# if __name__ == "__main__":
-#     db = SinaNews7x24DB()
-#     db.recoverFromJson("data/sina7x24.json", "data/pinedEvents.json")
+if __name__ == "__main__":
+    db = SinaNews7x24DB()
+    db.recoverFromJson("data/sina7x24.json", "data/pinedEvents.json")
     # print(db.selectNewsTags())
     # print(db.selectNews(10, 100))
     # print(db.newsCount())
