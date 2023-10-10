@@ -6,7 +6,7 @@ import sys
 import json
 from importlib import import_module
 import traceback
-from db import SinaNews7x24DB
+from .db import SinaNews7x24DB
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../../../data")
 MODULE_PATH = os.path.join(os.path.dirname(__file__), "../../crawlers/python")
@@ -22,6 +22,7 @@ sina7x24DB = SinaNews7x24DB()
 app = FastAPI()
 
 app.mount("/web", StaticFiles(directory="./dist/web"), name="web")
+
 
 @app.get("/")
 def read_root():
@@ -209,3 +210,16 @@ async def getSina7x24Tags():
         for tag in tagsInDB
     ]
     return {"code": 200, "data": tags}
+
+
+@app.get("/api/createTag")
+async def createTag5News(newsId: int, name: str):
+    tagId = sina7x24DB.insertTag(name=name, isSinaTag=False)
+    sina7x24DB.insertRelation(newsId, tagId)
+    return {"code": 200}
+
+
+@app.get("/api/removeTag")
+async def removeTag5News(newsId: int, tagId: int):
+    sina7x24DB.removeRelation(newsId=newsId, tagId=tagId)
+    return {"code": 200}

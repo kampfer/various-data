@@ -130,7 +130,7 @@ class SinaNews7x24DB:
         return cursor.lastrowid
 
     # 创建tag并返回id
-    def insertTag(self, name, sinaId, isSinaTag=False):
+    def insertTag(self, name, sinaId=None, isSinaTag=False):
         conn = self.conn
         cursor = conn.cursor()
 
@@ -150,6 +150,13 @@ class SinaNews7x24DB:
     def insertRelation(self, newsId, tagId):
         sql = """
         INSERT OR IGNORE INTO news_tag (news_id, tag_id) VALUES (?,?)
+        """
+        self.conn.execute(sql, (newsId, tagId))
+        self.conn.commit()
+
+    def removeRelation(self, newsId, tagId):
+        sql = """
+        DELETE FROM news_tag WHERE news_id=? AND tag_id=?
         """
         self.conn.execute(sql, (newsId, tagId))
         self.conn.commit()

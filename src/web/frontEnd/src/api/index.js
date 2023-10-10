@@ -49,3 +49,15 @@ export function pinEvent(id) {
 export function unpinEvent(id) {
   return fetch(`/api/unpinEvent?id=${id}`);
 }
+
+export function createTag(newsId, name) {
+  return fetch(`/api/createTag?name=${name}&newsId=${newsId}`);
+}
+
+export function updateTag(id, name) {
+  return fetch(`/api/updateTag?id=${id}&name=${name}`);
+}
+
+export function removeTag(id, newsId) {
+  return fetch(`/api/removeTag?tagId=${id}&newsId=${newsId}`);
+}

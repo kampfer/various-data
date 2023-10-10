@@ -18,6 +18,12 @@ import {
   SELECT_MARK,
   SET_STOCK_CODE,
   RECEIVE_TAGS,
+  CREATE_TAG_SUCCESS,
+  CREATE_TAG_FAIL,
+  UPDATE_TAG_SUCCESS,
+  UPDATE_TAG_FAIL,
+  REMOVE_TAG_SUCCESS,
+  REMOVE_TAG_FAIL
 } from './actionTypes.js';
 import {
   fetchNews,
@@ -27,6 +33,9 @@ import {
   pinEvent as pinEventById,
   unpinEvent as unpinEventById,
   featchTags,
+  createTag as createTagApi,
+  updateTag as updateTagApi,
+  removeTag as removeTagApi,
 } from '../api/index.js';
 import dayjs from 'dayjs';
 
@@ -46,8 +55,8 @@ function receiveNews(news) {
 function appendNews(news) {
   return {
     type: APPEND_NEWS,
-    payload: news
-  }
+    payload: news,
+  };
 }
 
 export const getNews = (opts) => (dispatch) => {
@@ -211,4 +220,31 @@ export const selectMark = (key) => {
     type: SELECT_MARK,
     payload: key,
   };
+};
+
+export const createTagSuccess = () => ({ type: CREATE_TAG_SUCCESS});
+export const createTagFail = () => ({ type: CREATE_TAG_FAIL});
+export const createTag = (newsId, name) => (dispatch) => {
+  createTagApi(newsId, name).then(
+    () => dispatch(createTagSuccess()),
+    () => dispatch(createTagFail())
+  );
+};
+
+export const updateTagSuccess = () => ({ type: UPDATE_TAG_SUCCESS });
+export const updateTagFail = () => ({ type: UPDATE_TAG_FAIL });
+export const updateTag = (id, name) => (dispatch) => {
+  updateTagApi(id, name).then(
+    () => dispatch(updateTagSuccess()),
+    () => dispatch(updateTagFail())
+  );
+};
+
+export const removeTagSuccess = () => ({ type: REMOVE_TAG_SUCCESS });
+export const removeTagFail = () => ({ type: REMOVE_TAG_FAIL });
+export const removeTag = (tagId, newsId) => (dispatch) => {
+  removeTagApi(tagId, newsId).then(
+    () => dispatch(removeTagSuccess()),
+    () => dispatch(removeTagFail())
+  );
 };

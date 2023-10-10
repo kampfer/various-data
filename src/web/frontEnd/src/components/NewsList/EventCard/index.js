@@ -7,7 +7,13 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import styles from './index.module.scss';
-import { pinEvent, unpinEvent } from '../../../store/actions.js';
+import {
+  pinEvent,
+  unpinEvent,
+  createTag,
+  updateTag,
+  removeTag,
+} from '../../../store/actions.js';
 import { connect } from 'react-redux';
 import { Modal, Tag, Input, Tooltip } from 'antd';
 
@@ -47,11 +53,13 @@ class EventCard extends React.Component {
   };
 
   handleInputConfirm = () => {
+    const { data } = this.props;
     const { tags, inputValue } = this.state;
-    if (inputValue && !tags.includes(inputValue)) {
-      this.setState({ tags: [...tags, inputValue] });
-    }
-    this.setState({ inputVisible: false, inputValue: '' });
+    // if (inputValue && !tags.includes(inputValue)) {
+    //   this.setState({ tags: [...tags, inputValue] });
+    // }
+    this.props.createTag(data.id, inputValue);
+    // this.setState({ inputVisible: false, inputValue: '' });
   };
 
   showInput = () => {
@@ -219,4 +227,10 @@ class EventCard extends React.Component {
   }
 }
 
-export default connect(null, { pinEvent, unpinEvent })(EventCard);
+export default connect(null, {
+  pinEvent,
+  unpinEvent,
+  createTag,
+  updateTag,
+  removeTag,
+})(EventCard);
