@@ -1,3 +1,17 @@
+import axios from 'axios';
+import { message } from 'antd';
+
+function get(...args) {
+  return axios.get(...args).then((res) => res.data).then((data) => {
+    if (data.code === 200) {
+      return data;
+    } else {
+      message.error(data.msg);
+      throw data.msg;
+    }
+  });
+}
+
 export function fetchNews(params = {}) {
   const names = [
     'page',
@@ -51,13 +65,13 @@ export function unpinEvent(id) {
 }
 
 export function createTag(newsId, name) {
-  return fetch(`/api/createTag?name=${name}&newsId=${newsId}`);
+  return get(`/api/createTag?name=${name}&newsId=${newsId}`);
 }
 
 export function updateTag(id, name) {
-  return fetch(`/api/updateTag?id=${id}&name=${name}`);
+  return get(`/api/updateTag?id=${id}&name=${name}`);
 }
 
 export function removeTag(id, newsId) {
-  return fetch(`/api/removeTag?tagId=${id}&newsId=${newsId}`);
+  return get(`/api/removeTag?tagId=${id}&newsId=${newsId}`);
 }

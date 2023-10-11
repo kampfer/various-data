@@ -205,8 +205,9 @@ async def getSina7x24News(
 @app.get("/api/sina7x24/tags")
 async def getSina7x24Tags():
     tagsInDB = sina7x24DB.selectNewsTags()
+    print(tagsInDB)
     tags = [
-        {"id": tag[0], "name": tag[1], "isSinaTag": True if tag[3] == "1" else False}
+        {"id": tag[0], "name": tag[1], "isSinaTag": True if tag[2] == 1 else False}
         for tag in tagsInDB
     ]
     return {"code": 200, "data": tags}
@@ -214,9 +215,12 @@ async def getSina7x24Tags():
 
 @app.get("/api/createTag")
 async def createTag5News(newsId: int, name: str):
-    tagId = sina7x24DB.insertTag(name=name, isSinaTag=False)
-    sina7x24DB.insertRelation(newsId, tagId)
-    return {"code": 200}
+    if sina7x24DB.existTag(name):
+        return {"code": 400, "msg": "该标签已存在"}
+    else:
+        tagId = sina7x24DB.insertTag(name=name, isSinaTag=False)
+        sina7x24DB.insertRelation(newsId, tagId)
+        return {"code": 200, "data": {"tagId": tagId}}
 
 
 @app.get("/api/removeTag")

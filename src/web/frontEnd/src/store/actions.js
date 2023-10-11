@@ -23,7 +23,7 @@ import {
   UPDATE_TAG_SUCCESS,
   UPDATE_TAG_FAIL,
   REMOVE_TAG_SUCCESS,
-  REMOVE_TAG_FAIL
+  REMOVE_TAG_FAIL,
 } from './actionTypes.js';
 import {
   fetchNews,
@@ -222,11 +222,14 @@ export const selectMark = (key) => {
   };
 };
 
-export const createTagSuccess = () => ({ type: CREATE_TAG_SUCCESS});
-export const createTagFail = () => ({ type: CREATE_TAG_FAIL});
+export const createTagSuccess = (newsId, tagName, tagId) => ({
+  type: CREATE_TAG_SUCCESS,
+  payload: { newsId, tagName, tagId },
+});
+export const createTagFail = () => ({ type: CREATE_TAG_FAIL });
 export const createTag = (newsId, name) => (dispatch) => {
   createTagApi(newsId, name).then(
-    () => dispatch(createTagSuccess()),
+    (res) => dispatch(createTagSuccess(newsId, name, res.data.tagId)),
     () => dispatch(createTagFail())
   );
 };
@@ -240,11 +243,14 @@ export const updateTag = (id, name) => (dispatch) => {
   );
 };
 
-export const removeTagSuccess = () => ({ type: REMOVE_TAG_SUCCESS });
+export const removeTagSuccess = (tagId, newsId) => ({
+  type: REMOVE_TAG_SUCCESS,
+  payload: { tagId, newsId },
+});
 export const removeTagFail = () => ({ type: REMOVE_TAG_FAIL });
 export const removeTag = (tagId, newsId) => (dispatch) => {
   removeTagApi(tagId, newsId).then(
-    () => dispatch(removeTagSuccess()),
+    (res) => dispatch(removeTagSuccess(tagId, newsId)),
     () => dispatch(removeTagFail())
   );
 };

@@ -5,6 +5,8 @@ import {
   UNPIN_EVENT_SUCCESS,
   SET_FILTERS,
   RECEIVE_TAGS,
+  CREATE_TAG_SUCCESS,
+  REMOVE_TAG_SUCCESS,
 } from '../actionTypes.js';
 
 const initialState = {
@@ -42,6 +44,34 @@ export default function (state = initialState, action) {
       return {
         ...state,
         categories: action.payload,
+      };
+    }
+    case CREATE_TAG_SUCCESS: {
+      return {
+        ...state,
+        categories: [
+          ...state.categories,
+          {
+            id: action.payload.tagId,
+            name: action.payload.tagName,
+            isSinaTag: false,
+          },
+        ],
+        list: state.list.map((d) => {
+          if (d.id === action.payload.newsId) {
+            return {
+              ...d,
+              tags: [...d.tags, action.payload.tagId],
+            };
+          }
+          return d;
+        }),
+      };
+    }
+    case REMOVE_TAG_SUCCESS: {
+      return {
+        ...state,
+        list: state.list.filter((d) => d !== action.payload.tagId),
       };
     }
     // case SET_NEWS_PERIOD: {

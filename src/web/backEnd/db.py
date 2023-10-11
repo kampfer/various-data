@@ -129,7 +129,13 @@ class SinaNews7x24DB:
         print(f"insert news {sina_id}")
         return cursor.lastrowid
 
-    # 创建tag并返回id
+    def existTag(self, tagName):
+        conn = self.conn
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM tag WHERE name=?", (tagName,))
+        result = cursor.fetchone()
+        return True if result is not None else False
+
     def insertTag(self, name, sinaId=None, isSinaTag=False):
         conn = self.conn
         cursor = conn.cursor()

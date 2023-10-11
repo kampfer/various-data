@@ -54,33 +54,30 @@ class EventCard extends React.Component {
 
   handleInputConfirm = () => {
     const { data } = this.props;
-    const { tags, inputValue } = this.state;
-    // if (inputValue && !tags.includes(inputValue)) {
-    //   this.setState({ tags: [...tags, inputValue] });
-    // }
+    const { inputValue } = this.state;
     this.props.createTag(data.id, inputValue);
-    // this.setState({ inputVisible: false, inputValue: '' });
+    this.setState({ inputVisible: false, inputValue: '' });
   };
 
   showInput = () => {
     this.setState({ inputVisible: true });
   };
 
-  handleEditInputChange = (e) => {
-    this.setState({ editInputValue: e.target.value });
-  };
+  // handleEditInputChange = (e) => {
+  //   this.setState({ editInputValue: e.target.value });
+  // };
 
-  handleEditInputConfirm = (e) => {
-    const { tags, editInputIndex, editInputValue } = this.state;
-    const newTags = [...tags];
-    newTags[editInputIndex] = editInputValue;
-    this.setState({ tags: newTags, editInputIndex: -1, editInputValue: '' });
-  };
+  // handleEditInputConfirm = (e) => {
+  //   const { tags, editInputIndex, editInputValue } = this.state;
+  //   const newTags = [...tags];
+  //   newTags[editInputIndex] = editInputValue;
+  //   this.setState({ tags: newTags, editInputIndex: -1, editInputValue: '' });
+  // };
 
   handleClose(removedTag) {
-    const { tags } = this.state;
-    const newTags = tags.filter((tag) => tag !== removedTag);
-    this.setState({ tags: newTags });
+    const { data } = this.props;
+    const newsId = data.id;
+    this.props.removeTag(removedTag.id, newsId);
   }
 
   highLightContent() {
@@ -110,10 +107,11 @@ class EventCard extends React.Component {
   }
 
   render() {
-    const { data } = this.props;
+    const { data, categories } = this.props;
+    const tags = data.tags.map((id) => categories.find((d) => d.id === id)).filter(d => !!d);
     const tooLong = data.content.length > 100;
     const content = this.highLightContent();
-    const { inputValue, inputVisible, tags, editInputValue, editInputIndex } =
+    const { inputValue, inputVisible, editInputValue, editInputIndex } =
       this.state;
     return (
       <div className={styles.eventCard}>
@@ -124,31 +122,31 @@ class EventCard extends React.Component {
           <div className={styles.eventContent}>{content}</div>
           <div className={styles.eventTagContainer}>
             {tags.map((tag, index) => {
-              if (editInputIndex === index) {
-                return (
-                  <Input
-                    ref={this.editInputRef}
-                    key={tag}
-                    size="small"
-                    style={{
-                      width: 64,
-                      height: 22,
-                      marginInlineEnd: 8,
-                      verticalAlign: 'top',
-                      marginTop: 5,
-                    }}
-                    value={editInputValue}
-                    onChange={this.handleEditInputChange}
-                    onBlur={this.handleEditInputConfirm}
-                    onPressEnter={this.handleEditInputConfirm}
-                  />
-                );
-              }
-              const isLongTag = tag.length > 20;
+              // if (editInputIndex === index) {
+              //   return (
+              //     <Input
+              //       ref={this.editInputRef}
+              //       key={tag}
+              //       size="small"
+              //       style={{
+              //         width: 64,
+              //         height: 22,
+              //         marginInlineEnd: 8,
+              //         verticalAlign: 'top',
+              //         marginTop: 5,
+              //       }}
+              //       value={editInputValue}
+              //       onChange={this.handleEditInputChange}
+              //       onBlur={this.handleEditInputConfirm}
+              //       onPressEnter={this.handleEditInputConfirm}
+              //     />
+              //   );
+              // }
+              const isLongTag = tag.name.length > 20;
               const tagElem = (
                 <Tag
-                  key={tag}
-                  closable
+                  key={tag.id}
+                  closable={!tag.isSinaTag}
                   color="blue"
                   style={{
                     userSelect: 'none',
@@ -160,18 +158,18 @@ class EventCard extends React.Component {
                       if (index !== 0) {
                         this.setState({
                           editInputIndex: index,
-                          editInputValue: tag,
+                          editInputValue: tag.name,
                         });
                         e.preventDefault();
                       }
                     }}
                   >
-                    {isLongTag ? `${tag.slice(0, 10)}...` : tag}
+                    {isLongTag ? `${tag.name.slice(0, 10)}...` : tag.name}
                   </span>
                 </Tag>
               );
               return isLongTag ? (
-                <Tooltip title={tag} key={tag}>
+                <Tooltip title={tag.name} key={tag.id}>
                   {tagElem}
                 </Tooltip>
               ) : (
@@ -227,7 +225,13 @@ class EventCard extends React.Component {
   }
 }
 
-export default connect(null, {
+const mapStateToProps = (state) => {
+  return {
+    categories: state.news.categories,
+  };
+};
+
+export default connect(mapStateToProps, {
   pinEvent,
   unpinEvent,
   createTag,
