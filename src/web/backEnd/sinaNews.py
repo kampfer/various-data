@@ -87,11 +87,10 @@ def crawlSinaNews():
     dbInstance.insertManyRelations(relationList)
 
     time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f'{time}本次新增{len(feeds)}条新闻')
+    cursor = dbInstance.conn.execute('SELECT COUNT(*) FROM sina_news_7x24')
+    count = cursor.fetchone()[0]
+    print(f'{time} 本次新增{len(feeds)}条新闻 现有共{count}条新闻\n')
 
 
 if __name__ == "__main__":
     crawlSinaNews()
-
-# crawlSinaNews()
-# dbInstance.recoverFromJson("data/sina7x24.json", "data/pinedEvents.json")
