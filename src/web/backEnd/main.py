@@ -205,7 +205,6 @@ async def getSina7x24News(
 @app.get("/api/sina7x24/tags")
 async def getSina7x24Tags():
     tagsInDB = sina7x24DB.selectNewsTags()
-    print(tagsInDB)
     tags = [
         {"id": tag[0], "name": tag[1], "isSinaTag": True if tag[2] == 1 else False}
         for tag in tagsInDB

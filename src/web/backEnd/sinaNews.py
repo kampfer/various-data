@@ -48,9 +48,7 @@ def crawlFeedAfterMinId(minId):
 def crawlSinaNews():
     last = dbInstance.latestNews()
     minId = last[1]
-    print(f'最近的新闻id {minId}')
     feeds = crawlFeedAfterMinId(minId)
-    print(f'本次新增{len(feeds)}条新闻')
 
     news = []
     relationMap = {}
@@ -87,6 +85,9 @@ def crawlSinaNews():
         for tagId in relationMap[sina_id]:
             relationList.append((idMap[sina_id], tagId))
     dbInstance.insertManyRelations(relationList)
+
+    time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f'{time}本次新增{len(feeds)}条新闻')
 
 
 if __name__ == "__main__":

@@ -249,7 +249,15 @@ class SinaNews7x24DB:
 
     def selectNewsTags(self):
         cur = self.conn.cursor()
-        cur.execute("SELECT * FROM tag")
+        cur.execute('''
+            SELECT * FROM tag t
+            JOIN (
+                SELECT tag_id, COUNT(*) as count
+                FROM news_tag
+                GROUP BY tag_Id
+                HAVING count > 0
+            ) tn ON t.id = tn.tag_id
+        ''')
         return cur.fetchall()
 
     def newsCount(
