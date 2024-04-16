@@ -92,5 +92,8 @@ def crawlSinaNews():
     print(f'{time} 本次新增{len(feeds)}条新闻 现有共{count}条新闻\n')
 
 
+def closeSinaDB():
+    dbInstance.conn.close()
+
 if __name__ == "__main__":
     crawlSinaNews()
