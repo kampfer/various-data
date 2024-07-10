@@ -18,6 +18,7 @@ def readJson(filePath):
     f.close()
     return data
 
+
 def writeJson(filePath, data):
     f = open(filePath, "w", encoding="utf-8")
     f.write(json.dumps(data))
@@ -29,131 +30,14 @@ def readFile(filePath):
     data = f.read()
     return data
 
+
 def writeFile(filePath, content):
     f = open(filePath, "w", encoding="utf-8")
     f.write(content)
     f.close()
 
-def extractOMO(html):
-    def findPrev(elem):
-        all = elem.prev_all('p')
 
-        if len(all) <= 0:
-            return None
-
-        for p in reversed(list(all.items())):
-            text = p.text()
-            if text:
-                return p
-
-        return None
-
-    doc = pq(html)
-
-    time = doc("#shijian").text()
-
-    tables = doc.find("#zoom table")
-    # zoom_children = list(zoom.children().items())
-    for i, elem in enumerate(tables.items()):
-        if elem.is_("table") and len(elem.find('tr')) > 1:
-            # print(elem.text())
-            prev = findPrev(elem)
-            if not prev:
-                # print(elem.html())
-                return False
-            print(prev.text())
-            return prev
-            # type = prev.text()
-            # # type = re.search(r"央行票据|逆回购|MLF", type).group(0)
-            # print(type)
-            # # print(elem.text())
-            # if type == "逆回购":
-            #     print(elem.text().split("\n"))
-            # elif type == "央行票据":
-            #     continue
-            # elif type == "MLF":
-            #     continue
-            # else:
-            #     continue
-    # tables = zoom.find('table')
-    # for i, table in enumerate(tables.items()):
-    #     trs = table.find('tr')
-    #     ret = []
-    #     for tr in trs.items():
-    #         ret.append([td.text() for td in tr.find('td').items()])
-
-# 从文本中提取交易类型：
-# 1. 从最长的段落中提取交易类型：不可行，因为有交易到期说明，会提取到到期类型。
-# 2. 从表格前的标题提取交易类型：不可行，因为有的表格没有标题
-# 3. 从表格中提取交易类型：不可行，因为逆回购没有标题
-#
-# 央行票据：名称、发行量、期限、票面利率
-# 正回购：期限、交易量、中标利率
-# 逆回购：期限、中标量、中标利率
-# MLF：期限、操作量、操作利率
-# 央行票据（香港）：期次、发行量、期限、中标利率
-def extractOMO2(text):
-    # doc = pq(html)
-
-    # title = doc.find("title").text()
-
-    # zoom = doc.find("#zoom")
-    lines = text.replace(' ', '').split()
-    # if re.search(' ', text):
-    #     breakpoint()
-    if len(lines) > 3:
-        longest = lines.index(sorted(lines, key=lambda v: len(v), reverse=True)[0])
-        print(lines[longest])
-        # lines = lines[longest+1:-2]
-        # print(lines)
-        reg = r'正回购|逆回购|央行票据|MLF'
-        print(re.findall(reg, lines[longest]))
-        cur = 0
-        finded = False
-        while cur < len(lines):
-            if re.search(reg, lines[cur]):
-                finded = True
-            cur += 1
-        # if not finded: print(text)
-        return True
-    else:
-        return False
-    
-    # arr = content[longest + 1:-2]
-    # if len(arr) > 0:
-    #   print(arr)
-
-
-# 全量爬取，覆盖所有旧数据（用于初始化数据）
-# http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/index.html
-# http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/17081/index1.html
-def crawlOMOList():
-    target_url = (
-        "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/index.html"
-    )
-    omo_list = []
-
-    while target_url:
-        print(f"crawl omo list: {target_url}")
-        res = requests.get(target_url)
-        res.encoding = "utf-8"
-
-        doc = pq(res.text)
-
-        target_url = None
-        for item in doc.find("#r_con a").items():
-            title = item.text()
-            if title == "下一页":
-                target_path = item.attr("tagname")
-                if target_path != "[NEXTPAGE]":
-                    target_url = f"http://www.pbc.gov.cn{target_path}"
-            elif title != "首页" and title != "上一页" and title != "尾页":
-                omo_list.append({"title": title, "url": item.attr("href")})
-
-    return omo_list
-
-
-# 存在重复数据
+# 存在重复数据：
 # 公开市场业务交易公告 [2008]第27号
 # http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/2837730/index.html
 # http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/2837727/index.html
@@ -171,40 +55,7 @@ def checkDuplicated():
     print(s)
 
 
-def crawlOMOTxt():
-    if os.path.exists(announcementsJsonPath):
-        f = open(announcementsJsonPath, "r")
-        omo_list = json.loads(f.read())
-        f.close()
-    else:
-        omo_list = crawlOMOList()
-
-        f = open(announcementsJsonPath, "w")
-        f.write(json.dumps(omo_list))
-        f.close()
-
-    for p in omo_list:
-        txt_content = crawlOMO(f"http://www.pbc.gov.cn{p['url']}")
-        txtPath = f'{contentPath}{p["title"]}.txt'
-        if txt_content == "":
-            print(f'content empty: {p["url"]}')
-        f = open(txtPath, "w")
-        f.write(txt_content)
-        f.close()
-
-
-def crawlOMOHtml():
-    if os.path.exists(announcementsJsonPath):
-        f = open(announcementsJsonPath, "r")
-        omo_list = json.loads(f.read())
-        f.close()
-    else:
-        omo_list = crawlOMOList()
-
-        f = open(announcementsJsonPath, "w")
-        f.write(json.dumps(omo_list))
-        f.close()
-
+def crawlOMOHtml(omo_list):
     for p in omo_list:
         # txt_content = crawlOMO()
         target_url = f"http://www.pbc.gov.cn{p['url']}"
@@ -222,104 +73,297 @@ def crawlOMOHtml():
 
 
 def extractOMOHeaders(text):
-    lines = text.replace(' ', '').split()
+    lines = text.replace(" ", "").split()
     if len(lines) > 3:  # 过滤掉了空公告
         longest = lines.index(sorted(lines, key=lambda v: len(v), reverse=True)[0])
         # content = lines[longest].split('。')[0]
         return lines[longest]
-    return None;
+    return None
+
+
+def findPrevText(node):
+    prevNodes = node.prevAll()
+    for node in reversed(list(prevNodes.items())):
+        text = node.text()
+        if text:
+            return text
+    if node.parent():
+        return findPrevText(node.parent())
+    return None
+
+
+# 统计央行表格头的类型
+# 1. 不是所有表格都有标题
+# 2. 标题中可能包含到期信息
+# 3. 正回购和逆回购的表格头是一样的
+# 4. 央行票据有多种表格头
+def statisticTableHeads(omoList):
+    # 表格与交易类型的对照表（手动维护）
+    for item in omoList:
+        # if item['url'] != '/zhengcehuobisi/125207/125213/125431/125475/2844741/index.html':
+        #     continue
+        htmlFilePath = os.path.join(htmlContentPath, f'{item["title"]}.html')
+        if not os.path.exists(htmlFilePath):
+            crawlOMOHtml([item])
+        html = readFile(htmlFilePath)
+        doc = pq(html)
+        zoom = doc.find("#zoom")
+        tables = zoom.find("table")
+
+        for table in tables.items():
+            if not table.find("table"):
+                tr = table.find("tr").eq(0)
+                trText = tr.text()
+                if trText in head2Deal:
+                    deal = head2Deal[trText]
+                    if "files" not in deal:
+                        deal["files"] = [htmlFilePath]
+                    else:
+                        deal["files"].append(htmlFilePath)
+                else:
+                    print(f"{trText} 没有对应交易类型")
+
+    return head2Deal
+
+
+# list存在 - 增量更新
+# list不存在 - 全量跟新
+#
+# 首页地址：
+# http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/index.html
+# http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/17081/index1.html
+def updateOMOList(list):
+    latest = list[0] if list else None
+
+    target_url = (
+        "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/index.html"
+    )
+    newList = []
+
+    while target_url:
+        res = requests.get(target_url)
+        res.encoding = "utf-8"
+
+        doc = pq(res.text)
+
+        target_url = None
+        for item in doc.find("#r_con a").items():
+            title = item.text()
+            if title == "下一页":
+                target_path = item.attr("tagname")
+                if target_path != "[NEXTPAGE]":
+                    target_url = f"http://www.pbc.gov.cn{target_path}"
+            elif title != "首页" and title != "上一页" and title != "尾页":
+                if latest and latest["title"] == title:
+                    return newList, (newList + list)
+                else:
+                    newList.append({"title": title, "url": item.attr("href")})
+
+    return newList, newList
+
+
+class Extractor:
+    def extract(self, html):
+        pass
+
+    # 央行票据
+    def extractYHPJ(self, table):
+        rows = table.find("tr")
+        arr = []
+        for i, row in enumerate(rows.items()):
+            if i == 0:
+                continue
+            cells = row.find("td")
+            d = {type: "央行票据"}
+            if len(cells) == 5:
+                for i, k in enumerate(["name", "amount", "period", "price", "rate"]):
+                    d[k] = cells.eq(i).text()
+            elif len(cells) == 4:
+                for i, k in enumerate(["name", "amount", "period", "rate"]):
+                    d[k] = cells.eq(i).text()
+            else:
+                d = None
+            if d:
+                arr.append(d)
+        return arr if len(arr) > 0 else None
+
+    # 逆回购
+    def extractNHG(self, table):
+        rows = table.find("tr")
+        arr = []
+        schema = ["period", "amount", "rate"]
+
+        for i, row in enumerate(rows.items()):
+            if i == 0:
+                if row.text() == "招标数量\n期限品种\n中标加权平均利率（%）":
+                    schema = ["amount", "period", "rate"]
+                continue
+            else:
+                cells = row.find("td")
+                d = {type: "逆回购"}
+
+                if len(cells) == 3:
+                    for i, k in enumerate(schema):
+                        d[k] = cells.eq(i).text()
+                else:
+                    d = None
+
+                if d:
+                    arr.append(d)
+
+        return arr if len(arr) > 0 else None
+
+    # 正回购
+    def extractZHG(self, table):
+        rows = table.find("tr")
+        arr = []
+
+        for i, row in enumerate(rows.items()):
+            if i == 0:
+                continue
+
+            cells = row.find("td")
+            d = {type: "正回购"}
+            if len(cells) == 3:
+                for i, k in enumerate(["period", "amount", "rate"]):
+                    d[k] = cells.eq(i).text()
+            else:
+                d = None
+
+            if d:
+                arr.append(d)
+
+        return arr if len(arr) > 0 else None
+
+    # MLF
+    def extractMLF(self, table):
+        rows = table.find("tr")
+        arr = []
+
+        for i, row in enumerate(rows.items()):
+            if i == 0:
+                continue
+
+            cells = row.find("td")
+            d = {type: "MLF"}
+            if len(cells) == 3:
+                for i, k in enumerate(["period", "amount", "rate"]):
+                    d[k] = cells.eq(i).text()
+            else:
+                d = None
+
+            if d:
+                arr.append(d)
+
+        return arr if len(arr) > 0 else None
+
+    # 定向MLF
+    def extractTMLF(self, table):
+        rows = table.find("tr")
+        arr = []
+
+        for i, row in enumerate(rows.items()):
+            if i == 0:
+                continue
+
+            cells = row.find("td")
+            d = {type: "TMLF"}
+            if len(cells) == 3:
+                for i, k in enumerate(["period", "amount", "rate"]):
+                    d[k] = cells.eq(i).text()
+            else:
+                d = None
+
+            if d:
+                arr.append(d)
+
+        return arr if len(arr) > 0 else None
+
+    # 国债
+    def extractGZ(self, table):
+        rows = table.find("tr")
+        arr = []
+
+        for i, row in enumerate(rows.items()):
+            if i == 0:
+                continue
+
+            cells = row.find("td")
+            d = {type: "国债"}
+            if len(cells) == 3:
+                for i, k in enumerate(["period", "price", "amount"]):
+                    d[k] = cells.eq(i).text()
+            else:
+                d = None
+
+            if d:
+                arr.append(d)
+
+        return arr if len(arr) > 0 else None
+
 
 if __name__ == "__main__":
-    # urls = [
-    #     "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/5381883/index.html",  # 逆回购
-    #     "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/5379475/index.html",  # 央行票据(香港)
-    #     "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/5228967/index.html",  # 逆回购多期限
-    #     "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/5169908/index.html",  # 逆回购+MLF
-    # ]
-    # checkDuplicated()
-    # crawlOMOHtml()
-    # crawlOMO(urls[3])
+    extractor = Extractor()
+    omoList = readJson(announcementsJsonPath)
+    i = 0
+    n = 0
+    d = {}
+    for omo in omoList:
+        # if omo['title'] == "公开市场业务交易公告 [2017]第45号":
+        #     breakpoint()
+        htmlFilePath = os.path.join(htmlContentPath, omo["title"] + ".html")
+        html = readFile(htmlFilePath)
 
-    # omo_list = readJson(announcementsJsonPath)
-    # omoFiles = os.listdir(htmlContentPath)
-    # omoFiles = os.listdir(contentPath)
+        doc = pq(html)
+        tables = doc.find("#zoom table")
 
-    # i = 0
-    # emptyFiles = []
-    # for p in omoFiles:
-    #     filePath = os.path.join(htmlContentPath, p)
-    #     content = readFile(filePath)
-    #     if ie_by_ernie(content):
-    #         i += 1
-    #     else:
-    #         emptyFiles.append(filePath)
-    #         print(filePath)
-    # # 保存没有操作的公告文件路径，留作测试用
-    # # writeJson(os.path.join(DATA_PATH, "omo/empty.json"), emptyFiles)
-    # print(f'{i}/{len(omo_list)}')
+        if len(tables) == 0:  # 无公开市场交易
+            continue
 
-    ##################################################################
-    # def listContent(targetPath, callback):
-    #     omoFiles = os.listdir(targetPath)
-    #     for p in omoFiles:
-    #         filePath = os.path.join(targetPath, p)
-    #         content = readFile(filePath)
-    #         if callback:
-    #             callback(content)
+        deals = None  # 用于标记没有提取到交易类型的公告
+        for table in tables.items():
+            if not table.find("table"):
+                title = findPrevText(table)
+                if title:
+                    title = title.replace("\n", "")
 
-    # content = []
-    # listContent(contentPath, lambda v: content.append(extractOMOHeaders(v)))
-    # content = list(filter(None, content))
-    # writeFile(os.path.join(DATA_PATH, "omo/headers.txt"), '\n'.join(content))
+                    if re.search(r"如下：", title):  # 只有一个表格，并且表格没有title
+                        if re.search(r"发行(.*)央行票据", title):
+                            deals = extractor.extractYHPJ(table)
+                        elif re.search(r"开展(.*)正回购", title):
+                            deals = extractor.extractZHG(table)
+                    else:
+                        matches = re.search(
+                            r"(.+)(?:发行|交易|操作|招标|到期续做|买断招标)情况$", title
+                        )
+                        if matches:
+                            name = matches[1]
 
-    # patterns = [
-    #     r'(?:开展|进行)[\u4e00-\u9fa5a-zA-Z0-9、（）]*(逆回购|正回购|MLF)',
-    #     r'发行[\u4e00-\u9fa5a-zA-Z0-9、（）]*(央行票据|中央银行票据)',
-    #     r'(央行票据|中央银行票据|MLF)[\u4e00-\u9fa5a-zA-Z0-9、（）]*续做',
-    #     r'买入[\u4e00-\u9fa5a-zA-Z0-9、（）]*(国债)',
-    # ]
-    # hitCount = 0
-    # total = len(content)
-    # allDeals = []
-    # for str in content:
-    #     deals = []
-    #     for pattern in patterns:
-    #         match = re.findall(pattern, str)
-    #         if match:
-    #             deals += match
-    #     if len(deals) > 0:
-    #         hitCount += 1
-    #     else:
-    #         print(str)
-    #     allDeals.append(' '.join(deals))
-    # print(f'{hitCount}/{total}')
-    # writeFile(os.path.join(DATA_PATH, "omo/deals.txt"), '\n'.join(allDeals))
+                            # 央行票据的名称中还包含期数，不需要
+                            if name.find("央行票据") > -1:
+                                name = "央行票据"
 
-    #####################################
-    def getDeal(content):
-        patterns = [
-            r'(?:开展|进行)[\u4e00-\u9fa5a-zA-Z0-9、（）]*(逆回购|正回购|MLF)',
-            r'发行[\u4e00-\u9fa5a-zA-Z0-9、（）]*(央行票据|中央银行票据)',
-            r'(央行票据|中央银行票据|MLF)[\u4e00-\u9fa5a-zA-Z0-9、（）]*续做',
-            r'买入[\u4e00-\u9fa5a-zA-Z0-9、（）]*(国债)',
-        ]
+                            # head = table.find("tr").eq(0).text()
+                            # if name not in d:
+                            #     d[name] = {}
+                            # d[name][head] = 1
 
-        deals = []
-        for pattern in patterns:
-            match = re.findall(pattern, content)
-            if match:
-                deals += match
-        
-        return deals
-
-    list = readJson(announcementsJsonPath);
-    for item in list:
-        txt = readFile(os.path.join(contentPath, f'{item["title"]}.txt'))
-        html = readFile(os.path.join(htmlContentPath, f'{item["title"]}.html'))
-        summary = extractOMOHeaders(txt)
-        if summary:
-            deals = getDeal(summary)
-            doc = pq(html)
-            tables = doc.find("#zoom table")
-            if len(deals) != len(tables):
-                print(deals, len(tables), item["title"], summary)
+                            if name == "逆回购":
+                                deals = extractor.extractNHG(table)
+                            elif name == "正回购":
+                                deals = extractor.extractZHG(table)
+                            elif name == "MLF":
+                                deals = extractor.extractMLF(table)
+                            elif name == "TMLF":
+                                deals = extractor.extractTMLF(table)
+                            elif name == "央行票据":
+                                deals = extractor.extractYHPJ(table)
+                            elif name == "现券买断":
+                                deals = extractor.extractGZ(table)
+        if deals:
+            n += 1
+            print(deals)
+        else:
+            print(f"提取失败: {htmlFilePath}")
+    # print(f'{n} {i} {len(omoList)}')
+    # print(d)
