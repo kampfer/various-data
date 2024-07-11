@@ -21,7 +21,7 @@ def readJson(filePath):
 
 def writeJson(filePath, data):
     f = open(filePath, "w", encoding="utf-8")
-    f.write(json.dumps(data))
+    f.write(json.dumps(data, ensure_ascii=False))
     f.close()
 
 
@@ -70,26 +70,6 @@ def crawlOMOHtml(omo_list):
         f.close()
 
         print(f"crawl omo: {target_url}")
-
-
-def extractOMOHeaders(text):
-    lines = text.replace(" ", "").split()
-    if len(lines) > 3:  # 过滤掉了空公告
-        longest = lines.index(sorted(lines, key=lambda v: len(v), reverse=True)[0])
-        # content = lines[longest].split('。')[0]
-        return lines[longest]
-    return None
-
-
-def findPrevText(node):
-    prevNodes = node.prevAll()
-    for node in reversed(list(prevNodes.items())):
-        text = node.text()
-        if text:
-            return text
-    if node.parent():
-        return findPrevText(node.parent())
-    return None
 
 
 # 统计央行表格头的类型
@@ -162,9 +142,113 @@ def updateOMOList(list):
     return newList, newList
 
 
-class Extractor:
-    def extract(self, html):
-        pass
+# 交易有多种head
+# {
+#   "逆回购": {
+#     "期限\n中标量\n中标利率": 1,
+#     "期限\n交易量\n中标利率": 1,
+#     "期限\n交易量\n回购利率": 1,
+#     "期限\n交易量\n招标利率": 1,
+#     "期限品种\n招标数量\n招标利率": 1,
+#     "招标数量\n期限品种\n中标加权平均利率（%）": 1
+#   },
+#   "MLF": {
+#     "期限\n操作量\n中标利率": 1,
+#     "期限\n操作量\n操作利率": 1,
+#     "期限\n中标量\n中标利率": 1
+#   },
+#   "现券买断": { "券种\n买入价格（元）\n招标量（亿元）": 1 },
+#   "TMLF": { "期限\n操作量\n操作利率": 1 },
+#   "正回购": {
+#     "期限\n交易量\n中标利率": 1,
+#     "期限\n交易量\n加权平均中标利率": 1
+#   },
+#   "央行票据": {
+#     "名称\n续做量\n期限\n利率": 1,
+#     "名称\n发行量\n期限\n价格\n参考收益率": 1,
+#     "名称\n发行量\n期限\n中标利率": 1,
+#     "名称\n发行量\n期限\n价格(元)\n参考收益率": 1,
+#     "名称\n发行量\n期限\n发行价格\n参考收益率": 1,
+#     "名称\n发行量\n期限\n票面利率": 1,
+#     "名称\n发行量\n期限\n招标价格\n参考收益率": 1,
+#     "名称\n发行量\n期限\n加权平均价格\n参考收益率": 1
+#   }
+# }
+class OMOExtOMOractor:
+    def findPrevText(self, node):
+        prevNodes = node.prevAll()
+        for node in reversed(list(prevNodes.items())):
+            text = node.text()
+            if text:
+                return text
+        if node.parent():
+            return self.findPrevText(node.parent())
+        return None
+
+    # 提取指定公告中的央行公开市场操作
+    def extract(self, htmlFilePath):
+        html = readFile(htmlFilePath)
+        doc = pq(html)
+        tables = doc.find("#zoom table")
+        time = doc.find("#shijian").text()
+        deals = []
+
+        for table in tables.items():
+            if not table.find("table"):
+                successFul = False  # 是否命中提取规则
+                title = self.findPrevText(table)
+                if title:
+                    title = title.replace("\n", "")
+
+                    if re.search(r"如下：", title):  # 只有一个表格，并且表格没有title
+                        if re.search(r"发行(.*)央行票据", title):
+                            deals = extractor.extractYHPJ(table)
+                            successFul = True
+                        elif re.search(r"开展(.*)正回购", title):
+                            deals = extractor.extractZHG(table)
+                            successFul = True
+                    else:
+                        matches = re.search(
+                            r"(.+)(?:发行|交易|操作|招标|到期续做|买断招标)情况$", title
+                        )
+                        if matches:
+                            name = matches[1]
+
+                            # 央行票据的名称中还包含期数，不需要
+                            if name.find("央行票据") > -1:
+                                name = "央行票据"
+
+                            # head = table.find("tr").eq(0).text()
+                            # if name not in d:
+                            #     d[name] = {}
+                            # d[name][head] = 1
+
+                            if name == "逆回购":
+                                deals = extractor.extractNHG(table)
+                                successFul = True
+                            elif name == "正回购":
+                                deals = extractor.extractZHG(table)
+                                successFul = True
+                            elif name == "MLF":
+                                deals = extractor.extractMLF(table)
+                                successFul = True
+                            elif name == "TMLF":
+                                deals = extractor.extractTMLF(table)
+                                successFul = True
+                            elif name == "央行票据":
+                                deals = extractor.extractYHPJ(table)
+                                successFul = True
+                            elif name == "现券买断":
+                                deals = extractor.extractGZ(table)
+                                successFul = True
+
+                if not successFul:
+                    print(f"提取失败: {htmlFilePath}")
+
+        for deal in deals:
+            deal["time"] = time
+
+        return deals
 
     # 央行票据
     def extractYHPJ(self, table):
@@ -174,7 +258,7 @@ class Extractor:
             if i == 0:
                 continue
             cells = row.find("td")
-            d = {type: "央行票据"}
+            d = {"type": "央行票据"}
             if len(cells) == 5:
                 for i, k in enumerate(["name", "amount", "period", "price", "rate"]):
                     d[k] = cells.eq(i).text()
@@ -200,7 +284,7 @@ class Extractor:
                 continue
             else:
                 cells = row.find("td")
-                d = {type: "逆回购"}
+                d = {"type": "逆回购"}
 
                 if len(cells) == 3:
                     for i, k in enumerate(schema):
@@ -223,7 +307,7 @@ class Extractor:
                 continue
 
             cells = row.find("td")
-            d = {type: "正回购"}
+            d = {"type": "正回购"}
             if len(cells) == 3:
                 for i, k in enumerate(["period", "amount", "rate"]):
                     d[k] = cells.eq(i).text()
@@ -245,7 +329,7 @@ class Extractor:
                 continue
 
             cells = row.find("td")
-            d = {type: "MLF"}
+            d = {"type": "MLF"}
             if len(cells) == 3:
                 for i, k in enumerate(["period", "amount", "rate"]):
                     d[k] = cells.eq(i).text()
@@ -267,7 +351,7 @@ class Extractor:
                 continue
 
             cells = row.find("td")
-            d = {type: "TMLF"}
+            d = {"type": "TMLF"}
             if len(cells) == 3:
                 for i, k in enumerate(["period", "amount", "rate"]):
                     d[k] = cells.eq(i).text()
@@ -289,7 +373,7 @@ class Extractor:
                 continue
 
             cells = row.find("td")
-            d = {type: "国债"}
+            d = {"type": "国债"}
             if len(cells) == 3:
                 for i, k in enumerate(["period", "price", "amount"]):
                     d[k] = cells.eq(i).text()
@@ -303,67 +387,19 @@ class Extractor:
 
 
 if __name__ == "__main__":
-    extractor = Extractor()
+    extractor = OMOExtOMOractor()
     omoList = readJson(announcementsJsonPath)
-    i = 0
-    n = 0
-    d = {}
+    allDeal = {}
     for omo in omoList:
-        # if omo['title'] == "公开市场业务交易公告 [2017]第45号":
-        #     breakpoint()
         htmlFilePath = os.path.join(htmlContentPath, omo["title"] + ".html")
-        html = readFile(htmlFilePath)
+        deals = extractor.extract(htmlFilePath)
+        for deal in deals:
+            type = deal["type"]
+            if type in allDeal:
+                allDeal[type].append(deal)
+            else:
+                allDeal[type] = [deal]
+    writeJson("omo.json", allDeal)
 
-        doc = pq(html)
-        tables = doc.find("#zoom table")
-
-        if len(tables) == 0:  # 无公开市场交易
-            continue
-
-        deals = None  # 用于标记没有提取到交易类型的公告
-        for table in tables.items():
-            if not table.find("table"):
-                title = findPrevText(table)
-                if title:
-                    title = title.replace("\n", "")
-
-                    if re.search(r"如下：", title):  # 只有一个表格，并且表格没有title
-                        if re.search(r"发行(.*)央行票据", title):
-                            deals = extractor.extractYHPJ(table)
-                        elif re.search(r"开展(.*)正回购", title):
-                            deals = extractor.extractZHG(table)
-                    else:
-                        matches = re.search(
-                            r"(.+)(?:发行|交易|操作|招标|到期续做|买断招标)情况$", title
-                        )
-                        if matches:
-                            name = matches[1]
-
-                            # 央行票据的名称中还包含期数，不需要
-                            if name.find("央行票据") > -1:
-                                name = "央行票据"
-
-                            # head = table.find("tr").eq(0).text()
-                            # if name not in d:
-                            #     d[name] = {}
-                            # d[name][head] = 1
-
-                            if name == "逆回购":
-                                deals = extractor.extractNHG(table)
-                            elif name == "正回购":
-                                deals = extractor.extractZHG(table)
-                            elif name == "MLF":
-                                deals = extractor.extractMLF(table)
-                            elif name == "TMLF":
-                                deals = extractor.extractTMLF(table)
-                            elif name == "央行票据":
-                                deals = extractor.extractYHPJ(table)
-                            elif name == "现券买断":
-                                deals = extractor.extractGZ(table)
-        if deals:
-            n += 1
-            print(deals)
-        else:
-            print(f"提取失败: {htmlFilePath}")
-    # print(f'{n} {i} {len(omoList)}')
-    # print(d)
+    # for d in allDeal["逆回购"]:
+    #     print(d["time"], d["rate"])
