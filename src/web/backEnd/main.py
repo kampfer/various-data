@@ -6,7 +6,7 @@ import sys
 import json
 from importlib import import_module
 import traceback
-from .db import SinaNews7x24DB
+from db import SinaNews7x24DB
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../../../data")
 MODULE_PATH = os.path.join(os.path.dirname(__file__), "../../crawlers/python")
@@ -226,3 +226,8 @@ async def createTag5News(newsId: int, name: str):
 async def removeTag5News(newsId: int, tagId: int):
     sina7x24DB.removeRelation(newsId=newsId, tagId=tagId)
     return {"code": 200}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=9988)
