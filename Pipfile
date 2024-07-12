@@ -13,6 +13,7 @@ selenium = "*"
 fastapi = "*"
 uvicorn = {extras = ["standard"], version = "*"}
 apscheduler = "*"
+sqlalchemy = "*"
 
 [dev-packages]
 
