@@ -29,14 +29,24 @@ def readFile(filePath):
     data = f.read()
     return data
 
+def writeFile(filePath, content):
+    f = open(filePath, "w", encoding="utf-8")
+    f.write(content)
+    f.close()
 
 def extractOMO(html):
     def findPrev(elem):
         all = elem.prev_all('p')
-        i = len(all) - 1
-        while not all[i].text():
-            i += 1
-        return all[i]
+
+        if len(all) <= 0:
+            return None
+
+        for p in reversed(list(all.items())):
+            text = p.text()
+            if text:
+                return p
+
+        return None
 
     doc = pq(html)
 
@@ -46,19 +56,25 @@ def extractOMO(html):
     # zoom_children = list(zoom.children().items())
     for i, elem in enumerate(tables.items()):
         if elem.is_("table") and len(elem.find('tr')) > 1:
-            prev = findPrev(elem)
-            type = prev.text()
-            # type = re.search(r"央行票据|逆回购|MLF", type).group(0)
-            print(type)
             # print(elem.text())
-            if type == "逆回购":
-                print(elem.text().split("\n"))
-            elif type == "央行票据":
-                continue
-            elif type == "MLF":
-                continue
-            else:
-                continue
+            prev = findPrev(elem)
+            if not prev:
+                # print(elem.html())
+                return False
+            print(prev.text())
+            return prev
+            # type = prev.text()
+            # # type = re.search(r"央行票据|逆回购|MLF", type).group(0)
+            # print(type)
+            # # print(elem.text())
+            # if type == "逆回购":
+            #     print(elem.text().split("\n"))
+            # elif type == "央行票据":
+            #     continue
+            # elif type == "MLF":
+            #     continue
+            # else:
+            #     continue
     # tables = zoom.find('table')
     # for i, table in enumerate(tables.items()):
     #     trs = table.find('tr')
@@ -66,7 +82,16 @@ def extractOMO(html):
     #     for tr in trs.items():
     #         ret.append([td.text() for td in tr.find('td').items()])
 
-
+# 从文本中提取交易类型：
+# 1. 从最长的段落中提取交易类型：不可行，因为有交易到期说明，会提取到到期类型。
+# 2. 从表格前的标题提取交易类型：不可行，因为有的表格没有标题
+# 3. 从表格中提取交易类型：不可行，因为逆回购没有标题
+#
+# 央行票据：名称、发行量、期限、票面利率
+# 正回购：期限、交易量、中标利率
+# 逆回购：期限、中标量、中标利率
+# MLF：期限、期限、操作量、中标利率
+# 央行票据（香港）：期次、发行量、期限、中标利率
 def extractOMO2(text):
     # doc = pq(html)
 
@@ -196,6 +221,14 @@ def crawlOMOHtml():
         print(f"crawl omo: {target_url}")
 
 
+def extractOMOHeaders(text):
+    lines = text.replace(' ', '').split()
+    if len(lines) > 3:  # 过滤掉了空公告
+        longest = lines.index(sorted(lines, key=lambda v: len(v), reverse=True)[0])
+        # content = lines[longest].split('。')[0]
+        return lines[longest]
+    return None;
+
 if __name__ == "__main__":
     # urls = [
     #     "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/5381883/index.html",  # 逆回购
@@ -207,19 +240,57 @@ if __name__ == "__main__":
     # crawlOMOHtml()
     # crawlOMO(urls[3])
 
-    omo_list = readJson(announcementsJsonPath)
+    # omo_list = readJson(announcementsJsonPath)
     # omoFiles = os.listdir(htmlContentPath)
-    omoFiles = os.listdir(contentPath)
+    # omoFiles = os.listdir(contentPath)
 
-    i = 0
-    emptyFiles = []
-    for p in omoFiles:
-        filePath = os.path.join(contentPath, p)
-        content = readFile(filePath)
-        if extractOMO2(content):
-            i += 1
+    # i = 0
+    # emptyFiles = []
+    # for p in omoFiles:
+    #     filePath = os.path.join(htmlContentPath, p)
+    #     content = readFile(filePath)
+    #     if ie_by_ernie(content):
+    #         i += 1
+    #     else:
+    #         emptyFiles.append(filePath)
+    #         print(filePath)
+    # # 保存没有操作的公告文件路径，留作测试用
+    # # writeJson(os.path.join(DATA_PATH, "omo/empty.json"), emptyFiles)
+    # print(f'{i}/{len(omo_list)}')
+
+    def listContent(targetPath, callback):
+        omoFiles = os.listdir(targetPath)
+        for p in omoFiles:
+            filePath = os.path.join(targetPath, p)
+            content = readFile(filePath)
+            if callback:
+                callback(content)
+
+    content = []
+    listContent(contentPath, lambda v: content.append(extractOMOHeaders(v)))
+    content = list(filter(None, content))
+    writeFile(os.path.join(DATA_PATH, "omo/headers.txt"), '\n'.join(content))
+
+    patterns = [
+        r'(?:开展|进行)[\u4e00-\u9fa5a-zA-Z0-9、（）]*(逆回购|正回购|MLF)',
+        r'发行[\u4e00-\u9fa5a-zA-Z0-9、（）]*(央行票据|中央银行票据)',
+        r'(央行票据|中央银行票据|MLF)[\u4e00-\u9fa5a-zA-Z0-9、（）]*续做',
+        r'买入[\u4e00-\u9fa5a-zA-Z0-9、（）]*(国债)',
+    ]
+    hitCount = 0
+    total = len(content)
+    allDeals = []
+    for str in content:
+        deals = []
+        for pattern in patterns:
+            match = re.findall(pattern, str)
+            if match:
+                deals += match
+        if len(deals) > 0:
+            hitCount += 1
         else:
-            emptyFiles.append(filePath)
-    # 保存没有操作的公告文件路径，留作测试用
-    writeJson(os.path.join(DATA_PATH, "omo/empty.json"), emptyFiles)
-    print(f'{i}/{len(omo_list)}')
+            print(str)
+        allDeals.append(' '.join(deals))
+    print(f'{hitCount}/{total}')
+    writeFile(os.path.join(DATA_PATH, "omo/deals.txt"), '\n'.join(allDeals))
+
