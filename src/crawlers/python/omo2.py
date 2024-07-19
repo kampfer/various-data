@@ -90,7 +90,7 @@ def extractOMO(html):
 # 央行票据：名称、发行量、期限、票面利率
 # 正回购：期限、交易量、中标利率
 # 逆回购：期限、中标量、中标利率
-# MLF：期限、期限、操作量、中标利率
+# MLF：期限、操作量、操作利率
 # 央行票据（香港）：期次、发行量、期限、中标利率
 def extractOMO2(text):
     # doc = pq(html)
@@ -258,39 +258,68 @@ if __name__ == "__main__":
     # # writeJson(os.path.join(DATA_PATH, "omo/empty.json"), emptyFiles)
     # print(f'{i}/{len(omo_list)}')
 
-    def listContent(targetPath, callback):
-        omoFiles = os.listdir(targetPath)
-        for p in omoFiles:
-            filePath = os.path.join(targetPath, p)
-            content = readFile(filePath)
-            if callback:
-                callback(content)
+    ##################################################################
+    # def listContent(targetPath, callback):
+    #     omoFiles = os.listdir(targetPath)
+    #     for p in omoFiles:
+    #         filePath = os.path.join(targetPath, p)
+    #         content = readFile(filePath)
+    #         if callback:
+    #             callback(content)
 
-    content = []
-    listContent(contentPath, lambda v: content.append(extractOMOHeaders(v)))
-    content = list(filter(None, content))
-    writeFile(os.path.join(DATA_PATH, "omo/headers.txt"), '\n'.join(content))
+    # content = []
+    # listContent(contentPath, lambda v: content.append(extractOMOHeaders(v)))
+    # content = list(filter(None, content))
+    # writeFile(os.path.join(DATA_PATH, "omo/headers.txt"), '\n'.join(content))
 
-    patterns = [
-        r'(?:开展|进行)[\u4e00-\u9fa5a-zA-Z0-9、（）]*(逆回购|正回购|MLF)',
-        r'发行[\u4e00-\u9fa5a-zA-Z0-9、（）]*(央行票据|中央银行票据)',
-        r'(央行票据|中央银行票据|MLF)[\u4e00-\u9fa5a-zA-Z0-9、（）]*续做',
-        r'买入[\u4e00-\u9fa5a-zA-Z0-9、（）]*(国债)',
-    ]
-    hitCount = 0
-    total = len(content)
-    allDeals = []
-    for str in content:
+    # patterns = [
+    #     r'(?:开展|进行)[\u4e00-\u9fa5a-zA-Z0-9、（）]*(逆回购|正回购|MLF)',
+    #     r'发行[\u4e00-\u9fa5a-zA-Z0-9、（）]*(央行票据|中央银行票据)',
+    #     r'(央行票据|中央银行票据|MLF)[\u4e00-\u9fa5a-zA-Z0-9、（）]*续做',
+    #     r'买入[\u4e00-\u9fa5a-zA-Z0-9、（）]*(国债)',
+    # ]
+    # hitCount = 0
+    # total = len(content)
+    # allDeals = []
+    # for str in content:
+    #     deals = []
+    #     for pattern in patterns:
+    #         match = re.findall(pattern, str)
+    #         if match:
+    #             deals += match
+    #     if len(deals) > 0:
+    #         hitCount += 1
+    #     else:
+    #         print(str)
+    #     allDeals.append(' '.join(deals))
+    # print(f'{hitCount}/{total}')
+    # writeFile(os.path.join(DATA_PATH, "omo/deals.txt"), '\n'.join(allDeals))
+
+    #####################################
+    def getDeal(content):
+        patterns = [
+            r'(?:开展|进行)[\u4e00-\u9fa5a-zA-Z0-9、（）]*(逆回购|正回购|MLF)',
+            r'发行[\u4e00-\u9fa5a-zA-Z0-9、（）]*(央行票据|中央银行票据)',
+            r'(央行票据|中央银行票据|MLF)[\u4e00-\u9fa5a-zA-Z0-9、（）]*续做',
+            r'买入[\u4e00-\u9fa5a-zA-Z0-9、（）]*(国债)',
+        ]
+
         deals = []
         for pattern in patterns:
-            match = re.findall(pattern, str)
+            match = re.findall(pattern, content)
             if match:
                 deals += match
-        if len(deals) > 0:
-            hitCount += 1
-        else:
-            print(str)
-        allDeals.append(' '.join(deals))
-    print(f'{hitCount}/{total}')
-    writeFile(os.path.join(DATA_PATH, "omo/deals.txt"), '\n'.join(allDeals))
+        
+        return deals
 
+    list = readJson(announcementsJsonPath);
+    for item in list:
+        txt = readFile(os.path.join(contentPath, f'{item["title"]}.txt'))
+        html = readFile(os.path.join(htmlContentPath, f'{item["title"]}.html'))
+        summary = extractOMOHeaders(txt)
+        if summary:
+            deals = getDeal(summary)
+            doc = pq(html)
+            tables = doc.find("#zoom table")
+            if len(deals) != len(tables):
+                print(deals, len(tables), item["title"], summary)
