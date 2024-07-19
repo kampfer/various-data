@@ -6,7 +6,13 @@ import sys
 import json
 from importlib import import_module
 import traceback
-from db import SinaNews7x24DB
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from sinaFinanceNews.router import router as router1
+from backEnd.database import Base, engine
+
+Base.metadata.create_all(bind=engine)
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../../../data")
 MODULE_PATH = os.path.join(os.path.dirname(__file__), "../../crawlers/python")
@@ -17,11 +23,11 @@ sys.path.append(MODULE_PATH)
 saveData = getattr(import_module("utils"), "saveData")
 readData = getattr(import_module("utils"), "readData")
 
-sina7x24DB = SinaNews7x24DB()
-
 app = FastAPI()
 
 app.mount("/web", StaticFiles(directory="./dist/web"), name="web")
+
+app.include_router(router1)
 
 
 @app.get("/")
@@ -132,18 +138,6 @@ def exeCrawler(moduleName, funcName):
         return {"code": 500, "msg": "Unexpected Error: {}".format(e)}
 
 
-@app.get("/api/pinEvent")
-async def pinEvent(id: int):
-    sina7x24DB.updateNewsSignificance(id, 1)
-    return {"code": 200}
-
-
-@app.get("/api/unpinEvent")
-async def unpinEvent(id: int):
-    sina7x24DB.updateNewsSignificance(id, 0)
-    return {"code": 200}
-
-
 @app.get("/api/stock/daily")
 def getStockHqDaily(code):
     jsonPath = f"{os.path.join(DATA_PATH, code)}.json"
@@ -154,80 +148,7 @@ def getStockHqDaily(code):
         saveData(jsonPath, data)
 
 
-@app.get("/api/sina7x24/news")
-async def getSina7x24News(
-    page=0,
-    pageSize=20,
-    filterWords: str = None,
-    startTime: int = None,
-    endTime: int = None,
-    priority: int = None,
-    sortBy: int = 0,
-    category: int = None,
-):
-    listInDB = sina7x24DB.selectNews(
-        page=page,
-        pageSize=pageSize,
-        keyword=(filterWords if filterWords else None),
-        startTime=startTime,
-        endTime=endTime,
-        significance=(priority if priority else None),
-        sort=sortBy,
-        category=(category if category else None),
-    )
-    news = []
-    for d in listInDB:
-        tags = []
-        if len(d[4]) > 0:
-            for x in d[4].split(","):
-                tags.append(int(x))
-        news.append(
-            {
-                "id": d[0],
-                "createTime": d[1],
-                "content": d[2],
-                "tags": tags,
-                "significance": d[3],
-            }
-        )
-
-    total = sina7x24DB.newsCount(
-        keyword=(filterWords if filterWords else None),
-        startTime=startTime,
-        endTime=endTime,
-        significance=(priority if priority else None),
-        category=(category if category else None),
-    )
-
-    return {"code": 200, "data": {"list": news, "total": total}}
-
-
-@app.get("/api/sina7x24/tags")
-async def getSina7x24Tags():
-    tagsInDB = sina7x24DB.selectNewsTags()
-    tags = [
-        {"id": tag[0], "name": tag[1], "isSinaTag": True if tag[2] == 1 else False}
-        for tag in tagsInDB
-    ]
-    return {"code": 200, "data": tags}
-
-
-@app.get("/api/createTag")
-async def createTag5News(newsId: int, name: str):
-    if sina7x24DB.existTag(name):
-        return {"code": 400, "msg": "该标签已存在"}
-    else:
-        tagId = sina7x24DB.insertTag(name=name, isSinaTag=False)
-        sina7x24DB.insertRelation(newsId, tagId)
-        return {"code": 200, "data": {"tagId": tagId}}
-
-
-@app.get("/api/removeTag")
-async def removeTag5News(newsId: int, tagId: int):
-    sina7x24DB.removeRelation(newsId=newsId, tagId=tagId)
-    return {"code": 200}
-
-
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=9988)
