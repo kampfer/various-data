@@ -10,7 +10,8 @@ import traceback
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from sinaFinanceNews.router import router as router1
-from backEnd.database import Base, engine
+from backEnd.database import engine
+from sinaFinanceNews.models import Base
 
 Base.metadata.create_all(bind=engine)
 
