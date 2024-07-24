@@ -152,4 +152,9 @@ def getStockHqDaily(code):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=9988)
+    # reload=True 在代码发生变化后自动重启服务
+    # 此时第一个参数必须是字符串形式
+    uvicorn.run("main:app", host="127.0.0.1", port=9988, reload=True)
+
+    # 常规启动方法
+    # uvicorn.run(app, host="127.0.0.1", port=9988)
