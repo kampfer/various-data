@@ -15,6 +15,8 @@ from sinaFinanceNews.models import Base
 
 Base.metadata.create_all(bind=engine)
 
+from task.scheduler import scheduler
+
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../../../data")
 MODULE_PATH = os.path.join(os.path.dirname(__file__), "../../crawlers/python")
 
@@ -148,6 +150,14 @@ def getStockHqDaily(code):
         data = ak.stock_zh_index_daily(symbol=code).to_json(orient="records")
         saveData(jsonPath, data)
 
+
+@app.on_event('startup')
+def startUp():
+    scheduler.start()
+
+@app.on_event("shutdown")
+def shutDown():
+    scheduler.shutdown(wait=False)
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import exists, select
 from . import models, schemas
 
 
@@ -32,13 +33,17 @@ def getTags(db: Session):
 
 
 def addTag(db: Session, tag: schemas.SFTag):
-    SFTag = models.SFTag(
-        name=tag.name, is_sina_tag=tag.is_sina_tag, sina_id=tag.sina_id
-    )
-    db.add(SFTag)
-    db.commit()
-    db.refresh(SFTag)
-    return SFTag
+    # stmt = select(exists().where(models.SFTag.name==tag.name))
+    stmt = select(models.SFTag).where(models.SFTag.name==tag.name)
+    mTag = db.scalar(stmt)
+    if not mTag:
+        mTag = models.SFTag(
+            name=tag.name, is_sina_tag=tag.is_sina_tag, sina_id=tag.sina_id
+        )
+        db.add(mTag)
+        db.commit()
+        return mTag
+    return mTag
 
 
 def toggleNewsSignificance():
