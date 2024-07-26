@@ -22,7 +22,7 @@ class Base(DeclarativeBase):
 # 双向
 # https://docs.sqlalchemy.org/en/20/orm/basic_relationships.html#setting-bi-directional-many-to-many
 association_table = Table(
-    "association_table",
+    "sf_news_tag",
     Base.metadata,
     Column("left_id", ForeignKey("sf_news.id"), primary_key=True),
     Column("right_id", ForeignKey("sf_tag.id"), primary_key=True),

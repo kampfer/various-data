@@ -5,3 +5,8 @@
 - 数据库工具包：[sqlalchemy](https://docs.sqlalchemy.org/en/20/orm/quickstart.html)
 - 数据检验：[pydantic](https://docs.pydantic.dev/latest/)
 - 任务队列工具：[apscheduler](https://apscheduler.readthedocs.io/en/3.x/userguide.html#basic-concepts)
+
+
+目录结构设计：
+backEnd
+  - 
