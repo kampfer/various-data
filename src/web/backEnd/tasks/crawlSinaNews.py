@@ -7,7 +7,6 @@ if __name__ == "__main__":
 import requests
 import time
 import json
-import logging
 from backEnd.logger import logger
 from datetime import datetime
 from backEnd.sinaFinanceNews import models, schemas
@@ -99,7 +98,8 @@ def job():
 
 def addJob(scheduler):
     # 持久化任务需要id和replace_existing=True
-    scheduler.add_job(job, "interval", seconds=1, id=__name__, replace_existing=True)
+    # scheduler.add_job(job, "interval", seconds=1, id=__name__, replace_existing=True)
+    scheduler.add_job(job, "interval", hours=1, id=__name__, replace_existing=True)
 
 
 if __name__ == "__main__":
