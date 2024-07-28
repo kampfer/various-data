@@ -8,13 +8,12 @@ import requests
 import time
 import json
 import logging
+from backEnd.logger import logger
 from datetime import datetime
-from backEnd.sinaFinanceNews.models import SFNews, SFTag
-from backEnd.sinaFinanceNews.crud import addNews
-from backEnd.dependencies import get_db
+from backEnd.sinaFinanceNews import models, schemas
+from backEnd.sinaFinanceNews.crud import addManyNews
+from backEnd.database import SessionLocal
 from sqlalchemy import select, text, desc
-
-logger = logging.getLogger(__name__)
 
 
 def crawlFeed(type=None, id=None):
@@ -32,7 +31,7 @@ def crawlFeed(type=None, id=None):
         "_": int(time.time() * 1000),
     }
     r = requests.get("https://zhibo.sina.com.cn/api/zhibo/feed", params=payload)
-    print(f"请求{r.url}")
+    logger.info(f"请求{r.url}")
     jsonStr = r.text[14 : len(r.text) - 14]
     data = json.loads(jsonStr)
     if data["result"]["status"]["code"] == 0:
@@ -41,6 +40,8 @@ def crawlFeed(type=None, id=None):
         return None
 
 
+# id：从大到小=》从新到旧
+# 爬取id大于minid的新闻
 def crawlFeedAfterMinId(minId):
     list = []
     res = crawlFeed()
@@ -54,28 +55,46 @@ def crawlFeedAfterMinId(minId):
     return list
 
 
+def crawLatest():
+    res = crawlFeed()
+    return [item for item in res["feed"]["list"]]
+
+
 def job():
-    g = get_db()
-    db = next(g)
-    stmt = select(SFNews).order_by(desc(SFNews.create_time)).limit(1)
-    result = db.execute(stmt)
-    minId = result.first()[0].sina_id
-    feeds = crawlFeedAfterMinId(minId)
-    for item in feeds:
-        news = {
-            "sina_id": item["id"],
-            "create_time": int(
-                datetime.strptime(item["create_time"], "%Y-%m-%d %H:%M:%S").timestamp()
-                * 1000
-            ),
-            "content": item["rich_text"],
-            "url": item["docurl"],
-            "tags": [],
-        }
-        for d in item["tag"]:
-            news["tags"].append({"name": d["name"], "is_sina_tag": True, "sina_id": d["id"]})
-        addNews(db, news)
-    next(g)
+    with SessionLocal() as session:
+        stmt = (
+            select(models.SFNews.sina_id)
+            .order_by(desc(models.SFNews.create_time))
+            .limit(1)
+        )
+        result = session.execute(stmt)
+        minId = result.scalar()
+
+        if minId:
+            feeds = crawlFeedAfterMinId(minId)
+        else:
+            feeds = crawLatest()
+
+        sNewsNeedAdded = []
+        for item in feeds:
+            sNews = schemas.SFNews(
+                sina_id=item["id"],
+                create_time=int(
+                    datetime.strptime(
+                        item["create_time"], "%Y-%m-%d %H:%M:%S"
+                    ).timestamp()
+                    * 1000
+                ),
+                content=item["rich_text"],
+                url=item["docurl"],
+                tags=[],
+            )
+            for d in item["tag"]:
+                sNews.tags.append(
+                    schemas.SFTag(name=d["name"], is_sina_tag=True, sina_id=d["id"])
+                )
+            sNewsNeedAdded.append(sNews)
+        addManyNews(session, sNewsNeedAdded)
 
 
 def addJob(scheduler):
