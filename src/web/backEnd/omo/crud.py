@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select, update
+from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from . import models
 
 
@@ -9,58 +10,84 @@ def getLatestDocName(db: Session):
     ).scalar()
 
 
-def setLatestDocName(db: Session, name: str):
+def setLatestDocName(db: Session, docName: str):
     stmt = (
-        update(models.AppState)
-        .where(models.AppState.name == "latest_doc")
-        .values(value=name)
+        sqlite_upsert(models.AppState)
+        .values(name="lastes_doc", value=docName)
+        .on_conflict_do_update(
+            index_elements=[models.AppState.name], set_=dict(value=docName)
+        )
     )
     db.execute(stmt)
     db.commit()
-    return name
+    return docName
 
 
 def addRepo(db: Session, time: str, period: str, amount: str, rate: str):
-    repo = models.Repo(time=time, period=period, amount=amount, rate=rate)
-    db.add(repo)
-    db.commit()
-    return repo
+    stmt = (
+        sqlite_upsert(models.Repo)
+        .values(time=time, period=period, amount=amount, rate=rate)
+        .returning(models.Repo)
+        .on_conflict_do_nothing()
+    )
+    result = db.scalars(stmt)
+    return result.first()
 
 
 def addRRP(db: Session, time: str, period: str, amount: str, rate: str):
-    rrp = models.RRP(time=time, period=period, amount=amount, rate=rate)
-    db.add(rrp)
-    db.commit()
-    return rrp
+    stmt = (
+        sqlite_upsert(models.RRP)
+        .values(time=time, period=period, amount=amount, rate=rate)
+        .returning(models.RRP)
+        .on_conflict_do_nothing()
+    )
+    result = db.scalars(stmt)
+    return result.first()
 
 
 def addMLF(db: Session, time: str, period: str, amount: str, rate: str):
-    mlf = models.MLF(time=time, period=period, amount=amount, rate=rate)
-    db.add(mlf)
-    db.commit()
-    return mlf
+    stmt = (
+        sqlite_upsert(models.MLF)
+        .values(time=time, period=period, amount=amount, rate=rate)
+        .returning(models.MLF)
+        .on_conflict_do_nothing()
+    )
+    result = db.scalars(stmt)
+    return result.first()
 
 
 def addTMLF(db: Session, time: str, period: str, amount: str, rate: str):
-    tmlf = models.TMLF(time=time, period=period, amount=amount, rate=rate)
-    db.add(tmlf)
-    db.commit()
-    return tmlf
+    stmt = (
+        sqlite_upsert(models.TMLF)
+        .values(time=time, period=period, amount=amount, rate=rate)
+        .returning(models.TMLF)
+        .on_conflict_do_nothing()
+    )
+    result = db.scalars(stmt)
+    return result.first()
 
 
 def addCB(
     db: Session, time: str, name: str, period: str, amount: str, rate: str, price: str
 ):
-    cb = models.CB(
-        time=time, name=name, amount=amount, period=period, price=price, rate=rate
+    stmt = (
+        sqlite_upsert(models.CB)
+        .values(
+            time=time, name=name, amount=amount, period=period, price=price, rate=rate
+        )
+        .returning(models.CB)
+        .on_conflict_do_nothing()
     )
-    db.add(cb)
-    db.commit()
-    return cb
+    result = db.scalars(stmt)
+    return result.first()
 
 
 def addNB(db: Session, time: str, period: str, amount: str, price: str):
-    nb = models.NB(time=time, period=period, amount=amount, price=price)
-    db.add(nb)
-    db.commit()
-    return nb
+    stmt = (
+        sqlite_upsert(models.NB)
+        .values(time=time, period=period, amount=amount, price=price)
+        .returning(models.NB)
+        .on_conflict_do_nothing()
+    )
+    result = db.scalars(stmt)
+    return result.first()

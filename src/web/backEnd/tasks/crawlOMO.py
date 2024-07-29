@@ -55,6 +55,10 @@ from backEnd.omo.crud import (
 # }
 class OMOExtOMOractor:
     chinese_numbers = {
+        'О': 0,
+        "O": 0,
+        "Ο": 0,
+        "○": 0,
         "〇": 0,
         "一": 1,
         "二": 2,
@@ -65,13 +69,27 @@ class OMOExtOMOractor:
         "七": 7,
         "八": 8,
         "九": 9,
+        "十": None,    # 特别处理
     }
 
+    # 仅支持两位数转换
     def chineseToLower(self, chineseNumber):
+        if chineseNumber.isdigit():
+            return chineseNumber
         result = 0
-        for char in chineseNumber:
+        l = len(chineseNumber)
+        for i, char in enumerate(chineseNumber):
             if char in self.chinese_numbers:
-                result = result * 10 + self.chinese_numbers[char]
+                # 十五 =》 15
+                if char == "十":
+                    if i == 0:
+                        result += 1
+                    elif i == l - 1:
+                        result = result * 10
+                else:
+                    result = result * 10 + self.chinese_numbers[char]
+            else:
+                logger.warn(f'日期中存在错误字符 {char}')
         return str(result)
 
     def findPrevText(self, node):
@@ -88,10 +106,10 @@ class OMOExtOMOractor:
         zoom = doc.find("#zoom")
         lines = zoom.text().split()
         time = lines[len(lines) - 1]
-        time = re.split('[年月日]', time)[:-1]
+        time = re.split("[年月日]", time)[:-1]
         time = [self.chineseToLower(t) for t in time]
 
-        return '-'.join(time)
+        return "-".join(time)
 
     # 提取指定公告中的央行公开市场操作
     def extract(self, html):
@@ -300,7 +318,7 @@ def crawlOMOUrl(latest):
     if __name__ == "__main__":
         import json
 
-        with open("./omo_list.json") as f:
+        with open("./data/omo/announcements.json") as f:
             data = json.loads(f.read())
             f.close()
             return data
@@ -338,13 +356,23 @@ def crawlOMOUrl(latest):
     return newList
 
 
-def crawlOMOHtml(docUrl):
+def crawlOMOHtml(doc):
+    if __name__ == "__main__":
+        logger.info(f"读取公告内容：{doc['title']}")
+        htmlPath = f"./data/omo/html/{doc['title']}.html"
+        if os.path.exists(htmlPath):
+            with open(htmlPath) as f:
+                data = f.read()
+                f.close()
+                return data
+        else:
+            return None
+
+    docUrl = doc["url"]
     logger.info(f"爬取公告内容：{docUrl}")
     res = requests.get(docUrl)
     res.encoding = "utf-8"
     html_text = res.text
-    if html_text == "":
-        logger.info(f'content empty: {docUrl}')
     return html_text
 
 
@@ -356,7 +384,10 @@ def job():
         urlList = crawlOMOUrl(latestDocName)
 
         for doc in urlList:
-            html = crawlOMOHtml(doc["url"])
+            html = crawlOMOHtml(doc)
+            if not html:
+                logger.info(f"content empty: {doc['url']}")
+                continue
             deals = extractor.extract(html)
             for deal in deals:
                 if deal["type"] == "正回购":
@@ -410,7 +441,8 @@ def job():
                         deal["price"],
                     )
 
-        setLatestDocName(session, urlList[len(urlList) - 1]["title"])
+        # 记录最新的公告名称
+        setLatestDocName(session, urlList[0]["title"])
 
 
 def addJob(scheduler):
@@ -418,6 +450,7 @@ def addJob(scheduler):
     # https://apscheduler.readthedocs.io/en/stable/modules/triggers/interval.html
     # https://apscheduler.readthedocs.io/en/stable/modules/triggers/cron.html
     scheduler.add_job(job, "interval", seconds=10, id=__name__)
+
 
 # 调试代码
 if __name__ == "__main__":
