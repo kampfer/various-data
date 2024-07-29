@@ -54,6 +54,26 @@ from backEnd.omo.crud import (
 #   }
 # }
 class OMOExtOMOractor:
+    chinese_numbers = {
+        "〇": 0,
+        "一": 1,
+        "二": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+    }
+
+    def chineseToLower(self, chineseNumber):
+        result = 0
+        for char in chineseNumber:
+            if char in self.chinese_numbers:
+                result = result * 10 + self.chinese_numbers[char]
+        return str(result)
+
     def findPrevText(self, node):
         prevNodes = node.prevAll()
         for node in reversed(list(prevNodes.items())):
@@ -64,11 +84,20 @@ class OMOExtOMOractor:
             return self.findPrevText(node.parent())
         return None
 
+    def extractTime(self, doc):
+        zoom = doc.find("#zoom")
+        lines = zoom.text().split()
+        time = lines[len(lines) - 1]
+        time = re.split('[年月日]', time)[:-1]
+        time = [self.chineseToLower(t) for t in time]
+
+        return '-'.join(time)
+
     # 提取指定公告中的央行公开市场操作
     def extract(self, html):
         doc = pq(html)
+        time = self.extractTime(doc)
         tables = doc.find("#zoom table")
-        time = doc.find("#shijian").text()
         deals = []
 
         for table in tables.items():
@@ -121,7 +150,7 @@ class OMOExtOMOractor:
                                 successFul = True
 
                 if not successFul:
-                    logger.info(f"提取失败: {htmlFilePath}")
+                    logger.info(f"提取失败: {html}")
 
         for deal in deals:
             deal["time"] = time
@@ -144,7 +173,7 @@ class OMOExtOMOractor:
                 for i, k in enumerate(["name", "amount", "period", "rate"]):
                     d[k] = cells.eq(i).text()
                 # 统一格式，便于操作数据库
-                d['price'] = None
+                d["price"] = None
             else:
                 d = None
             if d:
@@ -267,6 +296,15 @@ class OMOExtOMOractor:
 
 
 def crawlOMOUrl(latest):
+    # 开发调试时读取本地文件
+    if __name__ == "__main__":
+        import json
+
+        with open("./omo_list.json") as f:
+            data = json.loads(f.read())
+            f.close()
+            return data
+
     target_url = (
         "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/index.html"
     )
@@ -306,7 +344,7 @@ def crawlOMOHtml(docUrl):
     res.encoding = "utf-8"
     html_text = res.text
     if html_text == "":
-        logger.info(f'content empty: {p["url"]}')
+        logger.info(f'content empty: {docUrl}')
     return html_text
 
 
@@ -381,6 +419,10 @@ def addJob(scheduler):
     # https://apscheduler.readthedocs.io/en/stable/modules/triggers/cron.html
     scheduler.add_job(job, "interval", seconds=10, id=__name__)
 
-
+# 调试代码
 if __name__ == "__main__":
+    from backEnd.omo.models import Base
+    from backEnd.database import engine
+
+    Base.metadata.create_all(bind=engine)
     job()
