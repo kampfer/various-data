@@ -7,6 +7,7 @@ if __name__ == "__main__":
 import requests
 import re
 from pyquery import PyQuery as pq
+from datetime import datetime
 from backEnd.logger import logger
 from backEnd.database import SessionLocal
 from backEnd.omo.crud import (
@@ -54,8 +55,8 @@ from backEnd.omo.crud import (
 #   }
 # }
 class OMOExtOMOractor:
-    chinese_numbers = {
-        'О': 0,
+    __chineseNumbers = {
+        "О": 0,
         "O": 0,
         "Ο": 0,
         "○": 0,
@@ -69,28 +70,27 @@ class OMOExtOMOractor:
         "七": 7,
         "八": 8,
         "九": 9,
-        "十": None,    # 特别处理
+        "十": None,  # 特别处理
     }
 
     # 仅支持两位数转换
-    def chineseToLower(self, chineseNumber):
+    def parseDate(self, chineseNumber):
         if chineseNumber.isdigit():
-            return chineseNumber
+            return int(chineseNumber)
         result = 0
         l = len(chineseNumber)
         for i, char in enumerate(chineseNumber):
-            if char in self.chinese_numbers:
-                # 十五 =》 15
+            if char in self.__chineseNumbers:
                 if char == "十":
-                    if i == 0:
+                    if i == 0:  # 十在开头：十五 =》 15
                         result += 1
-                    elif i == l - 1:
+                    elif i == l - 1:  # 十在结尾：二十 =》 20
                         result = result * 10
                 else:
-                    result = result * 10 + self.chinese_numbers[char]
+                    result = result * 10 + self.__chineseNumbers[char]
             else:
-                logger.warn(f'日期中存在错误字符 {char}')
-        return str(result)
+                logger.warn(f"日期中存在错误字符 {char}")
+        return result
 
     def findPrevText(self, node):
         prevNodes = node.prevAll()
@@ -106,10 +106,10 @@ class OMOExtOMOractor:
         zoom = doc.find("#zoom")
         lines = zoom.text().split()
         time = lines[len(lines) - 1]
-        time = re.split("[年月日]", time)[:-1]
-        time = [self.chineseToLower(t) for t in time]
+        time = re.split("[年月日]", time)[:3]
+        time = [self.parseDate(t) for t in time]
 
-        return "-".join(time)
+        return datetime(*time).strftime("%Y-%m-%d")
 
     # 提取指定公告中的央行公开市场操作
     def extract(self, html):
