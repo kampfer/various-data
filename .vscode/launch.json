@@ -5,13 +5,23 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python 调试程序: 当前文件",
+      "name": "dev",
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
       "env": {
-        "DEBUG": "1"
+        "mode": "dev"
+      }
+    },
+    {
+      "name": "pro",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "env": {
+        "mode": "pro"
       }
     }
   ]

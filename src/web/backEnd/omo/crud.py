@@ -4,16 +4,19 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from . import models
 
 
+LATEST_DOC_COL = "latest_omo_doc"
+
+
 def getLatestDocName(db: Session):
     return db.execute(
-        select(models.AppState).where(models.AppState.name == "latest_doc")
+        select(models.AppState.value).where(models.AppState.name == LATEST_DOC_COL)
     ).scalar()
 
 
 def setLatestDocName(db: Session, docName: str):
     stmt = (
         sqlite_upsert(models.AppState)
-        .values(name="lastes_doc", value=docName)
+        .values(name=LATEST_DOC_COL, value=docName)
         .on_conflict_do_update(
             index_elements=[models.AppState.name], set_=dict(value=docName)
         )

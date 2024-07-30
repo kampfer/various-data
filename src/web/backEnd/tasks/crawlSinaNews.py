@@ -97,9 +97,14 @@ def job():
 
 
 def addJob(scheduler):
-    # 持久化任务需要id和replace_existing=True
-    # scheduler.add_job(job, "interval", seconds=1, id=__name__, replace_existing=True)
-    scheduler.add_job(job, "interval", hours=1, id=__name__, replace_existing=True)
+    # 任务类型有：
+    # https://apscheduler.readthedocs.io/en/stable/modules/triggers/interval.html
+    # https://apscheduler.readthedocs.io/en/stable/modules/triggers/cron.html
+    #
+    # 持久化任务需要`id`和`replace_existing=True`
+    # `coalesce=True` 如果前一个任务实例还在执行中，则下一个任务实例会被放弃执行，直到前一个实例完成。
+    # `__name__` 在模块被导入时会被设置为该模块的名字。如果模块是被直接执行，__name__会被设置为字符串'__main__'
+    scheduler.add_job(job, "interval", hours=1, id=__name__, coalesce=True)
 
 
 if __name__ == "__main__":

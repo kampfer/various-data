@@ -315,7 +315,7 @@ class OMOExtOMOractor:
 
 def crawlOMOUrl(latest):
     # 开发调试时读取本地文件
-    if __name__ == "__main__":
+    if os.getenv('mode') == 'dev':
         import json
 
         with open("./data/omo/announcements.json") as f:
@@ -357,7 +357,7 @@ def crawlOMOUrl(latest):
 
 
 def crawlOMOHtml(doc):
-    if __name__ == "__main__":
+    if os.getenv('mode') == 'dev':
         logger.info(f"读取公告内容：{doc['title']}")
         htmlPath = f"./data/omo/html/{doc['title']}.html"
         if os.path.exists(htmlPath):
@@ -442,14 +442,15 @@ def job():
                     )
 
         # 记录最新的公告名称
-        setLatestDocName(session, urlList[0]["title"])
+        # urlList中的元素排列顺序是：新-旧
+        if len(urlList) > 0:
+            setLatestDocName(session, urlList[0]["title"])
 
 
 def addJob(scheduler):
-    # 任务类型有：
-    # https://apscheduler.readthedocs.io/en/stable/modules/triggers/interval.html
-    # https://apscheduler.readthedocs.io/en/stable/modules/triggers/cron.html
-    scheduler.add_job(job, "interval", seconds=10, id=__name__)
+    # scheduler.add_job(job, "interval", days=1, id=__name__, coalesce=True)
+    # scheduler.add_job(job, "cron", hour=10, minute=45, id=__name__, coalesce=True)
+    scheduler.add_job(job, "cron", hour=12, id=__name__, coalesce=True)
 
 
 # 调试代码
