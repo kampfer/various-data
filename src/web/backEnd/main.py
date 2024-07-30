@@ -1,5 +1,6 @@
 # import akshare as ak
 import os
+
 os.sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from fastapi import FastAPI
@@ -15,7 +16,11 @@ OMOBase.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-app.mount("/web", StaticFiles(directory="./dist/web"), name="web")
+app.mount(
+    "/web",
+    StaticFiles(directory=os.path.join(os.path.dirname(__file__), "../../../dist/web")),
+    name="web",
+)
 
 app.include_router(router1)
 
@@ -33,9 +38,11 @@ def shutDown():
 if __name__ == "__main__":
     import uvicorn
 
+    mode = os.getenv("mode")
+
     # reload=True 在代码发生变化后自动重启服务
     # 此时第一个参数必须是字符串形式
-    uvicorn.run("main:app", host="127.0.0.1", port=9988, reload=True)
+    # uvicorn.run("main:app", host="127.0.0.1", port=9988, reload=mode != "pro")
 
     # 常规启动方法
-    # uvicorn.run(app, host="127.0.0.1", port=9988)
+    uvicorn.run(app, host="127.0.0.1", port=9988)
