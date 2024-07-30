@@ -1,7 +1,9 @@
 import os
-from .logger import logger
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from app.logger import logger
 
 # 只有环境变量PRODUCTION被显式的赋值为'1'时才使用正式数据库
 DB_FILE_PATH = os.path.join(

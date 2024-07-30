@@ -8,9 +8,9 @@ import requests
 import re
 from pyquery import PyQuery as pq
 from datetime import datetime
-from backEnd.logger import logger
-from backEnd.database import SessionLocal
-from backEnd.omo.crud import (
+from app.logger import logger
+from app.database import SessionLocal
+from app.omo.crud import (
     getLatestDocName,
     addCB,
     addNB,
@@ -456,7 +456,7 @@ def addJob(scheduler):
 # 调试代码
 if __name__ == "__main__":
     from backEnd.omo.models import Base
-    from backEnd.database import engine
+    from web.backEnd.core.database import engine
 
     Base.metadata.create_all(bind=engine)
     job()

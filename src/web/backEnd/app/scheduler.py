@@ -1,14 +1,8 @@
-from datetime import datetime
-import glob
 import importlib
 import os
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.events import EVENT_SCHEDULER_STARTED
-
-from backEnd.database import SQLALCHEMY_DATABASE_URL
 
 
 def initScheduler():
@@ -32,7 +26,7 @@ def initScheduler():
         for f in os.listdir(os.path.join(os.path.dirname(__file__), "tasks"))
         if not f.startswith("__")
     ]
-    modules = [importlib.import_module(f"backEnd.tasks.{f[:-3]}") for f in module_files]
+    modules = [importlib.import_module(f"app.tasks.{f[:-3]}") for f in module_files]
     # 调用所有模块中的同名函数
     for module in modules:
         func = getattr(module, function_name, None)

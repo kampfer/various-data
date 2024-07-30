@@ -9,4 +9,11 @@
 
 目录结构设计：
 backEnd
-  - 
+  - app
+    - **
+  - main.py
+
+## python的模块化设计是一坨大便
+
+在所有目录外再套一层app目录，这样避免错误`attempted relative import beyond top-level package`
+都用绝对引用

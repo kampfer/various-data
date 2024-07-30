@@ -4,15 +4,17 @@ if __name__ == "__main__":
 
     os.sys.path.append(os.path.realpath(os.path.join(__file__, "../../../")))
 
-import requests
 import time
 import json
-from backEnd.logger import logger
 from datetime import datetime
-from backEnd.sinaFinanceNews import models, schemas
-from backEnd.sinaFinanceNews.crud import addManyNews
-from backEnd.database import SessionLocal
+
+import requests
 from sqlalchemy import select, text, desc
+
+from app.logger import logger
+from app.sinaFinanceNews import models, schemas
+from app.sinaFinanceNews.crud import addManyNews
+from app.database import SessionLocal
 
 
 def crawlFeed(type=None, id=None):

@@ -1,15 +1,14 @@
 # import akshare as ak
 import os
 
-os.sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from sinaFinanceNews.router import router as router1
-from backEnd.database import engine
-from sinaFinanceNews.models import Base as SinaNewsBase
-from omo.models import Base as OMOBase
-from backEnd.scheduler import startScheduler, stopScheduler
+
+from app.sinaFinanceNews.router import router as router1
+from app.sinaFinanceNews.models import Base as SinaNewsBase
+from app.omo.models import Base as OMOBase
+from app.database import engine
+from app.scheduler import startScheduler, stopScheduler
 
 SinaNewsBase.metadata.create_all(bind=engine)
 OMOBase.metadata.create_all(bind=engine)

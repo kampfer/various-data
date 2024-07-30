@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import List
 from typing import Annotated
 from typing import Optional
+
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Mapped
