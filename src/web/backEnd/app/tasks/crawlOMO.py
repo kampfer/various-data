@@ -4,10 +4,12 @@ if __name__ == "__main__":
 
     os.sys.path.append(os.path.realpath(os.path.join(__file__, "../../../")))
 
-import requests
 import re
-from pyquery import PyQuery as pq
 from datetime import datetime
+
+import requests
+from pyquery import PyQuery as pq
+
 from app.logger import logger
 from app.database import SessionLocal
 from app.omo.crud import (
@@ -315,13 +317,13 @@ class OMOExtOMOractor:
 
 def crawlOMOUrl(latest):
     # 开发调试时读取本地文件
-    if os.getenv('mode') == 'dev':
-        import json
+    # if os.getenv('mode') == 'dev':
+    #     import json
 
-        with open("./data/omo/announcements.json") as f:
-            data = json.loads(f.read())
-            f.close()
-            return data
+    #     with open("./data/omo/announcements.json") as f:
+    #         data = json.loads(f.read())
+    #         f.close()
+    #         return data
 
     target_url = (
         "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/125431/125475/index.html"
@@ -357,16 +359,16 @@ def crawlOMOUrl(latest):
 
 
 def crawlOMOHtml(doc):
-    if os.getenv('mode') == 'dev':
-        logger.info(f"读取公告内容：{doc['title']}")
-        htmlPath = f"./data/omo/html/{doc['title']}.html"
-        if os.path.exists(htmlPath):
-            with open(htmlPath) as f:
-                data = f.read()
-                f.close()
-                return data
-        else:
-            return None
+    # if os.getenv('mode') == 'dev':
+    #     logger.info(f"读取公告内容：{doc['title']}")
+    #     htmlPath = f"./data/omo/html/{doc['title']}.html"
+    #     if os.path.exists(htmlPath):
+    #         with open(htmlPath) as f:
+    #             data = f.read()
+    #             f.close()
+    #             return data
+    #     else:
+    #         return None
 
     docUrl = doc["url"]
     logger.info(f"爬取公告内容：{docUrl}")
@@ -449,14 +451,13 @@ def job():
 
 def addJob(scheduler):
     # scheduler.add_job(job, "interval", days=1, id=__name__, coalesce=True)
-    # scheduler.add_job(job, "cron", hour=10, minute=45, id=__name__, coalesce=True)
     scheduler.add_job(job, "cron", hour=12, id=__name__, coalesce=True)
 
 
 # 调试代码
 if __name__ == "__main__":
-    from backEnd.omo.models import Base
-    from web.backEnd.core.database import engine
+    from app.omo.models import Base
+    from app.database import engine
 
     Base.metadata.create_all(bind=engine)
     job()
