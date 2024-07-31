@@ -6,14 +6,13 @@
 - 数据检验：[pydantic](https://docs.pydantic.dev/latest/)
 - 任务队列工具：[apscheduler](https://apscheduler.readthedocs.io/en/3.x/userguide.html#basic-concepts)
 
+## python的模块化设计是一坨大便
+
+在所有目录外再套一层app目录，这样避免错误`attempted relative import beyond top-level package`
 
 目录结构设计：
 backEnd
   - app
     - **
   - main.py
-
-## python的模块化设计是一坨大便
-
-在所有目录外再套一层app目录，这样避免错误`attempted relative import beyond top-level package`
-都用绝对引用
+  - readme.md

@@ -107,6 +107,7 @@ def addJob(scheduler):
     # `coalesce=True` 如果前一个任务实例还在执行中，则下一个任务实例会被放弃执行，直到前一个实例完成。
     # `__name__` 在模块被导入时会被设置为该模块的名字。如果模块是被直接执行，__name__会被设置为字符串'__main__'
     scheduler.add_job(job, "interval", hours=1, id=__name__, coalesce=True)
+    logger.info(f'添加任务{__name__}')
 
 
 if __name__ == "__main__":

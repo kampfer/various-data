@@ -452,6 +452,7 @@ def job():
 def addJob(scheduler):
     # scheduler.add_job(job, "interval", days=1, id=__name__, coalesce=True)
     scheduler.add_job(job, "cron", hour=12, id=__name__, coalesce=True)
+    logger.info(f'添加任务{__name__}')
 
 
 # 调试代码
