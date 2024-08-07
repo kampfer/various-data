@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import os
 import pandas as pd
 from io import StringIO
+from tqdm import tqdm
 
 # 1.为何要复权：由于股票存在配股、分拆、合并和发放股息等事件，会导致股价出现较大的缺口。 若使用不复权的价格处理数据、计算各种指标，将会导致它们失去连续性，且使用不复权价格计算收益也会出现错误。 为了保证数据连贯性，常通过前复权和后复权对价格序列进行调整。
 
@@ -93,7 +94,7 @@ def oneYearAgo(format="%Y%m%d"):
 
 def walkAMarket(func):
     aPath = "./data/A股"
-    for item in os.listdir(aPath):
+    for item in tqdm(os.listdir(aPath)):
         filePath = os.path.join(aPath, item)
         if os.path.isfile(filePath):
             with open(filePath, "r", encoding="gbk") as f:
@@ -104,22 +105,43 @@ def walkAMarket(func):
                 func(df, filePath)
 
 
-hit = []
+def isFlat(s):
+    return s.std() < s.mean() * 0.0025
 
-
+# 斜率先平后扬
 def s1(df, filePath):
     price = df["收盘"]
     # 排除待上市的股票
     if price.count() > 60:
         ma30 = MAFilter(price, 30)
         slopes = calculateSlope(ma30)
+        # 倒数第9天到倒数第2天的斜率
+        slopes = slopes[-9:]
+        # 最后一天的斜率
+        lastSlope = ma30.iloc[-1] - ma30.iloc[-2]
         gap = slopes.max() - slopes.min()
-        lastTwoRows = slopes.iloc[-2:]
-        if lastTwoRows.iloc[1] - lastTwoRows.iloc[0] >= gap * 0.1:
-            # print(filePath)
+        std = slopes.std()
+        if std < (gap / 2 * 0.01):
+            hit.append(os.path.basename(filePath))
+        # lastTwoRows = slopes.iloc[-2:]
+        # if (
+        #     lastTwoRows.iloc[1] > 0
+        #     and lastTwoRows.iloc[1] - lastTwoRows.iloc[0] >= gap * 0.1
+        # ):
+        #     # print(filePath)
+        #     hit.append(os.path.basename(filePath))
+
+
+def s2(df, filePath):
+    price = df["收盘"]
+    # 排除待上市的股票
+    if price.count() > 60:
+        ma30 = MAFilter(price, 30)
+        if isFlat(ma30.iloc[-30:]):
             hit.append(os.path.basename(filePath))
 
+hit = []
 
-walkAMarket(s1)
+walkAMarket(s2)
 print(hit)
 print(len(hit))
