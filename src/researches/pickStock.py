@@ -145,3 +145,8 @@ hit = []
 walkAMarket(s2)
 print(hit)
 print(len(hit))
+
+
+if __name__ == '__main__':
+    # 先平后涨
+    # 先跌后涨
