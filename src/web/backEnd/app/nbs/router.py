@@ -4,6 +4,7 @@ from fastapi import APIRouter
 import requests
 
 
+# https://data.stats.gov.cn/easyquery.htm
 def fetchStatsData(dbcode, zb=None, sj=None):
     args = []
     if zb:
