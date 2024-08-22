@@ -25,10 +25,12 @@ def MAFilter(s, n):
     return s.rolling(window=n).mean()
 
 
+# (y2 - y1) / 1
 def calculateSlope2(s):
     return s.rolling(3).apply(lambda s: s.iloc[2] - s.iloc[0])
 
 
+# polyfit拟合一次多项式
 def calculateSlope(s):
     windowSize = 3
     rollingTrend = s.rolling(windowSize)
@@ -48,50 +50,6 @@ def oneYearAgo(format="%Y%m%d"):
     return one_year_ago.strftime(format)
 
 
-# stock_zh_a_hist_df = ak.stock_zh_a_hist(
-#     symbol="000001",
-#     period="daily",
-#     start_date="20170301",
-#     end_date="20240528",
-#     adjust="hfq",
-# )
-# date = stock_zh_a_hist_df["日期"]
-# price = stock_zh_a_hist_df["收盘"]
-# ma30 = MAFilter(price, 30)
-# ma30Slopes = calculateSlopes(ma30)
-
-# ax1 = plt.gca()
-# ax1.plot(date, price, label="pirce")
-# ax1.plot(date, MAFilter(price, 30), label="MA30")
-
-# ax2 = ax1.twinx()
-# ax2.plot(date, ma30Slopes, 'r-', label="slope")
-
-# plt.show()
-
-
-# endTime = datetime.now().strftime("%Y%m%d")
-# startTime = oneYearAgo()
-# https://akshare.akfamily.xyz/data/stock/stock.html#id223
-# dfStockCode = ak.stock_info_a_code_name()
-# print(dfStockCode.count())
-# dfStockCode.to_csv('./data/a.csv')
-# for index, row in dfStockCode.iterrows():
-#     stockDf = ak.stock_zh_a_hist(
-#         symbol=row["code"],
-#         period="daily",
-#         start_date=startTime,
-#         end_date=endTime,
-#         adjust="hfq",
-#     )
-#     price = stockDf["收盘"]
-#     ma30 = MAFilter(price, 30)
-#     slopes = calculateSlopes(ma30)
-#     lastTwoRows = slopes.iloc[-2:]
-#     if lastTwoRows.iloc[0] <=0 and lastTwoRows.iloc[1] > 0:
-#         print(f"{row['code']} {row['name']}")
-
-
 def walkAMarket(func):
     aPath = "./data/A股"
     for item in tqdm(os.listdir(aPath)):
@@ -105,48 +63,43 @@ def walkAMarket(func):
                 func(df, filePath)
 
 
+def analyseAllStocks(func):
+    result = []
+
+    def callback(df, filePath):
+        if func(df, filePath):
+            result.append(os.path.basename(filePath))
+
+    walkAMarket(callback)
+    return result
+
+
+def analyseSingleStock(code, func):
+    filePath = f"./data/A股/{code}.txt"
+    with open(filePath, "r", encoding="gbk") as f:
+        text = f.read()
+        text = text.split("\n")[1:-2]
+        text = "\n".join(text)
+        df = pd.read_csv(StringIO(text), sep="[\t\s]+", engine="python")
+        func(df)
+
+
 def isFlat(s):
     return s.std() < s.mean() * 0.0025
 
-# 斜率先平后扬
-def s1(df, filePath):
-    price = df["收盘"]
-    # 排除待上市的股票
-    if price.count() > 60:
-        ma30 = MAFilter(price, 30)
-        slopes = calculateSlope(ma30)
-        # 倒数第9天到倒数第2天的斜率
-        slopes = slopes[-9:]
-        # 最后一天的斜率
-        lastSlope = ma30.iloc[-1] - ma30.iloc[-2]
-        gap = slopes.max() - slopes.min()
-        std = slopes.std()
-        if std < (gap / 2 * 0.01):
-            hit.append(os.path.basename(filePath))
-        # lastTwoRows = slopes.iloc[-2:]
-        # if (
-        #     lastTwoRows.iloc[1] > 0
-        #     and lastTwoRows.iloc[1] - lastTwoRows.iloc[0] >= gap * 0.1
-        # ):
-        #     # print(filePath)
-        #     hit.append(os.path.basename(filePath))
 
-
-def s2(df, filePath):
-    price = df["收盘"]
-    # 排除待上市的股票
-    if price.count() > 60:
-        ma30 = MAFilter(price, 30)
-        if isFlat(ma30.iloc[-30:]):
-            hit.append(os.path.basename(filePath))
-
-hit = []
-
-walkAMarket(s2)
-print(hit)
-print(len(hit))
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 先平后涨
     # 先跌后涨
+
+    def s(df, filePath):
+        price = df["收盘"]
+        # 只处理上市超过60天的股票，排除待上市或刚上市的股票
+        if price.count() > 60:
+            ma30 = MAFilter(price, 30)
+            if (ma30.iloc[-1] - ma30.iloc[-2]) / ma30.iloc[-2] > 0.02:
+                return True
+        return False
+
+    stocks = analyseAllStocks(s)
+    print(stocks)
