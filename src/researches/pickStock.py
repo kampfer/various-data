@@ -1,11 +1,12 @@
-import akshare as ak
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator, AutoMinorLocator
 import numpy as np
 from datetime import datetime, timedelta
 import os
 import pandas as pd
 from io import StringIO
 from tqdm import tqdm
+
 
 # 1.为何要复权：由于股票存在配股、分拆、合并和发放股息等事件，会导致股价出现较大的缺口。 若使用不复权的价格处理数据、计算各种指标，将会导致它们失去连续性，且使用不复权价格计算收益也会出现错误。 为了保证数据连贯性，常通过前复权和后复权对价格序列进行调整。
 
@@ -89,6 +90,8 @@ def isFlat(s):
 
 
 if __name__ == "__main__":
+    print(pd.__version__)
+
     # 先平后涨
     # 先跌后涨
 
@@ -101,5 +104,31 @@ if __name__ == "__main__":
                 return True
         return False
 
-    stocks = analyseAllStocks(s)
-    print(stocks)
+    def s2(df):
+        dates = df["日期"]
+        prices = df["收盘"]
+        pole = prices.iloc[1]
+        poles = [pole]
+        indexes = [dates.iloc[1]]
+        for i, v in prices.items():
+            if abs((v - pole) / pole) > 0.2:
+                poles.append(v)
+                indexes.append(dates.iloc[i])
+                pole = v
+
+        plt.plot(df["日期"], df["收盘"])
+        plt.plot(indexes, poles)
+
+        y_major_locator = MultipleLocator(80)
+        x_minor_locator = AutoMinorLocator()
+
+        # 调整刻度的数量可以通过设置刻度的间隔大小来实现
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(y_major_locator)
+        ax.xaxis.set_minor_locator(x_minor_locator)
+        
+        plt.show()
+
+    # stocks = analyseAllStocks(s)
+    # print(stocks)
+    analyseSingleStock("SZ#000908", s2)
