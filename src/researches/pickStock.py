@@ -126,9 +126,15 @@ if __name__ == "__main__":
         ax = plt.gca()
         ax.xaxis.set_major_locator(y_major_locator)
         ax.xaxis.set_minor_locator(x_minor_locator)
-        
+
         plt.show()
 
-    # stocks = analyseAllStocks(s)
-    # print(stocks)
-    analyseSingleStock("SZ#000908", s2)
+    def s3(df, filePath=None):
+        price = df["收盘"]
+        price = price[-7:]
+        # 单调递增
+        return not price.empty and price.is_monotonic_increasing
+
+    stocks = analyseAllStocks(s3)
+    print(stocks)
+    # analyseSingleStock("SH#600185", s3)
