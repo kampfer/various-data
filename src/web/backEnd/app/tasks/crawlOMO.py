@@ -169,7 +169,7 @@ class OMOExtOMOractor:
                                 deals = self.extractGZ(table)
                                 successFul = True
 
-                if not successFul:
+                if not successFul or not deals:
                     logger.info(f"提取失败: {html}")
 
         for deal in deals:
@@ -305,6 +305,9 @@ class OMOExtOMOractor:
             d = {"type": "国债"}
             if len(cells) == 3:
                 for i, k in enumerate(["period", "price", "amount"]):
+                    d[k] = cells.eq(i).text()
+            elif len(cells) == 4:
+                for i, k in enumerate(["name", "period", "price", "amount"]):
                     d[k] = cells.eq(i).text()
             else:
                 d = None
@@ -452,7 +455,7 @@ def job():
 def addJob(scheduler):
     # scheduler.add_job(job, "interval", days=1, id=__name__, coalesce=True)
     scheduler.add_job(job, "cron", hour=12, id=__name__, coalesce=True)
-    logger.info(f'添加任务{__name__}')
+    logger.info(f"添加任务{__name__}")
 
 
 # 调试代码

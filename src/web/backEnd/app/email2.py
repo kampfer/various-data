@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from email.utils import formataddr
 
 my_sender = "mr_liaowei@163.com"  # 发件人邮箱账号
-my_pass = "IHIQSZXAGWYXGKHH"  # 发件人邮箱密码
+my_pass = "IHIQSZXAGWYXGKHH"  # 授权码
 my_user = "2258287411@qq.com"  # 收件人邮箱账号，我这边发送给自己
 
 
