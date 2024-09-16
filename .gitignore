@@ -1,6 +1,7 @@
 node_modules
-dist
+/dist/*
 .ipynb_checkpoints
-/data
+/data/*
 **__pycache__**
 /backup
+/log/*
