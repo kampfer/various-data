@@ -5,6 +5,7 @@ import akshare as ak
 
 router = APIRouter()
 
+# 参数用JSON.stringify转一次
 @router.get("/akshare")
 def callAkshare(funcName, args=None):
     func = getattr(ak, funcName)

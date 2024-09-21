@@ -25,7 +25,7 @@ def job():
 
 
 def addJob(scheduler):
-    scheduler.add_job(job, "cron", month=1, id=__name__, coalesce=True)
+    scheduler.add_job(job, "cron", day=1, id=__name__, coalesce=True)
     logger.info(f"添加任务{__name__}")
 
 
