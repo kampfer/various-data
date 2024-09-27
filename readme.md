@@ -42,5 +42,6 @@ pipenv run uvicorn src.web.backEnd.main:app --reload --port 8000
 
 关闭占用指定端口的程序：
 
+ps aux | grep 'uvicorn'
 netstat -tulnp | grep 9988
 kill -9 [xxxx]
