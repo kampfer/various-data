@@ -5,6 +5,7 @@ import {
 import ChartWithNews from './pages/ChartWithNews/index.js';
 import CrawlersAdmin from './pages/CrawlersAdmin.js';
 import Home from './pages/Home.js';
+import InvestmentLedger from './pages/InvestmentLedger/index';
 
 const router = createHashRouter([
   {
@@ -14,6 +15,10 @@ const router = createHashRouter([
   {
     path: '/crawlersAdmin',
     element: <CrawlersAdmin />
+  },
+  {
+    path: '/investmentLedger',
+    element: <InvestmentLedger />
   },
   {
     path: '/',

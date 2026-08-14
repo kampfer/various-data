@@ -1,0 +1,18 @@
+.value {
+  color: rgba(0, 0, 0, 0.88);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.unavailable {
+  color: #8c8c8c;
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.unavailable:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
+}

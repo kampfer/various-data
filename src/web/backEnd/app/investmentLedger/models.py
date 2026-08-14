@@ -1,0 +1,131 @@
+"""投资交易账本的持久化模型（SQLAlchemy 2.0 ``Mapped`` 风格）。
+
+设计要点（与设计文档「Data Models」一节逐条对应）：
+
+- 模块内自带 ``Base(DeclarativeBase)``，其 ``metadata`` 由 ``app/models.py`` 的
+  ``initAppModels()`` 统一 ``create_all``，与 ``sinaFinanceNews`` / ``omo`` 两个既有模块惯例一致；
+- 金额与单价列一律使用 :class:`~app.investmentLedger.types.DecimalText`，
+  以十进制字符串精确存放 ``Decimal``，规避 SQLite 无精确 ``NUMERIC`` 导致的浮点误差；
+- 交易记录**只有 INSERT 与 DELETE 两条路径，不存在 UPDATE**（需求 1.4），
+  因此本表不设置任何 ``onupdate`` 行为；
+- 枚举列存放的是**英文码**（``WEALTH`` / ``FUND`` / ``STOCK``、``BUY`` / ``SELL``，
+  取值全集见 ``constants.py``），中文文案只出现在前端展示层，
+  故 ``String(16)`` 足以容纳最长码 ``WEALTH`` 并留有余量。
+"""
+
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Annotated
+
+from sqlalchemy import Date, DateTime, Index, String, UniqueConstraint
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from app.investmentLedger.types import DecimalText
+
+# 复用型主键注解（PEP 593 Annotated）：自增整型主键，
+# 避免每张表重复书写 mapped_column 参数；写法与 sinaFinanceNews/models.py 一致。
+# https://docs.sqlalchemy.org/en/20/changelog/whatsnew_20.html#step-five-make-use-of-pep-593-annotated-to-package-common-directives-into-types
+primaryKey = Annotated[int, mapped_column(primary_key=True, autoincrement=True)]
+
+#: 枚举码列的声明长度：最长码 ``WEALTH`` 为 6 字符，留足余量便于后续扩展
+ENUM_CODE_LENGTH = 16
+
+#: 产品名称列长度上限，与 ``constants.MAX_PRODUCT_NAME_LENGTH`` 对应（需求 1.2）
+PRODUCT_NAME_LENGTH = 100
+
+#: 产品代码列长度上限，与 ``constants.MAX_PRODUCT_CODE_LENGTH`` 对应（需求 1.2、3.2）
+PRODUCT_CODE_LENGTH = 32
+
+#: 金额类列的声明长度：``999999999.99`` 仅 12 字符，20 足以容纳负号与更长的中间值
+DECIMAL_TEXT_LENGTH = 20
+
+
+class Base(DeclarativeBase):
+    """本模块独立的声明式基类。
+
+    与既有模块保持同构：每个业务模块各自持有一个 ``Base``，
+    其 ``metadata`` 在 ``app/models.py`` 的 ``initAppModels()`` 中
+    以 ``create_all(bind=engine)`` 建表，互不干扰。
+    """
+
+    pass
+
+
+class Transaction(Base):
+    """交易记录表：一行一笔买卖，**只有 INSERT 与 DELETE 两条路径，没有 UPDATE**（需求 1.4）。"""
+
+    __tablename__ = "il_transaction"
+
+    #: 主键：仅用于删除定位，既不展示也不提供按其查询的接口（需求 2.23）
+    id: Mapped[primaryKey]
+
+    #: 产品类型英文码，取值 ∈ {WEALTH, FUND, STOCK}（需求 1.1、1.2）；
+    #: 单列索引支撑按产品类型筛选（需求 2.16）
+    product_type: Mapped[str] = mapped_column(String(ENUM_CODE_LENGTH), index=True)
+
+    #: 产品名称，1..100 字符（需求 1.2）；随每笔不可变交易保存，
+    #: 因此允许同一产品在不同时间使用不同名称（展示名取最新一笔，需求 2.5）
+    product_name: Mapped[str] = mapped_column(String(PRODUCT_NAME_LENGTH))
+
+    #: 产品代码，1..32 字符（需求 1.2）；与 ``product_type`` 共同构成产品键（需求 2.5）；
+    #: 单列索引支撑产品代码的包含匹配搜索（需求 2.17、2.18）
+    product_code: Mapped[str] = mapped_column(String(PRODUCT_CODE_LENGTH), index=True)
+
+    #: 交易单价，> 0 且恰两位小数（需求 1.2）；以 TEXT 精确存放 ``Decimal``
+    unit_price: Mapped[Decimal] = mapped_column(DecimalText(DECIMAL_TEXT_LENGTH))
+
+    #: 交易数量，> 0 的整数（需求 1.2）
+    quantity: Mapped[int]
+
+    #: 交易方向英文码，取值 ∈ {BUY, SELL}（需求 1.1、1.2）；
+    #: 单列索引支撑按交易方向筛选（需求 2.16）
+    direction: Mapped[str] = mapped_column(String(ENUM_CODE_LENGTH), index=True)
+
+    #: 交易日期（有效公历日期）；建索引以支撑闭区间筛选与排序（需求 2.16、2.15）
+    trade_date: Mapped[date] = mapped_column(Date, index=True)
+
+    #: 写入时间：同一交易日期内多笔记录的稳定次序依据（需求 2.15）；
+    #: 交易不可编辑，故不设置 onupdate（需求 1.4）
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    __table_args__ = (
+        # 复合索引：支撑按产品键分组与「产品历史交易范围」查询（需求 2.5、2.10）
+        Index("ix_il_transaction_product", "product_type", "product_code"),
+    )
+
+
+class Valuation(Base):
+    """估值记录表：同一产品同一估值日期唯一，重复提交以最后一次单价为准（需求 3.3）。"""
+
+    __tablename__ = "il_valuation"
+
+    #: 主键：仅内部使用，不对外暴露
+    id: Mapped[primaryKey]
+
+    #: 产品类型英文码，取值 ∈ {WEALTH, FUND, STOCK}（需求 3.1、3.2）
+    product_type: Mapped[str] = mapped_column(String(ENUM_CODE_LENGTH))
+
+    #: 产品代码，1..32 字符（需求 3.2）
+    product_code: Mapped[str] = mapped_column(String(PRODUCT_CODE_LENGTH))
+
+    #: 估值日期（有效公历日期）；同一产品下取最大值者为「最新估值」（需求 3.4）
+    valuation_date: Mapped[date] = mapped_column(Date)
+
+    #: 估值单价，0 ≤ v ≤ 999999999.99 且小数位 ≤ 2（需求 3.2）
+    unit_price: Mapped[Decimal] = mapped_column(DecimalText(DECIMAL_TEXT_LENGTH))
+
+    #: 最后一次覆盖写入的时间；upsert 覆盖时由 onupdate 刷新（需求 3.3）
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now
+    )
+
+    __table_args__ = (
+        # 唯一约束：既表达「同一产品同一估值日期只有一条记录」的业务规则（需求 3.3），
+        # 也作为 SQLite ``on_conflict_do_update`` 的冲突目标（见 crud.upsertValuation）
+        UniqueConstraint(
+            "product_type",
+            "product_code",
+            "valuation_date",
+            name="uq_il_valuation_product_date",
+        ),
+    )

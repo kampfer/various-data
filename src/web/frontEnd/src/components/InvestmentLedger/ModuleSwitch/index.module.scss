@@ -1,0 +1,10 @@
+.container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.container :global(.ant-radio-group) {
+  display: inline-flex;
+  flex-wrap: wrap;
+}

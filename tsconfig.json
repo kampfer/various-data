@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    // 目标语法层级；babel 才是真正的降级者，此项只影响类型检查时的内置库假设
+    "target": "ES2020",
+    // 浏览器环境：需要 DOM 与可迭代 NodeList 类型
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    // 保留 ESM 语法交给 webpack 做 tree-shaking
+    "module": "ESNext",
+    // 由 webpack 负责解析；import 允许不写扩展名
+    "moduleResolution": "bundler",
+    // 与 babel @babel/preset-react 的默认 classic runtime 一致
+    "jsx": "react",
+    // 新模块的类型底线：严格空检查、严格函数参数等全开
+    "strict": true,
+    // 索引访问返回 T | undefined，逼迫处理越界（分页切片场景直接受益）
+    "noUncheckedIndexedAccess": true,
+    // class 组件覆写 render/componentDidMount 必须显式 override
+    "noImplicitOverride": true,
+    // 关闭：草稿类型大量使用 `?: T | null`，开启会与 antd 受控值互相打架
+    "exactOptionalPropertyTypes": false,
+    // 与 babel 单文件转译语义对齐：类型导入需写 import type
+    "isolatedModules": true,
+    // 关闭以兼容既有 CommonJS 风格依赖的默认导入
+    "verbatimModuleSyntax": false,
+    // 产物由 webpack + babel 生成，tsc 只做类型检查
+    "noEmit": true,
+    // 既有 .js 文件可被 TS 解析与 import
+    "allowJs": true,
+    // 不检查既有 .js，避免历史代码报错
+    "checkJs": false,
+    // 允许 `import axios from 'axios'` 这类默认导入互操作
+    "esModuleInterop": true,
+    // 无默认导出的模块也可默认导入（类型层面）
+    "allowSyntheticDefaultImports": true,
+    // 允许 import *.json（配置类静态数据）
+    "resolveJsonModule": true,
+    // Windows 开发 + Linux 部署，防止大小写不一致的路径漂移
+    "forceConsistentCasingInFileNames": true,
+    // 跳过 node_modules 的 .d.ts 检查，缩短 type-check 时间
+    "skipLibCheck": true,
+    // 路径别名的解析基准（仓库根）
+    "baseUrl": ".",
+    "paths": {
+      // 可选便利别名；需与 webpack resolve.alias 保持一致
+      "@ledger/*": ["src/web/frontEnd/src/*"]
+    }
+  },
+  // 只纳入前端源码，避免检查 webpack 配置等 Node 侧脚本
+  "include": ["src/web/frontEnd/src/**/*"],
+  "exclude": ["node_modules", "dist", "scripts"]
+}

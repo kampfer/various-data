@@ -1,0 +1,38 @@
+import React from 'react';
+import { Tooltip } from 'antd';
+import type { Metric } from '../../../api/types';
+import styles from './index.module.scss';
+
+/** 单个统计指标展示组件的输入契约（需求 3.9）。 */
+export interface MetricValueProps {
+  /** 待展示指标；不可用时 value 必须为 null。 */
+  readonly metric: Metric;
+  /** 展示单位，仅追加后缀，不执行浮点换算。 */
+  readonly kind: 'amount' | 'rate';
+}
+
+/** 统一呈现可用与不可用统计指标，避免调用方以 0 代替缺失值。 */
+export default class MetricValue extends React.Component<MetricValueProps> {
+  /** 不可用原因缺失时使用的中文兜底说明。 */
+  private readonly unavailableReason = (): string =>
+    this.props.metric.unavailableReason ?? '指标所需数据不完整';
+
+  /** 渲染统计值；金额与比率仅附加展示单位，不参与数值运算。 */
+  public override render(): React.ReactNode {
+    const { metric, kind } = this.props;
+    if (!metric.available) {
+      const reason = this.unavailableReason();
+      return (
+        <Tooltip title={reason}>
+          <span className={styles.unavailable} tabIndex={0} aria-label={`不可用：${reason}`}>
+            不可用
+          </span>
+        </Tooltip>
+      );
+    }
+
+    const value = metric.value ?? '--';
+    const suffix = kind === 'amount' ? '元' : '%';
+    return <span className={styles.value}>{value} {suffix}</span>;
+  }
+}

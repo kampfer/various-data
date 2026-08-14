@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.api import apiRouter
+from app.investmentLedger.exceptions import registerLedgerExceptionHandlers
 from app.models import initAppModels
 from app.scheduler import startScheduler, stopScheduler
 
@@ -18,6 +19,7 @@ app.mount(
 
 initAppModels()
 app.include_router(apiRouter)
+registerLedgerExceptionHandlers(app)  # 注册投资交易账本的统一异常处理器
 
 
 @app.on_event("startup")
