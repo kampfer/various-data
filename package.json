@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev:web": "webpack --config ./scripts/webpack.dev.config.js --watch",
-    "dev:server": "pipenv run uvicorn src.web.backEnd.main:app --reload --port 8000",
+    "dev:server": "pipenv run uvicorn main:app --app-dir ./src/web/backEnd --reload --port 8000",
     "build:web": "webpack --config ./scripts/webpack.config.js",
     "type-check": "tsc --noEmit",
     "test": "vitest --run"
