@@ -1915,7 +1915,7 @@ class Valuation(Base):
     # 估值日期（有效公历日期）；取最大值者为「最新估值」（需求 3.1）
     valuation_date: Mapped[date]    = mapped_column(Date)
     # 估值单价；由标准化采集结果提供，禁止用户手动输入
-    unit_price:     Mapped[Decimal] = mapped_column(DecimalText(20))
+    unit_price:     Mapped[Decimal] = mapped_column(DecimalText())
     # 外部来源稳定标识，如 eastmoney；用于优先级和审计
     source_id:      Mapped[str]     = mapped_column(String(64))
     # 采集完成时间（建议 UTC），用于审计而不替代估值日期
@@ -1936,30 +1936,20 @@ class Valuation(Base):
 
 **估值表的写入边界**：`il_valuation` 由 `ValuationRepository` 在核心事务中维护，公开 `router.py`、`TransactionService`、前端 API 客户端均没有估值写方法。采集器提交的标准结果必须经过字段和来源校验；同一产品、估值日期、来源的结果使用唯一约束和幂等更新，不能通过用户界面或账本 API 覆盖。产品同日跨来源冲突按 `source_priority` 确定统计采用的记录，所有冲突写入结构化日志。
 
-#### 2.3 Schema 版本、实际列检查与迁移策略
+#### 2.3 开发阶段账本表重建策略
 
-`create_all` **不是迁移工具**：它只在表不存在时创建表，不会为已存在的 `il_transaction` 增加 `transaction_price` / `transaction_quantity`，也不会重命名或删除 `unit_price` / `quantity`。服务启动必须先执行 `SchemaManager.checkOrMigrate()`，通过后才允许 `create_all` 补建缺失的新表并注册路由；任何 ORM 查询不得在 schema 未通过时静默继续。
+当前项目处于开发阶段，投资账本表不保存需要保留的真实数据。ORM 模型是账本数据库结构的唯一事实来源；发生字段重命名、字段类型或唯一约束等不兼容变更时，不迁移旧账本数据，而是保留 SQLite 数据库文件及其它业务模块表，仅显式重建 `LedgerBase` 所属表。
 
-**版本与期望结构**：在数据库中维护 `il_schema_version`（`version` 主键、`applied_at`、`migration_id`、`checksum`），当前 canonical 交易 schema 版本为 `2`。`SchemaManager` 使用 SQLAlchemy Inspector/SQLite `PRAGMA table_info` 读取实际列，而不是仅比较 ORM metadata；至少检查 `il_transaction` 的 `product_type`、`product_name`、`product_code`、`transaction_price`、`transaction_quantity`、`direction`、`trade_date`、`created_at` 及必要索引。版本记录缺失但表已存在时按实际列判定：完整 canonical 结构可登记当前版本；只有旧字段或字段组合不完整则进入明确迁移/失败路径，不能把“无版本记录”当成最新版本。
+**重建边界与入口**：
 
-**受控入口与装配点**：
+- 重建范围仅限 `il_transaction`、`il_valuation` 以及未来注册到 `investmentLedger.models.Base.metadata` 的账本表；不得删除 `various_data.db` / `various_data_dev.db` 文件，也不得操作 `SinaNewsBase`、`OMOBase` 等其它模块表。
+- 执行前必须停止 FastAPI、调度器、估值摄取任务及其它数据库连接，再显式调用 `LedgerBase.metadata.drop_all(bind=engine)` 和 `LedgerBase.metadata.create_all(bind=engine)`；使用模块 metadata 统一处理表依赖、索引和唯一约束，禁止散落手写表清单。
+- `app.models.initAppModels()` 只负责通过 `create_all` 创建缺失表，不负责迁移或删除已有表；正常应用启动路径严禁调用 `drop_all`，避免隐式数据破坏。
+- 重建后必须使用 SQLAlchemy Inspector 检查实际字段、TEXT 类型、非空属性、索引和唯一约束，并完成交易写入/读取及估值同日跨来源幂等写入的冒烟验证。
 
-- `investmentLedger/schema.py` 提供 `SchemaManager.inspect() -> SchemaStatus`、`checkOrMigrate(mode)` 和 `backupDatabase()`；`migrations/` 中每个版本脚本只接受受控数据库连接，不接受前端参数。
-- `app/main.py` / 应用 lifespan 在 `app/database.py` 建立 Engine 后调用启动自检；`app/models.py:initAppModels()` 只能在自检成功后执行 `LedgerBase.metadata.create_all(bind=engine)`，且必须在注释和测试中明确其不负责升级已有表。
-- 受控命令提供 `python -m app.investmentLedger.schema check --database <path>` 和 `... migrate --database <path> --backup <path>`；生产环境默认只 `check`，迁移由发布/运维步骤显式执行，不由每次 Web 启动自动删除或重建生产表。
-- 开发环境检测到 schema 不匹配时抛出 `SchemaMismatchError`，日志给出数据库路径、期望版本、实际版本和缺失/多余列，并让服务启动失败；不得降级为旧 ORM 字段、跳过检查或静默新建另一份数据库。
+**当前期望结构**：`il_transaction` 必须使用 `transaction_price TEXT`、`transaction_quantity TEXT`，不得保留 `unit_price` / `quantity` 等旧交易字段；`il_valuation` 必须包含 `source_id`、`collected_at`、`source_reference`、`raw_payload_hash`，并使用 `(product_type, product_code, valuation_date, source_id)` 唯一约束。所有 Decimal 字段使用无长度的 `DecimalText()`，底层为 `TEXT`。
 
-**旧字段到 canonical 字段的迁移（v001 → v002）**：
-
-1. **备份**：在取得数据库锁并开始写事务前，使用 SQLite 在线备份/API 或受控文件副本生成带时间戳的备份；校验备份可打开且包含 `il_transaction`，记录备份路径和校验摘要。备份失败立即终止，不改原库。
-2. **锁与事务**：连接设置明确的 busy timeout，执行 `BEGIN IMMEDIATE`，在同一事务中完成结构变化、数据回填、约束/索引检查和版本记录；事务提交前任何异常都 `ROLLBACK`，恢复原连接状态。备份是事务回滚之外的恢复保障。
-3. **字段映射**：旧 `unit_price` → 新 `transaction_price`，旧 `quantity` → 新 `transaction_quantity`；新列使用与 `DecimalText` 一致的 `TEXT` 语义。若新列已存在，则只回填新列为空的行；若同一行新旧值都存在但 Decimal 语义不相等，视为数据冲突并中止，禁止覆盖。逐行检查可解析、非空和与现有业务数值定义兼容；异常行、无法解析值或数量语义不明确时输出主键计数/脱敏诊断，回滚并要求人工修复。
-4. **旧列隔离**：迁移成功后将旧列重命名为 `legacy_unit_price`、`legacy_quantity`（或在 SQLite 不支持安全重命名时通过受控 shadow table 保留），使 ORM 和新 SQL 不再读取旧列，同时保留回滚/审计数据。不得在启动迁移中直接 `DROP COLUMN`、删除表或重建覆盖生产库；旧列的物理删除只能作为后续另一个经审批、已备份且可恢复的迁移。
-5. **一致性与版本登记**：重新读取实际列，确认 canonical 列存在、每行映射值与旧值 Decimal 语义一致、业务读路径只引用 canonical 列，再在同一事务插入 v002 版本记录和 checksum 后提交。提交后再次执行只读自检，失败则服务保持不可用并按备份恢复流程处理。
-
-**幂等与回滚**：迁移脚本以版本记录和实际列集合双重判定；已完成 v002 且 canonical 列/隔离列完整时再次执行返回 `already_applied`，不得重复建列、改值或增加版本记录。迁移中断、锁超时、冲突、类型转换失败、校验失败或版本跳跃均回滚整个事务；若进程在提交后异常，下一次 `check/migrate` 依据版本和列状态安全续检，不重复回填。回滚命令只能使用已验证备份或显式反向迁移脚本，不在 Web 请求中执行。
-
-**当前错误的直接防护**：当 ORM 查询计划包含 `il_transaction.transaction_price` 而 Inspector 发现只有 `unit_price` 时，`SchemaManager` 在启动阶段报告“schema mismatch: missing transaction_price/transaction_quantity; legacy unit_price/quantity detected”，记录 schema 版本并拒绝服务；即使请求绕过启动门禁，`OperationalError` 也必须按下文数据库/schema 类异常处理，不能把 SQL 文本返回客户端。
+**生产化门禁**：当数据库开始保存不可丢失数据、进入持久化联调或部署生产环境前，必须停止删除表重建策略，冻结初始 schema，并另行实现 schema 版本表、结构检查、备份及正式版本化迁移。该生产迁移机制当前暂缓，不得被标记为已实现。
 
 ### 3. Pydantic 模型（`schemas.py`）
 

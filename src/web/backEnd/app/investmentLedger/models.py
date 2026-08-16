@@ -38,10 +38,6 @@ PRODUCT_CODE_LENGTH = 32
 
 
 
-#: 旧版直接构造估值时使用的来源标识；正式估值摄取必须显式提供受信来源（需求 3.11、3.13）
-LEGACY_SOURCE_ID = "legacy"
-
-
 class Base(DeclarativeBase):
     """本模块独立的声明式基类。
 
@@ -120,15 +116,11 @@ class Valuation(Base):
     #: 估值单价；由标准化采集结果提供，使用 DecimalText 保持十进制精度（需求 3.2）
     unit_price: Mapped[Decimal] = mapped_column(DecimalText())
 
-    #: 外部数据源稳定标识，如 eastmoney；用于来源优先级与审计（需求 3.1、3.11、3.17）。
-    #: 默认值仅兼容旧版直接构造调用；正式摄取必须传入受信来源标识。
-    source_id: Mapped[str] = mapped_column(
-        String(64), default=LEGACY_SOURCE_ID
-    )
+    #: 外部数据源稳定标识，如 eastmoney；必须由正式摄取流程显式提供（需求 3.1、3.11、3.17）。
+    source_id: Mapped[str] = mapped_column(String(64))
 
-    #: 采集完成时间；标准化为采集流程使用的时间值，不替代估值日期（需求 3.11、3.12）。
-    #: 默认值仅兼容旧版直接构造调用；正式摄取必须传入标准化采集时间。
-    collected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    #: 采集完成时间；必须由正式摄取流程显式提供，不以写库时间替代（需求 3.11、3.12）。
+    collected_at: Mapped[datetime] = mapped_column(DateTime)
 
     #: 原始 URL、响应记录 ID 或内容摘要；不保存敏感请求头，可为空（需求 3.11、3.12）
     source_reference: Mapped[str | None] = mapped_column(String(512), nullable=True)

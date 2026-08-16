@@ -21,4 +21,8 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-logger.info(f"使用数据库：{SQLALCHEMY_DATABASE_URL}")
+logger.info(
+    "database_initialized mode=%s database_file=%s",
+    os.getenv("mode", "dev"),
+    os.path.basename(DB_FILE_PATH),
+)

@@ -2,7 +2,7 @@
 
 from decimal import Decimal, InvalidOperation
 
-from sqlalchemy import String
+from sqlalchemy import Text
 from sqlalchemy.types import TypeDecorator
 
 #: 估值独立规则使用的两位标度常量；交易字段不使用它们。
@@ -17,7 +17,7 @@ class DecimalText(TypeDecorator):
     仍由自身 schema/normalizer 决定独立的精度规则。
     """
 
-    impl = String
+    impl = Text
     cache_ok = True
 
     def process_bind_param(self, value: Decimal | None, dialect) -> str | None:
