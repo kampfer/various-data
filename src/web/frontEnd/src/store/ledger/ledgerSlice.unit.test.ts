@@ -29,8 +29,8 @@ const transaction: TransactionOut = {
   productType: 'FUND',
   productName: '测试基金',
   productCode: 'F001',
-  unitPrice: '1.25',
-  quantity: 10,
+  transactionPrice: '1.25',
+  transactionQuantity: '10',
   direction: 'BUY',
   tradeDate: '2024-01-02',
 };

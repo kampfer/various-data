@@ -7,6 +7,7 @@ import type { ProductScope } from '../../../domain/ledger/LedgerQueryState';
 import {
   PRODUCT_TYPE_LABELS,
   TRADE_DIRECTION_LABELS,
+  TRADE_VALUE_LABELS,
 } from '../../../domain/ledger/labels';
 import styles from './index.module.scss';
 
@@ -77,8 +78,14 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
       },
       { title: '产品名称', dataIndex: 'productName', key: 'productName' },
       { title: '产品代码', dataIndex: 'productCode', key: 'productCode' },
-      { title: '交易单价', dataIndex: 'unitPrice', key: 'unitPrice' },
-      { title: '交易数量', dataIndex: 'quantity', key: 'quantity' },
+      {
+        title: '净值/单价', dataIndex: 'transactionPrice', key: 'transactionPrice',
+        render: (value: string, record: TransactionOut) => `${TRADE_VALUE_LABELS[record.productType].price}：${value}`,
+      },
+      {
+        title: '份额/数量', dataIndex: 'transactionQuantity', key: 'transactionQuantity',
+        render: (value: string, record: TransactionOut) => `${TRADE_VALUE_LABELS[record.productType].quantity}：${value}`,
+      },
       {
         title: '交易方向',
         dataIndex: 'direction',

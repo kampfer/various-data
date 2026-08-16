@@ -21,8 +21,8 @@ ItemT = TypeVar("ItemT")
 class TransactionLike(Protocol):
     """产品业绩计算所需的最小交易只读接口。"""
 
-    unit_price: Decimal
-    quantity: int
+    transaction_price: Decimal
+    transaction_quantity: Decimal
     direction: str
     trade_date: date
 
@@ -208,21 +208,21 @@ class ProductPerformanceCalculator:
         """
         with localcontext() as context:
             context.prec = 28
-            buyQuantity = 0
-            sellQuantity = 0
+            buyQuantity = Decimal(0)
+            sellQuantity = Decimal(0)
             cumulativeBuyAmount = Decimal(0)
             cumulativeSellAmount = Decimal(0)
             firstBuyDate: date | None = None
 
             for txn in txns:
-                amount = txn.unit_price * Decimal(txn.quantity)
+                amount = txn.transaction_price * txn.transaction_quantity
                 if txn.direction == TradeDirection.BUY:
-                    buyQuantity += txn.quantity
+                    buyQuantity += txn.transaction_quantity
                     cumulativeBuyAmount += amount
                     if firstBuyDate is None or txn.trade_date < firstBuyDate:
                         firstBuyDate = txn.trade_date
                 elif txn.direction == TradeDirection.SELL:
-                    sellQuantity += txn.quantity
+                    sellQuantity += txn.transaction_quantity
                     cumulativeSellAmount += amount
                 else:
                     raise ValueError("交易方向必须为 BUY 或 SELL")

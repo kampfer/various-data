@@ -36,8 +36,6 @@ PRODUCT_NAME_LENGTH = 100
 #: 产品代码列长度上限，与 ``constants.MAX_PRODUCT_CODE_LENGTH`` 对应（需求 1.2、3.2）
 PRODUCT_CODE_LENGTH = 32
 
-#: 金额类列的声明长度：``999999999.99`` 仅 12 字符，20 足以容纳负号与更长的中间值
-DECIMAL_TEXT_LENGTH = 20
 
 
 #: 旧版直接构造估值时使用的来源标识；正式估值摄取必须显式提供受信来源（需求 3.11、3.13）
@@ -75,11 +73,11 @@ class Transaction(Base):
     #: 单列索引支撑产品代码的包含匹配搜索（需求 2.17、2.18）
     product_code: Mapped[str] = mapped_column(String(PRODUCT_CODE_LENGTH), index=True)
 
-    #: 交易单价，> 0 且恰两位小数（需求 1.2）；以 TEXT 精确存放 ``Decimal``
-    unit_price: Mapped[Decimal] = mapped_column(DecimalText(DECIMAL_TEXT_LENGTH))
+    #: 交易价格，有限且大于 0 的 Decimal；以无长度、无标度的 TEXT 精确存放（需求 1.2、1.3）。
+    transaction_price: Mapped[Decimal] = mapped_column(DecimalText())
 
-    #: 交易数量，> 0 的整数（需求 1.2）
-    quantity: Mapped[int]
+    #: 交易数量，理财/基金为有限正 Decimal，股票为正整数；仍以无标度 TEXT 精确存放。
+    transaction_quantity: Mapped[Decimal] = mapped_column(DecimalText())
 
     #: 交易方向英文码，取值 ∈ {BUY, SELL}（需求 1.1、1.2）；
     #: 单列索引支撑按交易方向筛选（需求 2.16）
@@ -120,7 +118,7 @@ class Valuation(Base):
     valuation_date: Mapped[date] = mapped_column(Date)
 
     #: 估值单价；由标准化采集结果提供，使用 DecimalText 保持十进制精度（需求 3.2）
-    unit_price: Mapped[Decimal] = mapped_column(DecimalText(DECIMAL_TEXT_LENGTH))
+    unit_price: Mapped[Decimal] = mapped_column(DecimalText())
 
     #: 外部数据源稳定标识，如 eastmoney；用于来源优先级与审计（需求 3.1、3.11、3.17）。
     #: 默认值仅兼容旧版直接构造调用；正式摄取必须传入受信来源标识。

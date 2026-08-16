@@ -71,7 +71,7 @@ describe('通信层错误归一', () => {
   it('将 422 响应归一为携带中文字段提示的 LedgerApiError', async () => {
     const fieldErrors: FieldErrorItem[] = [
       { field: 'productType', code: 'NOT_IN_ENUM', message: '产品类型必须为理财、基金或股票之一' },
-      { field: 'unitPrice', code: 'INVALID_SCALE', message: '交易单价必须恰有两位小数' },
+      { field: 'transactionPrice', code: 'NOT_A_NUMBER', message: '交易价格必须是有限十进制数值' },
     ];
     const error = await captureLedgerError(
       unwrap(Promise.reject(responseError(422, {

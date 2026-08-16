@@ -90,8 +90,8 @@ def addTransaction(
         product_type=payload.product_type.value,
         product_name=payload.product_name,
         product_code=payload.product_code,
-        unit_price=payload.unit_price,
-        quantity=payload.quantity,
+        transaction_price=payload.transaction_price,
+        transaction_quantity=payload.transaction_quantity,
         direction=payload.direction.value,
         trade_date=payload.trade_date,
     )

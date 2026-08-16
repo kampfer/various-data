@@ -1,5 +1,5 @@
 // api/ledger.ts
-// 账本模块唯一 HTTP 出口：函数签名即前后端契约，与「后端设计 4」的 7 个接口一一对应。
+// 账本模块唯一 HTTP 出口；交易请求使用 canonical transactionPrice/transactionQuantity。
 // 约定：
 //   1. 复用 request.ts 的 axios 实例（baseURL 已含 /api/investmentLedger）与 unwrap<T>() 泛型解包，
 //      本文件不出现裸 axios、不拼接前缀、不处理错误（失败统一为 LedgerApiError）。

@@ -25,6 +25,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
@@ -51,8 +52,14 @@ from app.investmentLedger.types import DECIMAL_EXPONENT, DECIMAL_SCALE
 #: 取值不属于预定义枚举（如产品类型传入中文字面量或小写码）
 ERROR_CODE_NOT_IN_ENUM = "NOT_IN_ENUM"
 
-#: 小数位数不符合约定（交易单价须恰两位、估值单价须不超过两位）
+#: 小数位数不符合估值的独立精度规则。
 ERROR_CODE_INVALID_SCALE = "INVALID_SCALE"
+
+#: 无法解析为有限十进制文本。
+ERROR_CODE_NOT_A_NUMBER = "NOT_A_NUMBER"
+
+#: 数值必须为正整数（股票交易数量）。
+ERROR_CODE_NOT_INTEGER = "NOT_INTEGER"
 
 #: 数值或日期范围越界（含页码/页大小越界、起始日期晚于结束日期）
 ERROR_CODE_OUT_OF_RANGE = "OUT_OF_RANGE"
@@ -190,7 +197,7 @@ class ApiResponse(LedgerSchema, Generic[T]):
 class FieldErrorItem(LedgerSchema):
     """字段级错误项，前端据此把错误定位到具体表单项并保留已填值（需求 1.2、3.2）。"""
 
-    #: camelCase 字段名，与前端表单项名称一致，如 unitPrice
+    #: camelCase 字段名，与前端表单项名称一致，如 transactionPrice
     field: str
 
     #: 英文错误码，取值见本模块 ERROR_CODE_* 常量（NOT_IN_ENUM / INVALID_SCALE / OUT_OF_RANGE / TOO_LONG）
@@ -276,11 +283,11 @@ class TransactionCreate(LedgerSchema):
     #: 产品代码，1..32 字符（需求 1.2）；与产品类型共同构成产品键（需求 2.5）
     product_code: str = Field(min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH)
 
-    #: 交易单价，> 0 且小数位恰为 2（需求 1.2）；以 Decimal 承载，禁止 float 入参
-    unit_price: Decimal
+    #: 交易价格，有限且大于 0；不限制小数位、整数位或最大值。
+    transaction_price: Decimal
 
-    #: 交易数量，> 0 的整数（需求 1.2）
-    quantity: int = Field(gt=0)
+    #: 交易数量：理财/基金为有限正 Decimal，股票必须为正整数。
+    transaction_quantity: Decimal
 
     #: 交易方向英文码，取值 ∈ {BUY, SELL}（需求 1.1、1.2）
     direction: TradeDirection
@@ -288,38 +295,34 @@ class TransactionCreate(LedgerSchema):
     #: 交易日期，有效公历日期（需求 1.2）；非法日历日期（如 2 月 30 日）在解析阶段即失败
     trade_date: date
 
-    @field_validator("unit_price", mode="before")
+    @field_validator("transaction_price", mode="before")
     @classmethod
-    def parseUnitPrice(cls, value: object) -> Decimal:
-        """把交易单价精确解析为 ``Decimal``，拒绝 ``float`` 与非十进制字面量。
+    def parseTransactionPrice(cls, value: object) -> Decimal:
+        """精确解析交易价格，拒绝 float、NaN、Infinity 与非法文本。"""
+        return _toDecimal(value, ERROR_CODE_NOT_A_NUMBER, "交易价格必须是有限十进制数值")
 
-        :param value: 原始入参（``Decimal`` / ``int`` / 十进制字符串）。
-        :returns: 解析后的 ``Decimal``，标度保持原字面量。
-        :raises PydanticCustomError: 无法精确解析为十进制数值（需求 1.2）。
-        """
-        return _toDecimal(
-            value,
-            ERROR_CODE_INVALID_SCALE,
-            "交易单价必须是大于 0 且恰有两位小数的十进制数值",
-        )
-
-    @field_validator("unit_price")
+    @field_validator("transaction_quantity", mode="before")
     @classmethod
-    def checkUnitPrice(cls, value: Decimal) -> Decimal:
-        """校验交易单价 > 0 且小数位**恰为** 2（需求 1.2）。
+    def parseTransactionQuantity(cls, value: object) -> Decimal:
+        """精确解析交易数量，保留原有小数位而不量化。"""
+        return _toDecimal(value, ERROR_CODE_NOT_A_NUMBER, "交易数量必须是有限十进制数值")
 
-        :param value: 已解析的交易单价。
-        :returns: 校验通过的交易单价。
-        :raises PydanticCustomError: 非正数，或小数位不等于 2（如 ``10`` / ``10.5`` / ``10.123``）。
-        """
+    @field_validator("transaction_price")
+    @classmethod
+    def checkTransactionPrice(cls, value: Decimal) -> Decimal:
+        """交易价格仅要求有限且大于零。"""
         if value <= 0:
-            raise PydanticCustomError(
-                ERROR_CODE_OUT_OF_RANGE, "交易单价必须大于 0"
-            )
-        if value.as_tuple().exponent != -DECIMAL_SCALE:
-            raise PydanticCustomError(
-                ERROR_CODE_INVALID_SCALE, "交易单价必须恰有两位小数，例如 12.30"
-            )
+            raise PydanticCustomError(ERROR_CODE_OUT_OF_RANGE, "交易价格必须大于 0")
+        return value
+
+    @field_validator("transaction_quantity")
+    @classmethod
+    def checkTransactionQuantity(cls, value: Decimal, info: ValidationInfo) -> Decimal:
+        """按产品类型校验交易数量，股票不得带小数部分。"""
+        if value <= 0:
+            raise PydanticCustomError(ERROR_CODE_OUT_OF_RANGE, "交易数量必须大于 0")
+        if info.data.get("product_type") == ProductType.STOCK and value != value.to_integral_value():
+            raise PydanticCustomError(ERROR_CODE_NOT_INTEGER, "股票数量必须为正整数")
         return value
 
 
@@ -338,11 +341,11 @@ class TransactionOut(LedgerSchema):
     #: 产品代码
     product_code: str
 
-    #: 交易单价，十进制字符串，恰两位小数（序列化为字符串以规避 JSON 浮点误差）
-    unit_price: AmountString
+    #: 交易价格，十进制字符串；完整保留已保存的输入精度。
+    transaction_price: DecimalString
 
-    #: 交易数量，> 0 的整数
-    quantity: int
+    #: 交易数量，十进制字符串；股票记录由创建校验保证其为正整数。
+    transaction_quantity: DecimalString
 
     #: 交易方向英文码，前端经展示映射转中文
     direction: TradeDirection

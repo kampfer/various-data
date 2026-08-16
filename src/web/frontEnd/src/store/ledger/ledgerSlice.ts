@@ -18,8 +18,8 @@ const createEmptyTradeDraft = (): TradeDraft => ({
   productType: null,
   productName: null,
   productCode: null,
-  unitPrice: null,
-  quantity: null,
+  transactionPrice: null,
+  transactionQuantity: null,
   direction: null,
   tradeDate: null,
 });

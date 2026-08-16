@@ -41,7 +41,9 @@ from app.investmentLedger.constants import (
 )
 from app.investmentLedger.schemas import (
     ERROR_CODE_INVALID_SCALE,
+    ERROR_CODE_NOT_A_NUMBER,
     ERROR_CODE_NOT_IN_ENUM,
+    ERROR_CODE_NOT_INTEGER,
     ERROR_CODE_OUT_OF_RANGE,
     ERROR_CODE_TOO_LONG,
     FieldErrorItem,
@@ -287,8 +289,8 @@ PYDANTIC_TYPE_TO_ERROR_CODE = {
     "literal_error": ERROR_CODE_NOT_IN_ENUM,  # Literal 取值非法（排序方向、模块标识）
     "string_too_long": ERROR_CODE_TOO_LONG,  # 文本超长
     "decimal_max_places": ERROR_CODE_INVALID_SCALE,  # 小数位超限
-    "decimal_parsing": ERROR_CODE_INVALID_SCALE,  # 十进制字面量非法
-    "float_parsing": ERROR_CODE_INVALID_SCALE,  # 数值字面量非法
+    "decimal_parsing": ERROR_CODE_NOT_A_NUMBER,  # 十进制字面量非法
+    "float_parsing": ERROR_CODE_NOT_A_NUMBER,  # 数值字面量非法
 }
 
 #: 字段 → 中文标签，供兜底句子拼装（后端此处的中文只服务于错误提示，不承担展示职责）
@@ -296,8 +298,8 @@ FIELD_LABELS = {
     "productType": "产品类型",
     "productName": "产品名称",
     "productCode": "产品代码",
-    "unitPrice": "单价",
-    "quantity": "交易数量",
+    "transactionPrice": "交易价格",
+    "transactionQuantity": "交易数量",
     "direction": "交易方向",
     "tradeDate": "交易日期",
     "valuationDate": "估值日期",
@@ -343,11 +345,11 @@ FIELD_MESSAGES = {
     ("scopeProductCode", ERROR_CODE_OUT_OF_RANGE): (
         f"产品历史交易范围的产品代码不能为空，且不能超过 {MAX_PRODUCT_CODE_LENGTH} 个字符"
     ),
-    ("quantity", ERROR_CODE_OUT_OF_RANGE): "交易数量必须是大于 0 的整数",
-    ("unitPrice", ERROR_CODE_OUT_OF_RANGE): (
-        f"单价必须是大于 0 且不超过 {MAX_VALUATION_UNIT_PRICE} 的十进制数值"
-    ),
-    ("unitPrice", ERROR_CODE_INVALID_SCALE): "单价必须是小数位不超过两位的十进制数值",
+    ("transactionQuantity", ERROR_CODE_OUT_OF_RANGE): "交易数量必须大于 0",
+    ("transactionQuantity", ERROR_CODE_NOT_INTEGER): "股票数量必须为正整数",
+    ("transactionPrice", ERROR_CODE_OUT_OF_RANGE): "交易价格必须大于 0",
+    ("transactionPrice", ERROR_CODE_NOT_A_NUMBER): "交易价格必须是有限十进制数值",
+    ("transactionQuantity", ERROR_CODE_NOT_A_NUMBER): "交易数量必须是有限十进制数值",
     ("tradeDate", ERROR_CODE_OUT_OF_RANGE): "交易日期必须是有效的日历日期",
     ("valuationDate", ERROR_CODE_OUT_OF_RANGE): "估值日期必须是有效的日历日期",
     ("startDate", ERROR_CODE_OUT_OF_RANGE): (
