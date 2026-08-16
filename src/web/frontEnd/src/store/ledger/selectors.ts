@@ -4,6 +4,7 @@ import { createSelector } from '@reduxjs/toolkit';
 import LedgerQueryState from '../../domain/ledger/LedgerQueryState';
 import type { FieldError } from '../../domain/ledger/TradeDraftValidator';
 import type { HoldingOut, TransactionOut } from '../../api/types';
+import type { LedgerModule } from '../../domain/ledger/constants';
 import type { LedgerRootState } from './types';
 
 /** 当前页可能包含的行 DTO；具体类型由当前模块决定。 */
@@ -31,14 +32,20 @@ export type FieldErrorMap = Readonly<Record<string, string>>;
 /** 根选择器：复用任务 12.1 的最小根状态契约，未来 RootState 与其结构兼容。 */
 export const selectLedger = (state: LedgerRootState) => state.ledger;
 
-/** 当前模块；null 表示初始模块尚未决定。 */
-export const selectCurrentModule = createSelector(
-  [selectLedger],
-  (ledger) => ledger.activeModule,
+/** 由路由容器传入目标模块，以读取对应模块的行数据。 */
+const selectTargetModule = (_state: LedgerRootState, module: LedgerModule): LedgerModule => module;
+
+/** 路由目标模块的当前页行数据；模块值由 URL 派生，不存入 Redux。 */
+export const selectModuleRows = createSelector(
+  [selectLedger, selectTargetModule],
+  (ledger, module): readonly CurrentPageRow[] => ledger[module].items,
 );
 
-/** 与设计文档命名保持兼容。 */
-export const selectActiveModule = selectCurrentModule;
+/** 路由目标模块的浏览状态领域对象；模块值由 URL 派生。 */
+export const selectModuleQuery = createSelector(
+  [selectLedger, selectTargetModule],
+  (ledger, module) => LedgerQueryState.from(ledger[module].query),
+);
 
 /** 历史交易查询领域对象；仅在快照引用变化时重建。 */
 export const selectHistoryQuery = createSelector(
@@ -61,18 +68,6 @@ export const selectHistoryRows = createSelector(
 export const selectHoldingsRows = createSelector(
   [selectLedger],
   (ledger) => ledger.holdings.items,
-);
-
-const EMPTY_ROWS: readonly CurrentPageRow[] = Object.freeze([]);
-
-/** 当前激活模块的页行数据；模块未决定时返回稳定的只读空数组。 */
-export const selectCurrentPageRows = createSelector(
-  [selectCurrentModule, selectHistoryRows, selectHoldingsRows],
-  (module, historyRows, holdingsRows): readonly CurrentPageRow[] => {
-    if (module === 'history') return historyRows;
-    if (module === 'holdings') return holdingsRows;
-    return EMPTY_ROWS;
-  },
 );
 
 interface PaginationSource {
@@ -107,14 +102,10 @@ export const selectHoldingsPagination = createSelector(
   (ledger) => toPaginationInfo(ledger.holdings),
 );
 
-/** 当前模块分页信息；模块未决定时为 null。 */
-export const selectCurrentPagination = createSelector(
-  [selectCurrentModule, selectHistoryPagination, selectHoldingsPagination],
-  (module, history, holdings): PaginationInfo | null => {
-    if (module === 'history') return history;
-    if (module === 'holdings') return holdings;
-    return null;
-  },
+/** 由路由容器传入目标模块，以读取对应模块的分页信息。 */
+export const selectModulePagination = createSelector(
+  [selectLedger, selectTargetModule],
+  (ledger, module) => toPaginationInfo(ledger[module]),
 );
 
 /** 是否正在浏览单个产品的历史交易范围。 */
@@ -144,10 +135,4 @@ const toFieldErrorMap = (errors: readonly FieldError[]): FieldErrorMap => {
 export const selectTradeFieldErrorMap = createSelector(
   [selectLedger],
   (ledger) => toFieldErrorMap(ledger.tradeForm.fieldErrors),
-);
-
-/** 估值表单字段错误映射。 */
-export const selectValuationFieldErrorMap = createSelector(
-  [selectLedger],
-  (ledger) => toFieldErrorMap(ledger.valuationForm.fieldErrors),
 );

@@ -50,3 +50,7 @@ MAX_SEARCH_VALUE_LENGTH = 100  # 产品名称/产品代码搜索值长度上限�
 
 ANNUALIZATION_DAYS = 365  # 年化换算使用的年度自然日天数（需求 3.8）
 MAX_VALUATION_UNIT_PRICE = "999999999.99"  # 估值单价上限（需求 3.2），以字符串给出以便 Decimal 精确构造
+
+# 核心受控估值来源优先级：数值越小越优先；未配置来源由读取层稳定置后。
+# legacy 仅用于兼容既有数据库中的直接构造记录，正式采集来源应由核心配置显式登记。
+SOURCE_PRIORITY: dict[str, int] = {"legacy": 1000}

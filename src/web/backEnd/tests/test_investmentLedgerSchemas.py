@@ -37,7 +37,7 @@ from app.investmentLedger.schemas import (
     ERROR_CODE_OUT_OF_RANGE,
     TransactionCreate,
     TransactionQuery,
-    ValuationUpsert,
+    InternalValuationCandidate,
 )
 
 #: 一份全字段合法的创建交易入参，作为各用例的基线（键名为对外 camelCase 别名）
@@ -145,7 +145,7 @@ class TestEnumRejection:
     ) -> None:
         """估值入参的产品类型同样只接受英文码（需求 3.2）。"""
         with pytest.raises(ValidationError) as caught:
-            ValuationUpsert(**buildValuationPayload(productType=illegalProductType))
+            InternalValuationCandidate(**buildValuationPayload(productType=illegalProductType))
 
         assert list(collectFieldErrors(caught.value)) == ["productType"]
 
@@ -201,12 +201,12 @@ class TestTextLengthBoundaries:
 
     def testValuationProductCodeUpperBoundIsEnforced(self) -> None:
         """估值入参的产品代码同样限长 32（需求 3.2）。"""
-        ValuationUpsert(
+        InternalValuationCandidate(
             **buildValuationPayload(productCode="C" * MAX_PRODUCT_CODE_LENGTH)
         )
 
         with pytest.raises(ValidationError) as caught:
-            ValuationUpsert(
+            InternalValuationCandidate(
                 **buildValuationPayload(
                     productCode="C" * (MAX_PRODUCT_CODE_LENGTH + 1)
                 )
@@ -276,7 +276,7 @@ class TestUnitPriceScale:
         self, validPrice: str
     ) -> None:
         """估值单价允许 0..2 位小数，且下界 0 与上界 999999999.99 均合法。"""
-        model = ValuationUpsert(**buildValuationPayload(unitPrice=validPrice))
+        model = InternalValuationCandidate(**buildValuationPayload(unitPrice=validPrice))
         assert model.unit_price == Decimal(validPrice)
 
     @pytest.mark.parametrize("illegalPrice", ["1.234", "0.001"])
@@ -285,7 +285,7 @@ class TestUnitPriceScale:
     ) -> None:
         """估值单价三位小数以 ``INVALID_SCALE`` 拒绝，错误定位到 ``unitPrice``。"""
         with pytest.raises(ValidationError) as caught:
-            ValuationUpsert(**buildValuationPayload(unitPrice=illegalPrice))
+            InternalValuationCandidate(**buildValuationPayload(unitPrice=illegalPrice))
 
         fieldErrors = collectFieldErrors(caught.value)
         assert list(fieldErrors) == ["unitPrice"]
@@ -297,7 +297,7 @@ class TestUnitPriceScale:
     ) -> None:
         """估值单价越出 0..999999999.99 闭区间以 ``OUT_OF_RANGE`` 拒绝（需求 3.2）。"""
         with pytest.raises(ValidationError) as caught:
-            ValuationUpsert(**buildValuationPayload(unitPrice=illegalPrice))
+            InternalValuationCandidate(**buildValuationPayload(unitPrice=illegalPrice))
 
         fieldErrors = collectFieldErrors(caught.value)
         assert list(fieldErrors) == ["unitPrice"]
@@ -334,7 +334,7 @@ class TestCalendarDate:
     def testIllegalCalendarValuationDateIsLocatedOnValuationDateField(self) -> None:
         """估值日期同样拒绝非法日历日期（需求 3.2）。"""
         with pytest.raises(ValidationError) as caught:
-            ValuationUpsert(**buildValuationPayload(valuationDate="2024-02-30"))
+            InternalValuationCandidate(**buildValuationPayload(valuationDate="2024-02-30"))
 
         assert list(collectFieldErrors(caught.value)) == ["valuationDate"]
 

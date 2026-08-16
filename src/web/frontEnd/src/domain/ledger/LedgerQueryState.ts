@@ -1,6 +1,6 @@
 // domain/ledger/LedgerQueryState.ts
 // 浏览状态（筛选 + 搜索 + 排序 + 分页 + 产品范围）的不可变值对象：
-// 所有变换方法返回新实例，重置规则（需求 2.9 / 2.13 / 2.27）在此唯一实现。
+// 所有变换方法返回新实例；导航重置由 default/defaultWithScope 提供，查询条件变更的页码规则在此唯一实现。
 import type { ProductType, TradeDirection, LedgerModule, SortOrder, HoldingSortField } from './constants';
 import { DEFAULT_PAGE_SIZE } from './constants';
 
@@ -63,6 +63,19 @@ const MODULE_DEFAULT_PAGE_SIZE: Record<LedgerModule, number> = {
 /** 产品历史交易范围字段：不参与「是否为默认浏览状态」的比较（需求 2.9） */
 const SCOPE_KEYS: readonly (keyof LedgerQuerySnapshot)[] = ['scopeProductType', 'scopeProductCode'];
 
+/** 可由 withFilters 修改的查询条件；页码、页大小和产品范围由专门方法/导航意图管理。 */
+const FILTER_KEYS: readonly (keyof LedgerQuerySnapshot)[] = [
+  'productType',
+  'direction',
+  'startDate',
+  'endDate',
+  'productName',
+  'productCode',
+  'tradeDateOrder',
+  'holdingSortField',
+  'holdingSortOrder',
+];
+
 /** 浏览状态值对象：构造私有，只能经 default / defaultWithScope / from 创建 */
 export default class LedgerQueryState {
   /**
@@ -102,6 +115,9 @@ export default class LedgerQueryState {
    * @returns 需求 2.9 要求的状态（不继承任何此前条件）
    */
   static defaultWithScope(module: LedgerModule, scope: ProductScope): LedgerQueryState {
+    if (module !== 'history') {
+      throw new Error('产品历史交易范围仅适用于历史交易记录模块');
+    }
     return new LedgerQueryState({
       ...LedgerQueryState.default(module).snapshot,
       scopeProductType: scope.productType,
@@ -114,7 +130,7 @@ export default class LedgerQueryState {
    * @param snapshot 已存在的快照，不会被修改（内部持有其浅拷贝，避免冻结调用方对象）
    */
   static from(snapshot: LedgerQuerySnapshot): LedgerQueryState {
-    return new LedgerQueryState({ ...snapshot });
+    return new LedgerQueryState(LedgerQueryState.normalizeScope(snapshot));
   }
 
   /**
@@ -123,7 +139,8 @@ export default class LedgerQueryState {
    * @returns 新实例；**不变量：只要 patch 非空即把 page 置为 1**（需求 2.27）
    */
   withFilters(patch: Partial<LedgerQuerySnapshot>): LedgerQueryState {
-    const effective = LedgerQueryState.pickDefined(patch);
+    // 范围不是普通筛选条件：它只能由 holding-scope 导航通过 defaultWithScope 注入。
+    const effective = LedgerQueryState.pickDefined(patch, FILTER_KEYS);
     // 空补丁不构成「更改条件」，浏览状态（含页码）原样保持
     if (Object.keys(effective).length === 0) return this;
     return new LedgerQueryState({ ...this.snapshot, ...effective, page: 1 });
@@ -175,15 +192,28 @@ export default class LedgerQueryState {
   }
 
   /**
-   * 剔除补丁中值为 undefined 的键：`Partial` 允许显式传 undefined，
-   * 但那语义上等于「未变更」，不能覆盖原值也不应触发页码重置。
+   * 规范化产品历史交易范围：状态中不能出现只含一个范围键的快照。
+   * 来自 Redux/持久化边界的异常半范围按「无范围」处理，避免把不完整范围误发给后端。
    */
-  private static pickDefined(patch: Partial<LedgerQuerySnapshot>): Partial<LedgerQuerySnapshot> {
+  private static normalizeScope(snapshot: LedgerQuerySnapshot): LedgerQuerySnapshot {
+    const hasType = snapshot.scopeProductType !== null && snapshot.scopeProductType !== undefined;
+    const hasCode = snapshot.scopeProductCode !== null && snapshot.scopeProductCode !== undefined;
+    if (hasType === hasCode) return { ...snapshot };
+    return { ...snapshot, scopeProductType: null, scopeProductCode: null };
+  }
+
+  /**
+   * 剔除补丁中值为 undefined 的键，并限制为普通查询条件字段。
+   * `Partial` 允许显式传 undefined，但那语义上等于「未变更」，不能覆盖原值也不应触发页码重置。
+   */
+  private static pickDefined(
+    patch: Partial<LedgerQuerySnapshot>,
+    allowedKeys: readonly (keyof LedgerQuerySnapshot)[],
+  ): Partial<LedgerQuerySnapshot> {
     const result: Record<string, unknown> = {};
-    (Object.keys(patch) as (keyof LedgerQuerySnapshot)[]).forEach((key) => {
+    allowedKeys.forEach((key) => {
       const value = patch[key];
-      if (value === undefined) return;
-      result[key] = value;
+      if (value !== undefined) result[key] = value;
     });
     return result as Partial<LedgerQuerySnapshot>;
   }

@@ -517,8 +517,8 @@ class PortfolioStatisticsOut(LedgerSchema):
 # ---------------------------------------------------------------------------
 
 
-class ValuationUpsert(LedgerSchema):
-    """估值写入入参（需求 3.1、3.2）；同键重复提交由 upsert 覆盖（需求 3.3）。"""
+class InternalValuationCandidate(LedgerSchema):
+    """内部标准估值候选契约，仅供兼容既有模型测试；公开账本不暴露写入接口。"""
 
     #: 产品类型英文码，取值 ∈ {WEALTH, FUND, STOCK}（需求 3.1、3.2）
     product_type: ProductType
@@ -570,7 +570,7 @@ class ValuationUpsert(LedgerSchema):
 
 
 class ValuationOut(LedgerSchema):
-    """估值记录出参（``PUT /valuations`` 的回显，需求 3.3）。"""
+    """内部估值快照契约，不属于公开账本响应。"""
 
     #: 产品类型英文码
     product_type: ProductType

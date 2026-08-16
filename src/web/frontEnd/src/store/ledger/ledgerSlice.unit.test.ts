@@ -14,8 +14,7 @@ import ledgerReducer, {
   applyQuery,
   changePage,
   changePageSize,
-  openHistoryWithScope,
-  switchModule,
+  openHistoryScope,
 } from './ledgerSlice';
 import * as thunks from './thunks';
 
@@ -77,10 +76,9 @@ afterEach(() => {
 });
 
 describe('ledger slice 查询状态不变量', () => {
-  it('切换模块时以目标模块默认浏览状态打开并清空旧结果', () => {
-    let state = ledgerReducer(initialLedger(), switchModule('holdings'));
-    state = ledgerReducer(
-      state,
+  it('路由切换不派发 reducer，因此已应用历史快照与结果保持不变', () => {
+    let state = ledgerReducer(
+      initialLedger(),
       applyQuery({
         module: 'history',
         patch: { productName: '旧条件', tradeDateOrder: 'desc' },
@@ -92,14 +90,17 @@ describe('ledger slice 查询状态不变量', () => {
       state,
       thunks.fetchHistory.fulfilled(historyPage, 'history-success', undefined),
     );
+    const historyBeforeRouteSwitch = state.history;
 
-    state = ledgerReducer(state, switchModule('history'));
-
-    expect(state.activeModule).toBe('history');
-    expect(state.history.query).toEqual(LedgerQueryState.default('history').toSnapshot());
-    expect(state.history).toMatchObject({
-      items: [], total: 0, page: 1, pageSize: 20, pageCount: 0, loading: false, error: null,
+    // 路由切换不 dispatch ledger action；即使其它状态观察器触发未知 action，两个快照也必须保持。
+    const stateAfterRouteSwitch = ledgerReducer(state, { type: 'router/locationChanged' });
+    expect(stateAfterRouteSwitch).toBe(state);
+    expect(stateAfterRouteSwitch.history).toBe(historyBeforeRouteSwitch);
+    expect(state.history.query).toMatchObject({
+      productName: '旧条件', tradeDateOrder: 'desc', pageSize: 50, page: 4,
     });
+    expect(state).not.toHaveProperty('activeModule');
+    expect(state).not.toHaveProperty('bootstrapping');
   });
 
 
@@ -125,9 +126,9 @@ describe('ledger slice 查询状态不变量', () => {
     );
 
     const scope = { productType: 'STOCK' as const, productCode: '600000' };
-    state = ledgerReducer(state, openHistoryWithScope(scope));
+    state = ledgerReducer(state, openHistoryScope(scope));
 
-    expect(state.activeModule).toBe('history');
+    expect(state).not.toHaveProperty('activeModule');
     expect(state.history.query).toEqual(
       LedgerQueryState.defaultWithScope('history', scope).toSnapshot(),
     );
@@ -246,7 +247,7 @@ describe('根 store 迁移兼容性', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    store.dispatch(switchModule('history'));
+    store.dispatch(applyQuery({ module: 'history', patch: { productCode: 'F001' } }));
     store.dispatch({
       type: SET_FILTERS,
       payload: {

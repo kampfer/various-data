@@ -64,9 +64,15 @@ const snapshotArb: fc.Arbitrary<LedgerQuerySnapshot> = fc.record({
   holdingSortOrder: optional(fc.constantFrom('asc' as const, 'desc' as const)),
   page: fc.integer({ min: 1, max: 500 }),
   pageSize: fc.integer({ min: MIN_PAGE_SIZE, max: MAX_PAGE_SIZE }),
-  scopeProductType: optional(fc.constantFrom(...PRODUCT_TYPES)),
-  scopeProductCode: optional(productCodeArb),
-});
+  scope: optional(fc.record({
+    scopeProductType: fc.constantFrom(...PRODUCT_TYPES),
+    scopeProductCode: productCodeArb,
+  })),
+}).map(({ scope, ...snapshot }) => ({
+  ...snapshot,
+  scopeProductType: scope?.scopeProductType ?? null,
+  scopeProductCode: scope?.scopeProductCode ?? null,
+}));
 
 /** 持仓条目产品键 */
 const scopeArb: fc.Arbitrary<ProductScope> = fc.record({

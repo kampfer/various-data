@@ -24,7 +24,7 @@ from app.investmentLedger.exceptions import (
     TransactionNotFound,
     registerLedgerExceptionHandlers,
 )
-from app.investmentLedger.schemas import TransactionCreate, ValuationUpsert
+from app.investmentLedger.schemas import TransactionCreate
 
 
 def containsChinese(value: str) -> bool:
@@ -54,11 +54,6 @@ def exceptionApp() -> FastAPI:
     @app.post("/transactions")
     def validateTransaction(payload: TransactionCreate) -> dict[str, bool]:
         """仅触发交易请求模型校验，不执行交易写入。"""
-        return {"accepted": bool(payload)}
-
-    @app.put("/valuations")
-    def validateValuation(payload: ValuationUpsert) -> dict[str, bool]:
-        """仅触发估值请求模型校验，不执行估值写入。"""
         return {"accepted": bool(payload)}
 
     @app.post("/database/{errorName}")
@@ -202,22 +197,6 @@ def testBusinessExceptionsMapToExpectedEnvelope(
                     "code": "NOT_IN_ENUM",
                     "message": "交易方向必须为买入或卖出之一",
                 },
-            ],
-        ),
-        (
-            "/valuations",
-            {
-                "productType": "CRYPTO_ASSET",
-                "productCode": "TEST001",
-                "valuationDate": "2024-01-02",
-                "unitPrice": "1.00",
-            },
-            [
-                {
-                    "field": "productType",
-                    "code": "NOT_IN_ENUM",
-                    "message": "产品类型必须为理财、基金或股票之一",
-                }
             ],
         ),
     ],

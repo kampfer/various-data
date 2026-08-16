@@ -2,13 +2,11 @@
 // Redux 账本状态契约：只保存 DTO、草稿与 LedgerQuerySnapshot 等可序列化纯数据。
 import type { LedgerQuerySnapshot } from '../../domain/ledger/LedgerQueryState';
 import type { FieldError } from '../../domain/ledger/TradeDraftValidator';
-import type { LedgerModule } from '../../domain/ledger/constants';
 import type {
   HoldingOut,
   PortfolioStatisticsOut,
   TradeDraft,
   TransactionOut,
-  ValuationDraft,
 } from '../../api/types';
 
 /** 列表型模块的通用状态；T 为历史交易或持仓行 DTO。 */
@@ -31,7 +29,7 @@ export interface ListSliceState<T> {
   error: string | null;
 }
 
-/** 表单弹窗的通用状态；D 为交易或估值草稿。 */
+/** 表单状态；D 为交易草稿。 */
 export interface FormSliceState<D> {
   /** 弹窗是否可见。 */
   visible: boolean;
@@ -44,10 +42,6 @@ export interface FormSliceState<D> {
 }
 /** state.ledger 的完整、可序列化状态形状。 */
 export interface LedgerState {
-  /** 当前模块；null 表示初始模块尚未由 bootstrapLedger 决定。 */
-  activeModule: LedgerModule | null;
-  /** 初始模块决策请求是否正在进行。 */
-  bootstrapping: boolean;
   /** 历史交易记录模块的列表状态。 */
   history: ListSliceState<TransactionOut>;
   /** 持仓模块列表及其组合统计；null 表示统计尚未取得。 */
@@ -57,8 +51,6 @@ export interface LedgerState {
   };
   /** 新建交易表单状态。 */
   tradeForm: FormSliceState<TradeDraft>;
-  /** 维护估值表单状态。 */
-  valuationForm: FormSliceState<ValuationDraft>;
 }
 
 /**

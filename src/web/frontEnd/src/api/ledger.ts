@@ -15,9 +15,7 @@ import type {
   TransactionOut,
   HoldingOut,
   PortfolioStatisticsOut,
-  ValuationOut,
   TradeDraft,
-  ValuationDraft,
   TransactionQueryParams,
   HoldingQueryParams,
 } from './types';
@@ -88,13 +86,3 @@ export const fetchPortfolioStatistics = (
   params: HoldingQueryInput
 ): Promise<PortfolioStatisticsOut> =>
   unwrap(http.get<ApiEnvelope<PortfolioStatisticsOut>>('/portfolioStatistics', { params }));
-
-/**
- * 保存估值记录（接口 7：PUT /valuations，需求 3.1-3.3）。
- * 用 PUT 表达幂等语义：同一（产品类型, 产品代码, 估值日期）重复提交只保留最后一次单价。
- * @param payload 已通过 ValuationDraftValidator 校验的草稿
- * @returns 生效后的估值记录
- * @throws LedgerApiError 后端校验失败时携带 fieldErrors（需求 3.2）
- */
-export const upsertValuation = (payload: ValuationDraft): Promise<ValuationOut> =>
-  unwrap(http.put<ApiEnvelope<ValuationOut>>('/valuations', payload));

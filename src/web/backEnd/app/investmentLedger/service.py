@@ -25,6 +25,7 @@ from app.investmentLedger.constants import (
     MAX_PAGE_SIZE,
     MAX_SEARCH_VALUE_LENGTH,
     MIN_PAGE_SIZE,
+    SOURCE_PRIORITY,
 )
 from app.investmentLedger.exceptions import (
     InvalidDateRange,
@@ -43,8 +44,6 @@ from app.investmentLedger.schemas import (
     TransactionCreate,
     TransactionOut,
     TransactionQuery,
-    ValuationOut,
-    ValuationUpsert,
 )
 
 
@@ -273,7 +272,9 @@ class HoldingService:
         rows = crud.queryTransactions(self._db, query)
         groups = groupByProductKey(rows)
         latestValuations = crud.getLatestValuations(
-            self._db, [group.key for group in groups]
+            self._db,
+            [group.key for group in groups],
+            SOURCE_PRIORITY,
         )
 
         holdings: list[HoldingOut] = []
@@ -341,19 +342,6 @@ class HoldingService:
         return PortfolioStatisticsOut.model_validate(
             statistics, from_attributes=True
         )
-
-
-class ValuationService:
-    """估值记录写入用例，复用契约校验与数据访问层覆盖语义。"""
-
-    def __init__(self, db: Session) -> None:
-        """绑定请求级数据库会话；会话生命周期由调用方管理。"""
-        self._db = db
-
-    def upsertValuation(self, payload: ValuationUpsert) -> ValuationOut:
-        """写入或覆盖估值，并返回当前产品日期键对应的生效记录。"""
-        valuation = crud.upsertValuation(self._db, payload)
-        return ValuationOut.model_validate(valuation)
 
 
 class OverviewService:

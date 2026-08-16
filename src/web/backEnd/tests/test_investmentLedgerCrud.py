@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Iterator
 
@@ -18,14 +18,11 @@ from app.investmentLedger.crud import (
     getLatestValuations,
     queryTransactions,
     removeTransaction,
-    upsertValuation,
 )
 from app.investmentLedger.models import Base, Transaction, Valuation
-from app.investmentLedger.schemas import (
-    TransactionCreate,
-    TransactionQuery,
-    ValuationUpsert,
-)
+from app.investmentLedger.schemas import TransactionCreate, TransactionQuery
+from app.investmentLedger.valuation_ingest.protocol import StandardValuation
+from app.investmentLedger.valuation_ingest.repository import ValuationRepository
 
 
 @pytest.fixture()
@@ -158,18 +155,6 @@ def buildTransactionPayload(**overrides: object) -> TransactionCreate:
     return TransactionCreate(**values)
 
 
-def buildValuationPayload(**overrides: object) -> ValuationUpsert:
-    """构造已通过契约校验的估值写入参数。"""
-    values: dict[str, object] = {
-        "product_type": "FUND",
-        "product_code": "F-001",
-        "valuation_date": date(2024, 3, 1),
-        "unit_price": "1.30",
-    }
-    values.update(overrides)
-    return ValuationUpsert(**values)
-
-
 def testAddAndRemoveTransactionPersistExpectedRows(
     ledgerSession: Session,
 ) -> None:
@@ -253,33 +238,101 @@ def testGetLatestValuationsReturnsMaximumDatePerRequestedProduct(
     assert getLatestValuations(ledgerSession, []) == {}
 
 
-def testUpsertValuationKeepsOnlyLastOfNValues(
+def testGetLatestValuationsUsesSourcePriorityOnlyAmongLatestDateCandidates(
     ledgerSession: Session,
 ) -> None:
-    """同一三列键连续写入 N 次后仅保留一行，且单价为最后写入值（需求 3.3）。"""
-    unitPrices = ("1.20", "0", "99.99", "999999999.99", "7.05")
-    effectiveIds: list[int] = []
-
-    for unitPrice in unitPrices:
-        effective = upsertValuation(
-            ledgerSession,
-            buildValuationPayload(unit_price=unitPrice),
-        )
-        effectiveIds.append(effective.id)
-
-    # 清空身份映射后从临时 SQLite 文件重新查询，避免断言命中会话缓存。
-    ledgerSession.expunge_all()
-    rows = list(
-        ledgerSession.scalars(
-            select(Valuation).where(
-                Valuation.product_type == "FUND",
-                Valuation.product_code == "F-001",
-                Valuation.valuation_date == date(2024, 3, 1),
-            )
-        ).all()
+    """先按最大日期取候选，再只在同日按来源优先级选择，且不写入数据。"""
+    persist(
+        ledgerSession,
+        Valuation(
+            product_type="FUND",
+            product_code="F-PRIORITY",
+            valuation_date=date(2024, 3, 1),
+            unit_price=Decimal("1.10"),
+            source_id="preferred",
+        ),
+        Valuation(
+            product_type="FUND",
+            product_code="F-PRIORITY",
+            valuation_date=date(2024, 3, 1),
+            unit_price=Decimal("1.20"),
+            source_id="fallback",
+        ),
+        Valuation(
+            product_type="FUND",
+            product_code="F-PRIORITY",
+            valuation_date=date(2024, 4, 1),
+            unit_price=Decimal("1.30"),
+            source_id="preferred",
+        ),
+        Valuation(
+            product_type="FUND",
+            product_code="F-PRIORITY",
+            valuation_date=date(2024, 4, 1),
+            unit_price=Decimal("1.40"),
+            source_id="unconfigured",
+        ),
+        Valuation(
+            product_type="STOCK",
+            product_code="S-LATEST",
+            valuation_date=date(2024, 3, 1),
+            unit_price=Decimal("12.00"),
+            source_id="preferred",
+        ),
+        Valuation(
+            product_type="STOCK",
+            product_code="S-LATEST",
+            valuation_date=date(2024, 4, 1),
+            unit_price=Decimal("13.00"),
+            source_id="unconfigured",
+        ),
     )
 
-    assert len(unitPrices) > 2
-    assert len(set(effectiveIds)) == 1
-    assert len(rows) == 1
-    assert rows[0].unit_price == Decimal(unitPrices[-1])
+    valuations = getLatestValuations(
+        ledgerSession,
+        [("FUND", "F-PRIORITY"), ("STOCK", "S-LATEST")],
+        {"preferred": 1, "fallback": 2},
+    )
+
+    selectedPriority = valuations[("FUND", "F-PRIORITY")]
+    assert selectedPriority.valuation_date == date(2024, 4, 1)
+    assert selectedPriority.source_id == "preferred"
+    assert selectedPriority.unit_price == Decimal("1.30")
+    selectedLatest = valuations[("STOCK", "S-LATEST")]
+    assert selectedLatest.valuation_date == date(2024, 4, 1)
+    assert selectedLatest.source_id == "unconfigured"
+    assert len(ledgerSession.scalars(select(Valuation)).all()) == 6
+
+
+def testGetLatestValuationsSelectsUnconfiguredSourcesDeterministically(
+    ledgerSession: Session,
+) -> None:
+    """同日来源均未配置时按 source_id 决胜，不依赖插入或数据库返回顺序。"""
+    persist(
+        ledgerSession,
+        Valuation(
+            product_type="STOCK",
+            product_code="S-UNCONFIGURED",
+            valuation_date=date(2024, 3, 1),
+            unit_price=Decimal("12.00"),
+            source_id="zeta",
+        ),
+        Valuation(
+            product_type="STOCK",
+            product_code="S-UNCONFIGURED",
+            valuation_date=date(2024, 3, 1),
+            unit_price=Decimal("11.00"),
+            source_id="alpha",
+        ),
+    )
+
+    valuations = getLatestValuations(
+        ledgerSession,
+        [("STOCK", "S-UNCONFIGURED"), ("STOCK", "MISSING")],
+        {},
+    )
+
+    selected = valuations[("STOCK", "S-UNCONFIGURED")]
+    assert selected.source_id == "alpha"
+    assert selected.unit_price == Decimal("11.00")
+    assert ("STOCK", "MISSING") not in valuations

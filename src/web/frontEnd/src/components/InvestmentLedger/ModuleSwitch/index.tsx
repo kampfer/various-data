@@ -1,38 +1,34 @@
 import React from 'react';
-import { Radio } from 'antd';
-import type { RadioChangeEvent } from 'antd';
+import { Menu } from 'antd';
+import type { MenuProps } from 'antd';
 import type { LedgerModule } from '../../../domain/ledger/constants';
 import styles from './index.module.scss';
 
-/** 模块切换器属性：受控值由容器提供，切换事件只通知容器（需求 2.1、2.13）。 */
+/** 模块导航属性：选中项由当前 URL 派生，切换回调由父布局负责路由导航。 */
 export interface ModuleSwitchProps {
-  /** 当前激活模块码，决定选中的单选项。 */
-  readonly activeModule: LedgerModule;
-  /** 模块切换回调；目标模块的浏览状态重置由容器与状态层负责。 */
+  /** 当前 URL 对应的选中模块码，不读取 Redux 模块状态。 */
+  readonly selectedModule: LedgerModule;
+  /** 模块切换回调；不会修改 Redux 查询快照。 */
   readonly onSwitch: (module: LedgerModule) => void;
 }
 
-/** 两个账本模块的受控切换入口，不持有状态，也不操作浏览器 URL。 */
+/** 两个账本子路由的无状态导航菜单。 */
 export default class ModuleSwitch extends React.Component<ModuleSwitchProps> {
-  /** 将 antd 变更事件转换为领域模块码并上交容器。 */
-  private readonly handleChange = (event: RadioChangeEvent): void => {
-    const module = event.target.value as LedgerModule;
-    this.props.onSwitch(module);
+  private readonly handleClick: MenuProps['onClick'] = ({ key }): void => {
+    if (key === 'holdings' || key === 'history') this.props.onSwitch(key);
   };
 
   public override render(): React.ReactNode {
     return (
       <nav className={styles.container} aria-label="账本模块导航">
-        <Radio.Group
-          aria-label="账本模块切换"
-          buttonStyle="solid"
-          optionType="button"
-          value={this.props.activeModule}
-          onChange={this.handleChange}
-          options={[
-            { label: '持仓', value: 'holdings' },
-            { label: '历史交易记录', value: 'history' },
+        <Menu
+          mode="inline"
+          selectedKeys={[this.props.selectedModule]}
+          items={[
+            { key: 'holdings', label: '持仓' },
+            { key: 'history', label: '历史交易记录' },
           ]}
+          onClick={this.handleClick}
         />
       </nav>
     );

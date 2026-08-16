@@ -20,14 +20,11 @@ from app.investmentLedger.schemas import (
     TransactionCreate,
     TransactionOut,
     TransactionQuery,
-    ValuationOut,
-    ValuationUpsert,
 )
 from app.investmentLedger.service import (
     HoldingService,
     OverviewService,
     TransactionService,
-    ValuationService,
 )
 
 get_db = dependencies.get_db
@@ -50,13 +47,6 @@ def getHoldingService(
 ) -> HoldingService:
     """构造绑定请求级数据库会话的只读持仓服务。"""
     return HoldingService(db)
-
-
-def getValuationService(
-    db: Annotated[Session, Depends(get_db)],
-) -> ValuationService:
-    """构造绑定请求级数据库会话的估值服务。"""
-    return ValuationService(db)
 
 
 def getOverviewService(
@@ -138,15 +128,3 @@ def getPortfolioStatistics(
 ) -> ApiResponse[PortfolioStatisticsOut]:
     """按完整筛选结果集返回投资组合统计，并忽略分页与排序。"""
     return ApiResponse(data=service.getPortfolioStatistics(query))
-
-
-@router.put(
-    "/valuations",
-    response_model=ApiResponse[ValuationOut],
-)
-def upsertValuation(
-    payload: ValuationUpsert,
-    service: Annotated[ValuationService, Depends(getValuationService)],
-) -> ApiResponse[ValuationOut]:
-    """写入估值；相同产品和估值日期的记录由服务层执行覆盖。"""
-    return ApiResponse(data=service.upsertValuation(payload))

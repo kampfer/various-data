@@ -113,18 +113,6 @@ export interface InitialModuleOut {
   module: LedgerModule;
 }
 
-/** 估值记录出参（PUT /valuations 的回显） */
-export interface ValuationOut {
-  /** 产品类型码 */
-  productType: ProductType;
-  /** 产品代码 */
-  productCode: string;
-  /** 估值日期，YYYY-MM-DD */
-  valuationDate: string;
-  /** 估值单价，十进制字符串，0 ≤ v ≤ 999999999.99 且小数位 ≤ 2 */
-  unitPrice: string;
-}
-
 /** 交易表单草稿（请求负载）：字段允许缺失或 null，代表校验前的中间态（镜像 TransactionCreate） */
 export interface TradeDraft {
   /** 产品类型码；未选择时为 null */
@@ -141,18 +129,6 @@ export interface TradeDraft {
   direction?: TradeDirection | null;
   /** 交易日期，YYYY-MM-DD（由 dayjs 格式化后写入） */
   tradeDate?: string | null;
-}
-
-/** 估值表单草稿（请求负载），语义同 TradeDraft（镜像 ValuationUpsert） */
-export interface ValuationDraft {
-  /** 产品类型码 */
-  productType?: ProductType | null;
-  /** 产品代码，有效范围 1..32 字符 */
-  productCode?: string | null;
-  /** 估值日期，YYYY-MM-DD */
-  valuationDate?: string | null;
-  /** 估值单价，十进制字符串 */
-  unitPrice?: string | null;
 }
 
 /** 历史交易查询参数（镜像 TransactionQuery）：所有字段可选，未启用的条件整体省略而非传空值 */

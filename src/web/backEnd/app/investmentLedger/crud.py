@@ -5,18 +5,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
+from collections.abc import Mapping
 from sqlalchemy import ColumnElement, and_, func, select, tuple_
-from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from sqlalchemy.orm import Session
 
 from app.investmentLedger import models
-from app.investmentLedger.schemas import (
-    TransactionCreate,
-    TransactionQuery,
-    ValuationUpsert,
-)
+from app.investmentLedger.constants import SOURCE_PRIORITY
+from app.investmentLedger.schemas import TransactionCreate, TransactionQuery
 
 
 def _transactionPredicates(query: TransactionQuery) -> list[ColumnElement[bool]]:
@@ -127,10 +122,33 @@ def removeTransaction(
         raise
 
 
+def _valuationSelectionKey(
+    valuation: models.Valuation,
+    sourcePriority: Mapping[str, int],
+) -> tuple[int, int, str, int]:
+    """返回同日估值的稳定选择键，不进行任何金额或浮点计算。
+
+    已配置来源优先于未配置来源；配置值越小越优先。未配置来源统一置后，
+    再按来源标识和内部主键排序，避免数据库返回顺序造成不确定结果。
+    """
+    configuredPriority = sourcePriority.get(valuation.source_id)
+    if configuredPriority is None:
+        return (1, 0, valuation.source_id, valuation.id or 0)
+    return (0, configuredPriority, valuation.source_id, valuation.id or 0)
+
+
 def getLatestValuations(
-    db: Session, keys: list[tuple[str, str]]
+    db: Session,
+    keys: list[tuple[str, str]],
+    sourcePriority: Mapping[str, int] | None = None,
 ) -> dict[tuple[str, str], models.Valuation]:
-    """批量返回各产品估值日期最大的记录；无估值产品不返回（需求 3.4）。"""
+    """只读批量读取各产品最新且来源确定的标准估值（需求 3.1）。
+
+    查询先按产品键取得最大估值日期的全部候选，再按核心受控来源优先级
+    选择同日单条记录。未配置来源不会被静默丢弃，但始终排在已配置来源后，
+    并以 ``source_id`` 和主键作稳定的确定性决胜。无估值产品不返回；本函数
+    只执行查询，不写入、覆盖或编排估值数据。
+    """
     uniqueKeys = list(dict.fromkeys(keys))
     if not uniqueKeys:
         return {}
@@ -153,50 +171,32 @@ def getLatestValuations(
         )
         .subquery()
     )
-    statement = select(models.Valuation).join(
-        latestDates,
-        and_(
-            models.Valuation.product_type == latestDates.c.product_type,
-            models.Valuation.product_code == latestDates.c.product_code,
-            models.Valuation.valuation_date == latestDates.c.valuation_date,
-        ),
-    )
-    valuations = db.scalars(statement).all()
-    return {
-        (valuation.product_type, valuation.product_code): valuation
-        for valuation in valuations
-    }
-
-
-def upsertValuation(
-    db: Session, payload: ValuationUpsert
-) -> models.Valuation:
-    """以产品类型、代码和估值日期为键写入或覆盖估值（需求 3.3）。"""
     statement = (
-        sqlite_upsert(models.Valuation)
-        .values(
-            product_type=payload.product_type.value,
-            product_code=payload.product_code,
-            valuation_date=payload.valuation_date,
-            unit_price=payload.unit_price,
+        select(models.Valuation)
+        .join(
+            latestDates,
+            and_(
+                models.Valuation.product_type == latestDates.c.product_type,
+                models.Valuation.product_code == latestDates.c.product_code,
+                models.Valuation.valuation_date
+                == latestDates.c.valuation_date,
+            ),
         )
-        .on_conflict_do_update(
-            index_elements=[
-                models.Valuation.product_type,
-                models.Valuation.product_code,
-                models.Valuation.valuation_date,
-            ],
-            set_={
-                "unit_price": payload.unit_price,
-                "updated_at": datetime.now(),
-            },
+        .order_by(
+            models.Valuation.product_type.asc(),
+            models.Valuation.product_code.asc(),
+            models.Valuation.source_id.asc(),
+            models.Valuation.id.asc(),
         )
-        .returning(models.Valuation)
     )
-    try:
-        valuation = db.scalars(statement).one()
-        db.commit()
-        return valuation
-    except Exception:
-        db.rollback()
-        raise
+    candidates = db.scalars(statement).all()
+    priorities = SOURCE_PRIORITY if sourcePriority is None else sourcePriority
+    selected: dict[tuple[str, str], models.Valuation] = {}
+    for valuation in candidates:
+        key = (valuation.product_type, valuation.product_code)
+        current = selected.get(key)
+        if current is None or _valuationSelectionKey(
+            valuation, priorities
+        ) < _valuationSelectionKey(current, priorities):
+            selected[key] = valuation
+    return selected

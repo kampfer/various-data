@@ -2,7 +2,7 @@
 // Redux Toolkit 账本切片：只保存可序列化数据，查询规则统一委托给 LedgerQueryState。
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { TradeDraft, ValuationDraft } from '../../api/types';
+import type { TradeDraft } from '../../api/types';
 import LedgerQueryState from '../../domain/ledger/LedgerQueryState';
 import type {
   LedgerQuerySnapshot,
@@ -24,14 +24,6 @@ const createEmptyTradeDraft = (): TradeDraft => ({
   tradeDate: null,
 });
 
-/** 构造空估值草稿；不在 Redux 中存储日期类实例。 */
-const createEmptyValuationDraft = (): ValuationDraft => ({
-  productType: null,
-  productCode: null,
-  valuationDate: null,
-  unitPrice: null,
-});
-
 /** 从 thunk 的可序列化拒绝载荷取得用户可见错误。 */
 const rejectMessage = (payload: LedgerRejectValue | undefined): string =>
   payload?.message ?? '网络异常，请稍后重试';
@@ -40,8 +32,6 @@ const historyQuery = LedgerQueryState.default('history').toSnapshot();
 const holdingsQuery = LedgerQueryState.default('holdings').toSnapshot();
 /** 账本切片初始状态；类实例只用于生成快照，不进入 Redux state。 */
 const initialState: LedgerState = {
-  activeModule: null,
-  bootstrapping: false,
   history: {
     query: historyQuery,
     items: [],
@@ -69,38 +59,28 @@ const initialState: LedgerState = {
     fieldErrors: [],
     submitting: false,
   },
-  valuationForm: {
-    visible: false,
-    draft: createEmptyValuationDraft(),
-    fieldErrors: [],
-    submitting: false,
-  },
 };
 
 const ledgerSlice = createSlice({
   name: 'ledger',
   initialState,
   reducers: {
-    /** 模块切换时以目标模块默认状态重新开始，不沿用旧条件或结果（需求 2.13）。 */
-    switchModule(state, action: PayloadAction<LedgerModule>) {
-      const module = action.payload;
-      const query = LedgerQueryState.default(module).toSnapshot();
-      state.activeModule = module;
-      state[module].query = query;
-      state[module].items = [];
-      state[module].total = 0;
-      state[module].page = query.page;
-      state[module].pageSize = query.pageSize;
-      state[module].pageCount = 0;
-      state[module].loading = false;
-      state[module].error = null;
-      if (module === 'holdings') state.holdings.portfolio = null;
+    /** 路由驱动的持仓范围入口：只重置历史查询快照，不写 Redux 模块字段。 */
+    openHistoryScope(state, action: PayloadAction<ProductScope>) {
+      const query = LedgerQueryState.defaultWithScope('history', action.payload).toSnapshot();
+      state.history.query = query;
+      state.history.items = [];
+      state.history.total = 0;
+      state.history.page = query.page;
+      state.history.pageSize = query.pageSize;
+      state.history.pageCount = 0;
+      state.history.loading = false;
+      state.history.error = null;
     },
 
-    /** 从持仓条目进入历史模块时，仅保留产品范围（需求 2.9、2.10）。 */
-    openHistoryWithScope(state, action: PayloadAction<ProductScope>) {
-      const query = LedgerQueryState.defaultWithScope('history', action.payload).toSnapshot();
-      state.activeModule = 'history';
+    /** 无上下文历史深链或清除产品范围时恢复历史默认快照，不改变模块字段。 */
+    resetHistory(state) {
+      const query = LedgerQueryState.default('history').toSnapshot();
       state.history.query = query;
       state.history.items = [];
       state.history.total = 0;
@@ -159,36 +139,9 @@ const ledgerSlice = createSlice({
       state.tradeForm.draft = { ...state.tradeForm.draft, ...action.payload };
     },
 
-    /** 打开估值弹窗并清除上次草稿及字段错误。 */
-    openValuationForm(state) {
-      state.valuationForm.visible = true;
-      state.valuationForm.draft = createEmptyValuationDraft();
-      state.valuationForm.fieldErrors = [];
-      state.valuationForm.submitting = false;
-    },
-
-    /** 关闭估值弹窗但保留草稿。 */
-    closeValuationForm(state) {
-      state.valuationForm.visible = false;
-    },
-
-    /** 合并估值草稿输入。 */
-    changeValuationDraft(state, action: PayloadAction<Partial<ValuationDraft>>) {
-      state.valuationForm.draft = { ...state.valuationForm.draft, ...action.payload };
-    },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(thunks.bootstrapLedger.pending, (state) => {
-        state.bootstrapping = true;
-      })
-      .addCase(thunks.bootstrapLedger.fulfilled, (state, action) => {
-        state.bootstrapping = false;
-        state.activeModule = action.payload.module;
-      })
-      .addCase(thunks.bootstrapLedger.rejected, (state) => {
-        state.bootstrapping = false;
-      })
       .addCase(thunks.fetchHistory.pending, (state) => {
         state.history.loading = true;
         state.history.error = null;
@@ -261,36 +214,19 @@ const ledgerSlice = createSlice({
         state.history.loading = false;
         state.history.error = rejectMessage(action.payload);
       })
-      .addCase(thunks.submitValuation.pending, (state) => {
-        state.valuationForm.submitting = true;
-        state.valuationForm.fieldErrors = [];
-      })
-      .addCase(thunks.submitValuation.fulfilled, (state) => {
-        state.valuationForm.submitting = false;
-        state.valuationForm.visible = false;
-        state.valuationForm.draft = createEmptyValuationDraft();
-        state.valuationForm.fieldErrors = [];
-      })
-      .addCase(thunks.submitValuation.rejected, (state, action) => {
-        state.valuationForm.submitting = false;
-        state.valuationForm.fieldErrors = action.payload?.fieldErrors ?? [];
-      });
   },
 });
 
 /** 同步 action creators；查询输入须在容器通过校验后再派发。 */
 export const {
-  switchModule,
-  openHistoryWithScope,
+  openHistoryScope,
+  resetHistory,
   applyQuery,
   changePage,
   changePageSize,
   openTradeForm,
   closeTradeForm,
   changeTradeDraft,
-  openValuationForm,
-  closeValuationForm,
-  changeValuationDraft,
 } = ledgerSlice.actions;
 
 /** 默认导出 reducer，供任务 12.4 装配到根 store 的 ledger 键。 */

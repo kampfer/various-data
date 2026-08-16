@@ -5,18 +5,14 @@ import * as ledgerApi from '../../api/ledger';
 import { LedgerApiError } from '../../api/request';
 import type {
   HoldingOut,
-  InitialModuleOut,
   PageOut,
   PortfolioStatisticsOut,
   TradeDraft,
   TransactionOut,
-  ValuationDraft,
-  ValuationOut,
 } from '../../api/types';
 import LedgerQueryState from '../../domain/ledger/LedgerQueryState';
 import TradeDraftValidator from '../../domain/ledger/TradeDraftValidator';
 import type { FieldError } from '../../domain/ledger/TradeDraftValidator';
-import ValuationDraftValidator from '../../domain/ledger/ValuationDraftValidator';
 import type { LedgerRootState } from './types';
 
 /** thunk 失败载荷：提供用户提示，并可携带字段级错误供表单回填。 */
@@ -92,27 +88,6 @@ export const fetchHoldings = createAsyncThunk<PageOut<HoldingOut>, void, ThunkCo
   },
 );
 
-/**
- * 请求后端决定初始模块，并触发该模块默认快照对应的首屏请求（需求 2.2、2.3）。
- * 首屏请求拥有独立的 loading/error 生命周期，不会让其失败抹掉已成功的模块决策。
- */
-export const bootstrapLedger = createAsyncThunk<InitialModuleOut, void, ThunkConfig>(
-  'ledger/bootstrapLedger',
-  async (_, { dispatch, rejectWithValue }) => {
-    try {
-      const initial = await ledgerApi.fetchInitialModule();
-      if (initial.module === 'history') {
-        void dispatch(fetchHistory());
-      } else {
-        void dispatch(fetchHoldings());
-      }
-      return initial;
-    } catch (error) {
-      return rejectWithValue(toRejectValue(error));
-    }
-  },
-);
-
 /** 创建交易；前端校验失败时不发 HTTP 请求，成功后按已应用查询刷新历史列表。 */
 export const submitTransaction = createAsyncThunk<TransactionOut, TradeDraft, ThunkConfig>(
   'ledger/submitTransaction',
@@ -146,28 +121,6 @@ export const removeTransaction = createAsyncThunk<void, number, ThunkConfig>(
   },
 );
 
-/** 保存估值；校验失败不发请求，持仓模块激活时刷新持仓及其组合统计。 */
-export const submitValuation = createAsyncThunk<ValuationOut, ValuationDraft, ThunkConfig>(
-  'ledger/submitValuation',
-  async (draft, { dispatch, getState, rejectWithValue }) => {
-    const validation = new ValuationDraftValidator().validate(draft);
-    if (!validation.valid) {
-      return rejectWithValue({
-        message: '提交的信息有误，请检查后重试',
-        fieldErrors: [...validation.fieldErrors],
-      });
-    }
-    try {
-      const valuation = await ledgerApi.upsertValuation(draft);
-      if (getState().ledger.activeModule === 'holdings') {
-        await dispatch(fetchHoldings());
-      }
-      return valuation;
-    } catch (error) {
-      return rejectWithValue(toRejectValue(error));
-    }
-  },
-);
 
 /** 设计文档旧命名兼容：与 submitTransaction 是同一 thunk，不生成重复 action。 */
 export const submitTrade = submitTransaction;

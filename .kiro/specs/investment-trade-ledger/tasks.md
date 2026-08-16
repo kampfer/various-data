@@ -22,7 +22,7 @@
     - 已完成 Decimal 往返、两位小数和 `None` 透传；实现不得经过 `float`。
     - 完成条件：金额和估值单价均能以 Decimal 精确读写。
     - _Requirements: 1.2, 3.2, 3.12_
-  - [ ] 1.3 扩展交易与估值模型以支持来源审计和幂等键
+  - [x] 1.3 扩展交易与估值模型以支持来源审计和幂等键
     - 修改 `investmentLedger/models.py`：保留不可变交易模型；为 `Valuation` 增加 `source_id`、采集器/版本或引用审计字段、标准化采集时间，并建立 `(product_type, product_code, valuation_date, source_id)` 唯一约束与读取索引。
     - 复用既有 `LedgerBase`/`initAppModels()` 注册，不创建第二条建表路径；模型不暴露公开写入方法。
     - 完成条件：迁移后的模型可区分同日不同来源，重复同键写入不会产生重复行，既有交易表行为不回归。
@@ -81,7 +81,7 @@
   - [x]* 4.4 保留 Property 10 交易写入属性测试
     - **Property 10: 交易写入语义（创建可检索、删除即消失且互不影响）**。
     - **Validates: Requirements 1.3, 1.5**
-  - [ ] 4.5 将最新估值读取改为来源感知的只读查询
+  - [x] 4.5 将最新估值读取改为来源感知的只读查询
     - `getLatestValuations` 按产品和最大估值日期取候选，再按核心配置的 `source_priority` 选择来源；读取层不负责写入、不覆盖数据。
     - 完成条件：无估值产品不返回；同日多来源选择与优先级一致，账本统计只能消费标准化记录。
     - _Requirements: 3.1, 3.7, 3.8, 3.9_
@@ -102,16 +102,16 @@
   - [x]* 5.3 补充服务层无效输入、空结果和统计只读测试
     - _Requirements: 2.20, 2.21, 2.22, 2.26, 2.30, 3.6_
 
-- [ ] 6. 外部估值采集协议、白名单注册与标准化
-  - [ ] 6.1 定义 `valuation_ingest/protocol.py` 的采集器协议和值对象
+- [x] 6. 外部估值采集协议、白名单注册与标准化
+  - [x] 6.1 定义 `valuation_ingest/protocol.py` 的采集器协议和值对象
     - 实现 `CollectorManifest`、`StandardValuation`、`ValuationCollector`；manifest 必须声明唯一标识、版本、来源和支持的产品类型；协议只接收产品键/超时，不接收 SQLAlchemy Session。
     - 完成条件：协议可被多个数据源复用，采集器只能返回原始结果/候选标准结果，不能导入数据库连接。
     - _Requirements: 3.10, 3.11, 3.13, 3.15_
-  - [ ] 6.2 实现 `CollectorRegistry` 白名单/受控目录发现与注册
+  - [x] 6.2 实现 `CollectorRegistry` 白名单/受控目录发现与注册
     - 仅扫描 `collectors/` 和显式受信目录，校验 manifest、入口、版本、来源、能力集合及插件自声明一致性；拒绝目录外路径、重复版本和冲突优先级，并记录元数据。
     - 完成条件：未知路径不会被动态加载；新增数据源只需插件和 manifest，不改账本核心业务。
     - _Requirements: 3.11, 3.14, 3.15_
-  - [ ] 6.3 实现 `ValuationNormalizer` 标准化与业务校验
+  - [x] 6.3 实现 `ValuationNormalizer` 标准化与业务校验
     - 校验产品类型/能力、代码长度、有效日期、正且有限的单价、两位小数规则、来源与 manifest 一致、采集时间和引用字段格式；非法结果逐条拒绝，不调用仓储写入。
     - 完成条件：合法结果产生字段完整且 Decimal/date 规范一致的 `StandardValuation`，不静默四舍五入超过两位的小数。
     - _Requirements: 3.12_
@@ -122,12 +122,12 @@
     - 验证必填元数据、受信目录边界、重复版本/冲突拒绝及不执行任意用户路径。
     - _Requirements: 3.11, 3.14_
 
-- [ ] 7. 估值受控写入、来源优先级、故障隔离与触发
-  - [ ] 7.1 实现 `ValuationRepository` 的事务幂等写入与来源优先级
+- [x] 7. 估值受控写入、来源优先级、故障隔离与触发
+  - [x] 7.1 实现 `ValuationRepository` 的事务幂等写入与来源优先级
     - 只接受 `StandardValuation`；以产品/日期/来源唯一键实现重复批次等效写入；同日跨来源按核心 `source_priority` 决定生效记录，优先级相同保留已有值并记录冲突；所有写入在受控事务中完成。
     - 完成条件：仓储是估值唯一写入口，账本公开路由、前端 API 和采集器均无法绕过它写数据库。
     - _Requirements: 3.1, 3.12, 3.13, 3.17_
-  - [ ] 7.2 实现 `CollectorOrchestrator` 的能力匹配、超时、重试和失败隔离
+  - [x] 7.2 实现 `CollectorOrchestrator` 的能力匹配、超时、重试和失败隔离
     - 只向采集器提供协议接口；按 manifest 能力派发；单个插件异常、解析失败或超时被记录并隔离，其他采集器继续执行；查询服务不因采集失败中断。
     - 完成条件：成功批次仍可标准化并写入，失败插件不会取消其它独立批次。
     - _Requirements: 3.10, 3.13, 3.16_
@@ -137,7 +137,7 @@
   - [ ]* 7.4 编写 Property 13 幂等与来源冲突属性测试
     - **Property 13: 估值摄取幂等且来源冲突结果确定**；验证重复批次不增行、到达顺序不影响优先级结果、同优先级冲突保留旧值并记录。
     - **Validates: Requirements 3.1, 3.17**
-  - [ ] 7.5 增加受控命令/后台任务入口并禁止前端触发
+  - [x] 7.5 增加受控命令/后台任务入口并禁止前端触发
     - `valuation_ingest/cli.py` 调用编排器，支持受控参数、结果日志和退出状态；保留可替换后台任务抽象，但不注册 FastAPI 前端估值写路由。
     - 完成条件：命令可触发采集链路，前端没有估值维护按钮、表单或公开写入口。
     - _Requirements: 3.13, 3.18_
@@ -145,8 +145,8 @@
     - 覆盖合法结果落库、非法结果不落库、重复写入、跨来源优先级、失败隔离、命令触发，以及应用路由不存在估值写方法；仅使用 fake collector 和临时 SQLite。
     - _Requirements: 3.1, 3.12, 3.13, 3.16, 3.17, 3.18_
 
-- [ ] 8. 公开后端 API 与装配边界
-  - [ ] 8.1 修订账本公开路由为交易写入和账本只读接口
+- [x] 8. 公开后端 API 与装配边界
+  - [x] 8.1 修订账本公开路由为交易写入和账本只读接口
     - 保留 `GET /initialModule`、交易列表/创建/删除、持仓和组合统计；删除/迁移现有 `PUT /valuations`、`ValuationService` 暴露路径及任何公开估值写入；不提供交易更新或按交易标识查询。
     - 完成条件：路由表只包含设计规定的公开接口，持仓相关路径只有 GET，估值写入只能由 `valuation_ingest` 内部调用。
     - _Requirements: 1.3, 1.4, 1.5, 2.4, 2.23, 3.13, 3.18_
@@ -170,7 +170,7 @@
   - [x]* 9.4 保留 Property 1/7 前端校验属性测试
     - **Property 1: 交易草稿校验拒绝无效输入并保留原值**；**Property 7: 无效查询输入不改变已应用的浏览状态与结果**。
     - **Validates: Requirements 1.2, 2.20, 2.21, 2.26, 2.30**
-  - [ ] 9.5 修订 `LedgerQueryState` 为按模块保存浏览快照并支持导航意图
+  - [x] 9.5 修订 `LedgerQueryState` 为按模块保存浏览快照并支持导航意图
     - 删除 `activeModule` 语义；保留 history/holdings 各自筛选、搜索、排序、页大小、有效页码和结果快照。实现 `default`、`defaultWithScope`、`withFilters`、`withPageSize`、`withPage`；`scopeProductType` 与 `scopeProductCode` 必须成对且仅用于历史范围。
     - 完成条件：模块直接切换不重置目标快照；持仓入口和无上下文 history 深链才重置为默认状态；任何条件/排序/页大小变更将页码置 1。
     - _Requirements: 2.9, 2.10, 2.13, 2.14, 2.27_
@@ -182,11 +182,11 @@
   - [x] 10.1 保留 typed DTO、axios 错误归一和唯一 HTTP 出口
     - API 客户端只提供交易写入、交易/持仓/组合/初始模块读取；不提供估值写入、交易更新或按标识查询。
     - _Requirements: 1.2, 1.3, 1.4, 1.5, 2.23, 3.1, 3.13_
-  - [ ] 10.2 修订 Ledger state 为路由驱动且不含 `activeModule`/`bootstrapLedger`
+  - [x] 10.2 修订 Ledger state 为路由驱动且不含 `activeModule`/`bootstrapLedger`
     - `types.ts` 只存可序列化的 per-module query/list/form/error 快照；移除旧 `activeModule`、`switchModule`、`bootstrapLedger`。保留 `fetchInitialModule`、`fetchHistory`、`fetchHoldings`、`fetchPortfolioStatistics`、交易提交/删除 thunk。
     - 完成条件：路由切换不 dispatch 模块切换 action，不清空目标模块结果；无效输入和请求失败保留已应用状态/列表。
     - _Requirements: 2.2, 2.3, 2.9, 2.13, 2.14, 2.20, 2.21, 2.26, 2.27, 2.30_
-  - [ ] 10.3 修订 selectors 与 reducer 测试
+  - [x] 10.3 修订 selectors 与 reducer 测试
     - 选择器按当前路由/目标模块读取对应快照，正确处理 0 页；测试确认无 `activeModule`、无 `bootstrapLedger`，直接切换保留状态，范围进入 history 才重置。
     - _Requirements: 2.9, 2.13, 2.14, 2.22, 2.28, 2.31_
 
@@ -194,11 +194,11 @@
   - [x] 11.1 保留 `MetricValue`、`LedgerPagination`、筛选栏和交易表单
     - 已实现不可用指标、分页边界、筛选校验、交易创建；所有样式位于 CSS Modules，无行内样式；表单不含估值字段。
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.16, 2.17, 2.18, 2.20, 2.21, 2.24-2.31, 3.6_
-  - [ ] 11.2 修订历史交易表格和持仓表格以匹配独立模块边界
+  - [x] 11.2 修订历史交易表格和持仓表格以匹配独立模块边界
     - 历史表格只展示规定交易列和删除操作，不显示 id/编辑入口；持仓表格只展示规定汇总列、无展开交易、无估值写入口，并提供带范围意图的历史入口；复用已有组件而非复制实现。
     - 完成条件：空结果保留列头；持仓写操作只提示用户去历史模块/只读，不发写请求。
     - _Requirements: 1.5, 1.6, 1.7, 2.4, 2.5, 2.6, 2.7, 2.8, 2.10, 2.11, 2.12, 2.22, 2.23, 3.18_
-  - [ ] 11.3 将 `ModuleSwitch` 改为 URL 导航，不使用旧 `Radio.Group` 内部状态切换
+  - [x] 11.3 将 `ModuleSwitch` 改为 URL 导航，不使用旧 `Radio.Group` 内部状态切换
     - 使用设计规定的 antd Menu/路由导航方式，`useLocation` 派生高亮，`useNavigate` 携带 `ledgerNavigation='module-switch'`；不得 dispatch `switchModule`，不得依赖 `activeModule`。
     - 完成条件：URL 为 `/investmentLedger/holdings` 或 `/investmentLedger/history`，直接切换保留目标状态，组件无行内样式。
     - _Requirements: 2.1, 2.13_
@@ -206,39 +206,39 @@
     - 验证列集合/顺序、持仓只读、无 id、无估值控件、URL 导航、中文标签映射和组件树无 `style` 属性。
     - _Requirements: 1.4, 1.6, 1.7, 2.1, 2.4, 2.6, 2.7, 2.12, 2.13, 2.23, 3.18_
 
-- [ ] 12. 页面容器、嵌套路由与导航装配
-  - [ ] 12.1 将 `pages/InvestmentLedger/index.tsx` 改为 `LedgerLayout`
+- [x] 12. 页面容器、嵌套路由与导航装配
+  - [x] 12.1 将 `pages/InvestmentLedger/index.tsx` 改为 `LedgerLayout`
     - 父路由只渲染导航和 `<Outlet />`；删除旧单页 `activeModule`、`bootstrapLedger` 和“当前面板三元切换”编排，样式全部放入 `index.module.scss`。
     - 完成条件：布局层不直接调用估值写入、不保存模块状态，目标子路由负责各自查询。
     - _Requirements: 2.1, 2.13, 2.14, 3.18_
-  - [ ] 12.2 实现 `IndexRedirect` 默认模块判定
+  - [x] 12.2 实现 `IndexRedirect` 默认模块判定
     - 无子路径时调用 `fetchInitialModule`，无交易跳 history，有交易跳 holdings；使用 `<Navigate replace>`，不写 redux 模块字段。
     - _Requirements: 2.2, 2.3_
-  - [ ] 12.3 实现 `HoldingsPage`、`HistoryPage` 和持仓范围导航
+  - [x] 12.3 实现 `HoldingsPage`、`HistoryPage` 和持仓范围导航
     - 直接模块切换携带 module-switch 意图；持仓条目进入 history 携带 holding-scope 并应用默认状态+成对产品范围；无上下文 history 深链展示全部交易默认状态。
     - 完成条件：筛选、排序、分页和结果在两个模块间按设计保留/重置，scope 不被当作普通搜索条件。
     - _Requirements: 2.8, 2.9, 2.10, 2.13, 2.14, 2.16-2.19, 2.24-2.31_
-  - [ ] 12.4 更新 `router.js` 嵌套路由并回归导航测试
+  - [x] 12.4 更新 `router.js` 嵌套路由并回归导航测试
     - 注册 `/investmentLedger` 父路由及 `holdings`/`history` 子路由和 index redirect，复用既有 Hash Router；测试默认打开、直接切换保留状态、范围入口重置状态。
     - _Requirements: 2.1, 2.2, 2.3, 2.9, 2.13, 2.14_
 
-- [ ] 13. 删除过时估值维护实现并完成全链路回归
-  - [ ] 13.1 移除旧 `ValuationFormModal`、估值维护按钮和公开 `PUT /valuations` 依赖
+- [x] 13. 删除过时估值维护实现并完成全链路回归
+  - [x] 13.1 移除旧 `ValuationFormModal`、估值维护按钮和公开 `PUT /valuations` 依赖
     - 删除/迁移只删除冲突代码，不改变交易和持仓只读能力；前端 API、容器、路由、后端服务均不得留下可达估值写入口。
     - 完成条件：代码搜索和路由边界测试均证明估值只能经内部 `valuation_ingest` 写入。
     - _Requirements: 3.13, 3.18_
-  - [ ] 13.2 连接受控命令、采集器注册、摄取仓储与账本只读查询
+  - [x] 13.2 连接受控命令、采集器注册、摄取仓储与账本只读查询
     - 完成端到端内部链路：命令→编排器→协议采集器→标准化→仓储；账本服务只通过来源优先级读取结果；新增来源不改核心账本服务。
     - _Requirements: 3.1, 3.10-3.18_
-  - [ ] 13.3 执行类型检查、构建和一次性自动化测试
+  - [x] 13.3 执行类型检查、构建和一次性自动化测试
     - 运行 `npm run type-check`、`npm run build:web`、`pytest -q`、`vitest --run`；只使用临时 SQLite/fake collector，不访问真实金融接口；修复失败后保留最终证据。
     - 完成条件：类型检查、构建、后端测试、前端测试和采集器属性/集成测试全部通过。
     - _Requirements: 1.2, 1.3, 1.5, 2.1, 2.9, 2.13, 2.16-2.31, 3.1-3.18_
 
-- [ ] 14. 检查点 - 后端交易、估值摄取与公开边界完成
+- [x] 14. 检查点 - 后端交易、估值摄取与公开边界完成
   - 确认交易创建/删除、持仓历史路由契约、估值协议/白名单/标准化/幂等/故障隔离/命令触发均已有实现和测试；如有问题先修复再进入前端装配。
 
-- [ ] 15. 最终检查点 - 确保全部测试与构建通过
+- [x] 15. 最终检查点 - 确保全部测试与构建通过
   - 确认未修改 `requirements.md`、`design.md` 或本功能之外源代码；确认所有未完成任务仍未被误标为完成，并询问用户是否有后续实现问题。
 
 ## Notes

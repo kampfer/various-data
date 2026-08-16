@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Iterator
 
@@ -19,15 +19,15 @@ from app.investmentLedger.models import Base, Transaction, Valuation
 from app.investmentLedger.schemas import (
     TransactionCreate,
     TransactionQuery,
-    ValuationUpsert,
 )
 from app.investmentLedger.service import (
     OverviewService,
     TransactionService,
-    ValuationService,
     groupByProductKey,
     sortHoldings,
 )
+from app.investmentLedger.valuation_ingest.protocol import StandardValuation
+from app.investmentLedger.valuation_ingest.repository import ValuationRepository
 
 
 @pytest.fixture()
@@ -243,19 +243,17 @@ class TestHoldingService:
         valuationDate: date,
         unitPrice: str,
     ) -> None:
-        """通过真实 CRUD upsert 写入估值，供批量最新估值查询使用。"""
-        from app.investmentLedger import crud
-        from app.investmentLedger.schemas import ValuationUpsert
-
-        crud.upsertValuation(
-            session,
-            ValuationUpsert(
+        """通过内部标准化值对象和唯一摄取仓储写入测试估值。"""
+        ValuationRepository(session).ingestBatch([
+            StandardValuation(
                 product_type=productType,
                 product_code=productCode,
                 valuation_date=valuationDate,
-                unit_price=unitPrice,
-            ),
-        )
+                unit_price=Decimal(unitPrice),
+                source_id="legacy",
+                collected_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            )
+        ])
 
     def seedPortfolio(self, session: Session) -> None:
         """写入两个已估值产品和一个无估值产品。"""
@@ -375,38 +373,6 @@ class TestHoldingService:
             "deleteTransaction",
         ):
             assert not hasattr(service, methodName)
-
-
-class TestValuationService:
-    """覆盖估值服务的写入、覆盖和生效行返回语义（任务 6.6）。"""
-
-    @staticmethod
-    def payload(unitPrice: str) -> ValuationUpsert:
-        """构造同一产品日期键的合法估值负载。"""
-        return ValuationUpsert(
-            product_type="FUND",
-            product_code="F-001",
-            valuation_date=date(2024, 3, 1),
-            unit_price=unitPrice,
-        )
-
-    def testUpsertReturnsEffectiveRowAndOverwritesSameKey(
-        self, ledgerSession: Session
-    ) -> None:
-        """重复保存仅保留唯一行，返回值和数据库均采用最后单价。"""
-        service = ValuationService(ledgerSession)
-
-        created = service.upsertValuation(self.payload("1.20"))
-        overwritten = service.upsertValuation(self.payload("1.35"))
-        rows = ledgerSession.query(Valuation).all()
-
-        assert created.product_type.value == "FUND"
-        assert created.product_code == "F-001"
-        assert created.valuation_date == date(2024, 3, 1)
-        assert created.unit_price == "1.20"
-        assert overwritten.unit_price == "1.35"
-        assert len(rows) == 1
-        assert rows[0].unit_price == Decimal("1.35")
 
 
 class TestOverviewService:

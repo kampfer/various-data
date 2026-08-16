@@ -49,7 +49,7 @@ const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
  * 十进制数字面量：可带负号、可带任意位小数；据此再判定小数位数与正负。
- * 由 `ValuationDraftValidator`（需求 3.2）复用，保证两处「什么算数值」的判定完全一致。
+ * 由交易草稿与查询校验复用，保证数值字面量判定规则一致。
  */
 export const DECIMAL_PATTERN = /^[+-]?\d+(\.\d+)?$/;
 
@@ -79,7 +79,7 @@ export const TRADE_ERROR_CODES = {
 /**
  * 判定字符串是否为有效公历日期（YYYY-MM-DD），拒绝 2 月 30 日、13 月、0 日等。
  * 不借助 dayjs：领域层保持零框架依赖；`Date` 构造在跨时区下有歧义，故手工核算天数。
- * 由 `ValuationDraftValidator`（需求 3.2）与 `QueryInputValidator`（需求 2.21）复用。
+ * 供查询校验复用，使输入提示文案集中管理。
  * @param value 待判定文本
  * @returns 是否为有效日历日期
  */
@@ -108,7 +108,7 @@ const joinLabels = (labels: readonly string[]): string =>
 
 /**
  * 产品类型提示语中的中文枚举串，顺序与 PRODUCT_TYPES 声明一致。
- * 由 `ValuationDraftValidator`（需求 3.2）复用，使两张表单的产品类型提示文案永不分叉。
+ * 产品类型提示语集中在展示映射层，供交易表单校验使用。
  */
 export const PRODUCT_TYPE_HINT = joinLabels(PRODUCT_TYPES.map((code) => PRODUCT_TYPE_LABELS[code]));
 

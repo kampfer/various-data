@@ -40,6 +40,10 @@ PRODUCT_CODE_LENGTH = 32
 DECIMAL_TEXT_LENGTH = 20
 
 
+#: 旧版直接构造估值时使用的来源标识；正式估值摄取必须显式提供受信来源（需求 3.11、3.13）
+LEGACY_SOURCE_ID = "legacy"
+
+
 class Base(DeclarativeBase):
     """本模块独立的声明式基类。
 
@@ -95,37 +99,62 @@ class Transaction(Base):
 
 
 class Valuation(Base):
-    """估值记录表：同一产品同一估值日期唯一，重复提交以最后一次单价为准（需求 3.3）。"""
+    """标准估值结果表：账本只读，估值摄取服务负责受控写入（需求 3.1）。
+
+    同一产品、估值日期和来源只允许一条记录；来源字段使同日不同来源可以并存，
+    由后续估值读取/摄取服务按核心来源优先级决定生效记录（需求 3.1、3.17）。
+    """
 
     __tablename__ = "il_valuation"
 
-    #: 主键：仅内部使用，不对外暴露
+    #: 主键：仅内部使用，不对外暴露（需求 2.23）
     id: Mapped[primaryKey]
 
     #: 产品类型英文码，取值 ∈ {WEALTH, FUND, STOCK}（需求 3.1、3.2）
     product_type: Mapped[str] = mapped_column(String(ENUM_CODE_LENGTH))
 
-    #: 产品代码，1..32 字符（需求 3.2）
+    #: 产品代码，1..32 字符，与产品类型共同构成产品键（需求 3.2）
     product_code: Mapped[str] = mapped_column(String(PRODUCT_CODE_LENGTH))
 
-    #: 估值日期（有效公历日期）；同一产品下取最大值者为「最新估值」（需求 3.4）
+    #: 估值日期（有效公历日期）；统计读取产品日期最大的标准化记录（需求 3.1）
     valuation_date: Mapped[date] = mapped_column(Date)
 
-    #: 估值单价，0 ≤ v ≤ 999999999.99 且小数位 ≤ 2（需求 3.2）
+    #: 估值单价；由标准化采集结果提供，使用 DecimalText 保持十进制精度（需求 3.2）
     unit_price: Mapped[Decimal] = mapped_column(DecimalText(DECIMAL_TEXT_LENGTH))
 
-    #: 最后一次覆盖写入的时间；upsert 覆盖时由 onupdate 刷新（需求 3.3）
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now, onupdate=datetime.now
+    #: 外部数据源稳定标识，如 eastmoney；用于来源优先级与审计（需求 3.1、3.11、3.17）。
+    #: 默认值仅兼容旧版直接构造调用；正式摄取必须传入受信来源标识。
+    source_id: Mapped[str] = mapped_column(
+        String(64), default=LEGACY_SOURCE_ID
     )
 
+    #: 采集完成时间；标准化为采集流程使用的时间值，不替代估值日期（需求 3.11、3.12）。
+    #: 默认值仅兼容旧版直接构造调用；正式摄取必须传入标准化采集时间。
+    collected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    #: 原始 URL、响应记录 ID 或内容摘要；不保存敏感请求头，可为空（需求 3.11、3.12）
+    source_reference: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+    #: 原始响应哈希；用于审计、重放和批次去重，可为空（需求 3.11、3.17）
+    raw_payload_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    #: 核心受控写入时间；不是用户覆盖时间，不配置公开更新行为（需求 3.13）
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
     __table_args__ = (
-        # 唯一约束：既表达「同一产品同一估值日期只有一条记录」的业务规则（需求 3.3），
-        # 也作为 SQLite ``on_conflict_do_update`` 的冲突目标（见 crud.upsertValuation）
+        # 同一产品、同一估值日期、同一来源至多一条；支持受控摄取幂等键（需求 3.1、3.17）
         UniqueConstraint(
             "product_type",
             "product_code",
             "valuation_date",
-            name="uq_il_valuation_product_date",
+            "source_id",
+            name="uq_il_valuation_product_date_source",
+        ),
+        # 支持按产品读取估值日期最大的候选记录（需求 3.1）
+        Index(
+            "ix_il_valuation_product_date",
+            "product_type",
+            "product_code",
+            "valuation_date",
         ),
     )

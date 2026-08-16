@@ -5,7 +5,10 @@ import {
 import ChartWithNews from './pages/ChartWithNews/index.js';
 import CrawlersAdmin from './pages/CrawlersAdmin.js';
 import Home from './pages/Home.js';
-import InvestmentLedger from './pages/InvestmentLedger/index';
+import LedgerLayout from './pages/InvestmentLedger/index';
+import IndexRedirect from './pages/InvestmentLedger/IndexRedirect';
+import HoldingsPage from './pages/InvestmentLedger/HoldingsPage';
+import HistoryPage from './pages/InvestmentLedger/HistoryPage';
 
 const router = createHashRouter([
   {
@@ -18,7 +21,12 @@ const router = createHashRouter([
   },
   {
     path: '/investmentLedger',
-    element: <InvestmentLedger />
+    element: <LedgerLayout />,
+    children: [
+      { index: true, element: <IndexRedirect /> },
+      { path: 'holdings', element: <HoldingsPage /> },
+      { path: 'history', element: <HistoryPage /> },
+    ],
   },
   {
     path: '/',

@@ -1,10 +1,22 @@
 .container {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
+  position: sticky;
+  top: 16px;
+  z-index: 1;
+  align-self: stretch;
+  height: 100%;
 }
 
-.container :global(.ant-radio-group) {
-  display: inline-flex;
-  flex-wrap: wrap;
+.container :global(.ant-menu) {
+  height: 100%;
+}
+
+@media (max-width: 576px) {
+  .container {
+    position: static;
+    height: auto;
+  }
+
+  .container :global(.ant-menu) {
+    height: auto;
+  }
 }
