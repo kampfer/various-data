@@ -40,7 +40,7 @@
    - → **增量接入**：`allowJs: true`、`checkJs` 不开启，既有 `.js` 文件**一个字都不改**，仅投资账本新模块使用 `.ts` / `.tsx`。
 4. **后端模块惯例**（[app/](../../../src/web/backEnd/app/)）：
    - 每个业务模块是一个包，内部文件职责固定：`router.py` / `crud.py` / `models.py` / `schemas.py`（见 [sinaFinanceNews](../../../src/web/backEnd/app/sinaFinanceNews)）。
-   - SQLAlchemy 2.0 风格：模块内自带 `class Base(DeclarativeBase)`，`Mapped` / `mapped_column` 注解，并在 [app/models.py](../../../src/web/backEnd/app/models.py) 的 `initAppModels()` 中 `create_all` 注册。
+   - SQLAlchemy 2.0 风格：模块内自带 `class Base(DeclarativeBase)`，`Mapped` / `mapped_column` 注解，并在 [app/models.py](../../../src/web/backEnd/app/models.py) 的 `initAppModels()` 中仅用 `create_all` 补建缺失表；已有表升级由独立 `SchemaManager` 和版本化迁移负责，绝不依赖 `create_all`。
    - 会话由 [app/database.py](../../../src/web/backEnd/app/database.py) 的 `SessionLocal` 提供，通过 [app/dependencies.py](../../../src/web/backEnd/app/dependencies.py) 的 `get_db` 以 `Depends` 注入。
    - 路由在 [app/api.py](../../../src/web/backEnd/app/api.py) 汇聚到 `apiRouter = APIRouter(prefix="/api")`，由 [main.py](../../../src/web/backEnd/main.py) `include_router`。
    - 函数命名使用 **camelCase**（`getNews`、`addNews`、`initAppModels`），Pydantic v2（`from_attributes = True`）。→ 新模块沿用同样的命名与组织风格。
@@ -59,7 +59,9 @@
 - 当前实现仍存在 `PUT /valuations`、`ValuationService`、`ValuationFormModal` 和估值维护按钮；这与引言及需求 3.18 的“无前端手动估值维护入口”冲突。它们属于待移除的过时实现，不是本设计允许继续暴露的接口。目标公开 API 仍只有交易写入与账本只读查询，估值写入必须迁移到下文的 `valuation_ingest` 受控边界。
 - 当前 `il_valuation` 只有产品、日期和单价等基础字段，缺少来源标识、采集元数据和同日跨来源唯一键；需求 3.1、3.11-3.17 要求的来源优先级、采集器审计、故障隔离和幂等写入必须由目标模型与内部仓储补齐。
 - 当前仓库已有产品历史范围字段的后端查询校验，但前端查询 DTO、`LedgerQueryState.toParams()`、路由导航和测试必须保持 `scopeProductType` 与 `scopeProductCode` 成对传递；范围只用于历史模块，不能被误并入普通搜索条件。
-- 本次仅更新设计文档；不据此修改源代码或 `requirements.md`。实现阶段必须先处理上述差距，再按本设计执行回归测试。
+- 当前交易链路仍使用前端 `unitPrice` / `quantity`、后端 `unit_price` / `quantity`、`Integer` 数量列和交易价格恰两位小数校验；交易表单与历史表格也使用“交易单价/交易数量”静态标签。这与需求 1.1-1.3、2.12 不一致。目标实现应一次性迁移为 `transactionPrice` / `transactionQuantity` ↔ `transaction_price` / `transaction_quantity`，以无标度 `DecimalText` 保存并按产品类型校验；迁移期间不得保留一套语义重复的旧字段或以 UI 标签作为传输字段。
+- **本次运行错误属于迁移缺失而非业务数据校验错误**：ORM 已查询 canonical 列 `il_transaction.transaction_price`，既有 SQLite 表仍可能只有旧列 `unit_price` / `quantity`；`SQLAlchemy metadata.create_all()` 只创建不存在的表，不会修改已存在表，因此不能作为 schema 升级机制。实现前必须按本文“schema 版本与迁移策略”完成备份、迁移和自检；开发环境发现不匹配时必须明确失败，禁止静默继续或直接删除生产列/表。
+- 本次仅更新设计文档；不据此修改源代码、`requirements.md` 或 `tasks.md`。实现阶段必须先处理上述差距，再按本设计执行回归测试。
 
 ## Architecture
 
@@ -93,11 +95,16 @@ flowchart TB
     BE8["标准化/校验/幂等写入<br/>ValuationNormalizer · ValuationRepository"]
     BE9["采集脚本（外部 HTTP/解析）<br/>collectors/*.py，不接触数据库"]
     BE10["模型层<br/>investmentLedger/models.py · types.py"]
+    BE11["SchemaManager / migration runner<br/>investmentLedger/schema.py · migrations/"]
+    BE12["统一观测与异常边界<br/>exceptions.py · logging.py"]
     BE1 --> BE2 --> BE4 --> BE10
     BE2 --> BE3
     BE6 --> BE7 --> BE9
     BE6 --> BE8 --> BE10
     BE6 -."失败隔离/日志/重试/超时".-> BE9
+    BE11 --> BE10
+    BE12 -."请求/响应与数据库异常".-> BE1
+    BE12 -."迁移、自检、采集日志".-> BE11
   end
 
   FE5 -- "HTTP JSON /api/investmentLedger/**（无估值写接口）" --> BE1
@@ -122,6 +129,8 @@ flowchart TB
 | 后端 计算层 | 统计公式与分页切片，纯 `Decimal` 运算 | 值对象 | Session、schemas |
 | 后端 数据访问层 | 交易读写与估值读取；估值写入仅由 `ValuationRepository` 内部调用 | 模型层 | 路由、采集脚本 |
 | 后端 模型层 | 表结构、约束、`DecimalText` 类型 | 无 | 其它层 |
+| 后端 Schema 管理层 | 读取 schema 版本、检查 `il_transaction` 实际列、执行受控迁移与启动门禁 | `database.py`、SQLAlchemy Inspector、迁移脚本 | 路由业务、自动删除生产数据 |
+| 后端 可观测性与异常边界 | 统一 logging、request/trace id、异常分类、脱敏和统一 JSON 响应 | FastAPI middleware/exception handlers、Python logging | `print`、返回 SQL/堆栈/敏感请求内容 |
 
 ### 与既有代码的装配点与目标差距
 
@@ -130,8 +139,9 @@ flowchart TB
 | 文件 | 追加内容 |
 | --- | --- |
 | [app/api.py](../../../src/web/backEnd/app/api.py) | 当前已注册 `ledgerRouter`；实现阶段仅在移除过时估值写路由后保持该注册，不重复追加 |
-| [app/models.py](../../../src/web/backEnd/app/models.py) | 当前已调用 `LedgerBase.metadata.create_all(bind=engine)`；目标模型扩展后沿用该注册，不新增第二个初始化路径 |
-| [main.py](../../../src/web/backEnd/main.py) | 当前已注册 `registerLedgerExceptionHandlers(app)`；沿用现有异常装配 |
+| [app/models.py](../../../src/web/backEnd/app/models.py) | 当前仅负责导入模型并执行 `create_all` 以创建缺失的新表；目标实现必须在其前后调用独立 `SchemaManager` 做版本读取、实际列自检和迁移门禁，`create_all` 不得承担已有表升级，也不得新增第二个静默初始化路径 |
+| [app/database.py](../../../src/web/backEnd/app/database.py) | `Engine` / `SessionLocal` 创建后提供给 `SchemaManager` 和 `get_db`；暴露数据库路径的服务端诊断标签，不向响应/生产日志泄露连接字符串 |
+| [main.py](../../../src/web/backEnd/main.py) | lifespan 顺序为 `configureLogging` → `SchemaManager.checkOrMigrate()` → `initAppModels()` → 注册 middleware/`registerLedgerExceptionHandlers(app)`；schema 门禁失败时不启动 HTTP 服务 |
 | [frontEnd/src/router.js](../../../src/web/frontEnd/src/router.js) | 当前仅有单一 `/investmentLedger` 入口；目标改为父路由 + `holdings` / `history` 子路由和 index 重定向，补充导航意图（需求 2.1、2.13、2.14） |
 | [frontEnd/src/main.js](../../../src/web/frontEnd/src/main.js) | 当前已复用 TypeScript store 入口；保持现有 import 解析，不再把该文件描述为必然改动 |
 | [frontEnd/src/store/index.ts](../../../src/web/frontEnd/src/store/index.ts) | 当前已使用 `configureStore({ reducer: { news, stock, crawlers, ledger } })` 并导出 `RootState` / `AppDispatch`；保持现有装配 |
@@ -162,7 +172,9 @@ flowchart TB
 | 后端 | `investmentLedger/crud.py` | `queryTransactions`、`countTransactions`、`addTransaction`、`removeTransaction`、`getLatestValuations` | 账本数据动作；估值读取，不向公开服务暴露写动作 |
 | 后端 | `investmentLedger/models.py` · `types.py` | `Transaction`、`Valuation`、`DecimalText` | 表结构见「Data Models」 |
 | 后端 | `investmentLedger/schemas.py` | `ApiResponse`、`Metric`、`TransactionCreate/Out/Query`、`HoldingQuery/Out`、`PageOut`、`PortfolioStatisticsOut`、`InitialModuleOut` | 请求/响应契约 |
-| 后端 | `investmentLedger/exceptions.py` | `LedgerError` 体系 + `registerLedgerExceptionHandlers(app)` | 统一错误响应 |
+| 后端 | `investmentLedger/exceptions.py` | `LedgerError` 体系 + `registerLedgerExceptionHandlers(app)` | 统一错误响应、OperationalError/schema 异常分类、敏感信息不外泄 |
+| 后端 | `investmentLedger/schema.py` · `migrations/` | `SchemaManager`、`SchemaStatus`、版本迁移脚本 | 启动自检、受控 check/migrate、备份、事务/回滚；不依赖 `create_all` 升级 |
+| 后端 | `investmentLedger/logging.py` | `configureLogging`、`RequestContextMiddleware`、`SensitiveDataFilter` | `log/various_data.log` + 可选控制台；开发 DEBUG/生产 INFO-WARNING；统一字段 |
 
 ---
 
@@ -758,7 +770,7 @@ import { PRODUCT_TYPES, TRADE_DIRECTIONS } from './constants';
 
 /** 单个字段的校验错误 */
 export interface FieldError {
-  /** 出错字段名，camelCase，与表单项 / DTO 字段一一对应（如 unitPrice） */
+  /** 出错字段名，camelCase，与表单项 / DTO 字段一一对应（如 transactionPrice） */
   readonly field: string;
   /** 机器可读错误码，英文常量，如 INVALID_SCALE / OUT_OF_RANGE / NOT_IN_ENUM */
   readonly code: string;
@@ -776,7 +788,8 @@ export interface ValidationResult {
 
 /**
  * 交易表单草稿：字段全部可选且允许 null，代表「用户尚未填写完毕」的中间态。
- * 类型上刻意放宽为 string（而非 ProductType），因为校验器的职责就是判定取值是否落在码全集内。
+ * 交易价格、交易数量始终使用领域字段 transactionPrice / transactionQuantity；
+ * 界面标签只由产品类型派生，绝不进入 DTO 或持久化字段名。
  */
 export interface TradeDraft {
   /** 产品类型：期望为 PRODUCT_TYPES 中的英文码，其它取值一律判为无效（需求 1.2） */
@@ -785,15 +798,21 @@ export interface TradeDraft {
   readonly productName?: string | null;
   /** 产品代码：非空且 <= 32 字符 */
   readonly productCode?: string | null;
-  /** 交易单价：十进制字符串承载（避免浮点误差），要求 > 0 且小数位恰为 2 */
-  readonly unitPrice?: string | null;
-  /** 交易数量：要求为 > 0 的整数；允许字符串以承载输入框原始文本 */
-  readonly quantity?: string | number | null;
+  /** 交易价格：十进制文本；必须为有限且大于 0 的数值，不限制小数位、整数位或最大值 */
+  readonly transactionPrice?: string | null;
+  /** 交易数量：十进制文本；产品类型决定其为正浮点数或正整数，不限制位数或最大值 */
+  readonly transactionQuantity?: string | null;
   /** 交易方向：期望为 TRADE_DIRECTIONS 中的英文码 */
   readonly direction?: string | null;
   /** 交易日期：YYYY-MM-DD，且必须是有效公历日期（如拒绝 2 月 30 日） */
   readonly tradeDate?: string | null;
 }
+
+/** 产品类型到显示标签和数量规则的唯一映射；字段键始终保持 canonical 名称。 */
+export const tradeFieldPresentation = (productType: string | null | undefined) =>
+  productType === 'STOCK'
+    ? { priceLabel: '单价', quantityLabel: '数量', quantityRule: 'positive-integer' as const }
+    : { priceLabel: '净值', quantityLabel: '份额', quantityRule: 'positive-decimal' as const };
 
 /** 交易草稿校验器：无状态，可安全复用同一实例 */
 export default class TradeDraftValidator {
@@ -802,9 +821,20 @@ export default class TradeDraftValidator {
    * @param draft 待校验草稿；**不变量：方法内不修改 draft 的任何字段**（需求 1.2 保留已提交值）
    * @returns 每个无效字段一条 FieldError；枚举字段以 PRODUCT_TYPES / TRADE_DIRECTIONS 的英文码为唯一合法集
    */
-  validate(draft: TradeDraft): ValidationResult { /* ... */ }
+  validate(draft: TradeDraft): ValidationResult {
+    // 先校验产品类型；随后以 transactionPrice / transactionQuantity 报错，且消息采用当前显示标签。
+    // WEALTH/FUND：价格和数量均为有限正 Decimal；STOCK：价格为有限正 Decimal、数量为正整数。
+    // 不检查 decimal scale、整数位数或数值上界，也不对输入补零、截断或四舍五入。
+  }
 }
 ```
+
+**本次数值与命名契约（取代现有实现中的 `unitPrice` / `quantity`）**：
+
+- 表单、前端领域模型、HTTP JSON、Pydantic 别名和前端 DTO 一律为 `transactionPrice`、`transactionQuantity`；后端内部与 ORM 使用 `transaction_price`、`transaction_quantity`。`净值`/`份额`、`单价`/`数量`仅为渲染标签，**不得**作为 JSON、数据库列或错误 `field` 的名称。
+- `WEALTH`、`FUND`：`transactionPrice` 与 `transactionQuantity` 均须是大于 0 的有限 `Decimal` 数值，可有任意位小数；`STOCK`：`transactionPrice` 同样为大于 0 的有限 `Decimal` 数值，`transactionQuantity` 须为大于 0 且无小数部分的整数。所有数值在前端以文本传递并使用字符串/Decimal 语义判定，避免 JavaScript 二进制浮点参与判断。
+- 不设置、推断或间接引入固定小数位、整数位长度或最大数值限制；不得使用 `toFixed`、`quantize(Decimal('0.01'))`、`InputNumber.precision`、数据库 `String(n)` 数值长度、或以 `Number`/`float` 上限作为交易数值规则。仅允许拒绝空值、无法解析的数值、非有限值、非正值，以及股票数量的小数值。
+- `TradeDraftValidator` 必须逐字段返回 `transactionPrice` / `transactionQuantity` 的错误并原样保留草稿；它可复用无固定标度的十进制文本解析器，且以产品类型选择数量规则。`INVALID_SCALE` 不再用于交易价格或理财/基金份额；股票数量含小数返回 `NOT_INTEGER`，非正数返回 `OUT_OF_RANGE`。
 
 - `TradeDraftValidator.validate(draft)` → `{ valid, fieldErrors: [{ field, code, message }] }`，逐字段给出中文原因，**不修改 draft**（需求 1.2 保留已提交值）。
 - **枚举字段的合法集为英文码**：`productType ∈ PRODUCT_TYPES`（`WEALTH` / `FUND` / `STOCK`）、`direction ∈ TRADE_DIRECTIONS`（`BUY` / `SELL`）。中文字面量（如 `'理财'`）、大小写不符的码（如 `'buy'`）一律判为 `NOT_IN_ENUM` 无效；错误 `message` 仍为中文（例如「产品类型必须为理财、基金或股票之一」），由 `PRODUCT_TYPE_LABELS` 拼装以避免文案与码脱节。
@@ -1203,7 +1233,7 @@ export interface ApiEnvelope<T> {
 
 /** 字段级错误项，与领域层 FieldError 同构，用于回填表单 */
 export interface FieldErrorItem {
-  /** camelCase 字段名，如 unitPrice */
+  /** camelCase 字段名，如 transactionPrice */
   field: string;
   /** 英文错误码，如 INVALID_SCALE、NOT_IN_ENUM */
   code: string;
@@ -1221,7 +1251,7 @@ export interface Metric {
   unavailableReason: string | null;
 }
 
-/** 一笔交易记录的出参（历史交易表格的行数据，需求 2.12） */
+/** 一笔交易记录的出参（历史交易表格的行数据，需求 2.12）。 */
 export interface TransactionOut {
   /** 交易主键，仅用于删除定位；界面不渲染、也无按 id 查询接口（需求 2.23） */
   id: number;
@@ -1231,10 +1261,10 @@ export interface TransactionOut {
   productName: string;
   /** 产品代码，<= 32 字符 */
   productCode: string;
-  /** 交易单价，十进制字符串，恰两位小数 */
-  unitPrice: string;
-  /** 交易数量，> 0 的整数 */
-  quantity: number;
+  /** 交易价格：有限正十进制字符串；不做固定小数位、整数位或最大值格式化 */
+  transactionPrice: string;
+  /** 交易数量：有限正十进制字符串；STOCK 时保证为正整数，其余类型可有任意位小数 */
+  transactionQuantity: string;
   /** 交易方向码 BUY/SELL，展示时经 TRADE_DIRECTION_LABELS 转中文 */
   direction: TradeDirection;
   /** 交易日期，YYYY-MM-DD */
@@ -1293,7 +1323,7 @@ export interface InitialModuleOut {
   module: LedgerModule;
 }
 
-/** 历史交易查询参数：所有字段可选，未启用的条件整体省略而非传空值 */
+/** 交易表单草稿（创建请求负载）：字段允许缺失或 null，代表校验前的中间态。 */
 export interface TradeDraft {
   /** 产品类型码；未选择时为 null */
   productType?: ProductType | null;
@@ -1301,10 +1331,10 @@ export interface TradeDraft {
   productName?: string | null;
   /** 产品代码 */
   productCode?: string | null;
-  /** 交易单价，十进制字符串（不用 number，避免浮点误差与两位小数判定失真） */
-  unitPrice?: string | null;
-  /** 交易数量；允许 string 以承载 InputNumber 的原始输入 */
-  quantity?: string | number | null;
+  /** 交易价格原始十进制文本；无需固定小数位，不使用 number 以避免精度或上限失真 */
+  transactionPrice?: string | null;
+  /** 交易数量原始十进制文本；由产品类型决定正浮点数或正整数规则 */
+  transactionQuantity?: string | null;
   /** 交易方向码；未选择时为 null */
   direction?: TradeDirection | null;
   /** 交易日期，YYYY-MM-DD（由 dayjs 格式化后写入） */
@@ -1458,11 +1488,11 @@ export const fetchPortfolioStatistics = (params: HoldingQueryInput): Promise<Por
 | `IndexRedirect`（容器，父路由 index 子路由 element） | 挂载时调用 `fetchInitialModule()`，据结果 `<Navigate>` 到 `holdings` 或 `history` | 仅在访问不带子路径的 `/investmentLedger` 时命中一次；判定中渲染 `Skeleton`（需求 2.2、2.3） |
 | `HoldingsPage` / `HistoryPage`（容器，两个子路由 element） | 各自连接 store 对应切片、挂载时 dispatch 对应 fetch thunk、承接 `message` 提示 | 二者互不感知对方状态；路由切换不清空对方状态（需求 2.13） |
 | `ModuleSwitch` | antd `Menu`（`mode="inline"`）在持仓 / 历史交易两个子路由间导航 | `activeModule` 由容器据当前路由派生传入；`onSwitch` 使用 `ledgerNavigation: 'module-switch'` 导航，不重置目标切片；从持仓条目进入历史时使用 `ledgerNavigation: 'holding-scope'` 并先 dispatch `openHistoryWithScope`（需求 2.9、2.13、2.14） |
-| `TradeHistoryPanel` | antd `Table` 展示当前页交易，列：产品类型、产品名称、产品代码、交易单价、交易数量、交易方向、交易日期 + 操作列（删除） | `rowKey={record => record.id}`，**id 不作为列渲染**（需求 2.23）；仅交易日期列可排序（需求 2.15）；无编辑入口（需求 1.4）；`pagination={false}`，分页交给 `LedgerPagination` |
+| `TradeHistoryPanel` | antd `Table` 展示当前页交易，列：产品类型、产品名称、产品代码、交易价格、交易数量、交易方向、交易日期 + 操作列（删除） | `rowKey={record => record.id}`，**id 不作为列渲染**（需求 2.23）；数据键固定为 `transactionPrice` / `transactionQuantity`。为支持同页混合产品类型，列标题使用中性「交易价格」/「交易数量」，每个数值单元格按该行 `productType` 附带对应标签：理财/基金为「净值」/「份额」，股票为「单价」/「数量」；仅交易日期列可排序（需求 2.12、2.15）；无编辑入口；`pagination={false}`，分页交给 `LedgerPagination` |
 | `HoldingsPanel` | antd `Table` 展示持仓条目，列：产品类型、产品名称、产品代码、持仓、总收益、总收益率、年化收益率 + 「查看交易」入口 | 只读：无新增/删除/编辑控件；`expandable` 未启用（需求 2.7 不展示逐笔）；持仓与总收益列可排序（需求 2.19）；任何写操作意图（若从其它入口触发）由 `message.info` 提示前往历史交易模块（需求 1.6、1.7） |
 | `TradeFilterBar` | 产品类型、交易方向、交易日期范围、产品名称搜索、产品代码搜索 | 受控组件；提交前经 `QueryInputValidator`；处于产品历史交易范围时展示范围标签与「清除范围」 |
 | `LedgerPagination` | antd `Pagination` + 自定义页大小输入（1-100） | `pageSizeOptions=['10','20','50']`，`showTotal` 展示当前页与总页数（需求 2.24、2.28）；`pageCount === 0` 时渲染「当前结果没有可浏览的页」（需求 2.31） |
-| `TradeFormModal` | antd `Form` 受控表单 | 校验失败时保留输入并按字段展示错误（需求 1.2） |
+| `TradeFormModal` | antd `Form` 受控表单 | 产品类型变更即从 `tradeFieldPresentation` 派生字段标签与 `aria-label`：理财/基金显示「净值」「份额」，股票显示「单价」「数量」；受控字段和 `fieldErrors` 键仍固定为 `transactionPrice` / `transactionQuantity`。切换类型不重命名、不清空、不格式化已输入数值；校验失败时保留输入并按字段展示错误（需求 1.1、1.2） |
 | `PortfolioSummary` | `Descriptions` 展示总持仓、总收益、总收益率、总年化收益率 | 每项经 `MetricValue` 渲染 |
 | `MetricValue` | 统一渲染统计指标 | `available === false` → 渲染「不可用」并以 `Tooltip` 展示原因；**绝不以 0 或 `--` 之外的数值替代**（需求 3.9） |
 | 空结果 | 所有 `Table` 保留列头 + antd 默认 `Empty` | 需求 2.22 |
@@ -1688,6 +1718,11 @@ src/web/backEnd/app/investmentLedger/
 ├── constants.py     # ProductType / TradeDirection 英文码枚举、页大小边界、默认值
 ├── types.py         # DecimalText：SQLite 上精确存取 Decimal 的 TypeDecorator
 ├── models.py        # Base(DeclarativeBase) / Transaction / Valuation
+├── schema.py        # SchemaManager：版本读取、实际列检查、启动门禁和迁移命令
+├── migrations/      # 版本化、可逆/幂等的 SQLite 迁移脚本（不由 create_all 替代）
+│   ├── __init__.py
+│   └── v002_transaction_canonical_columns.py
+├── logging.py       # 统一 Python logging、JSON 字段、脱敏和开发调试配置
 ├── schemas.py       # Pydantic v2 请求与响应模型（含 ApiResponse 信封、Metric）
 ├── crud.py          # 数据访问：交易查询/写入/删除、读取最新估值（不承载采集脚本写库）
 ├── calculators.py   # 纯计算：ProductPerformanceCalculator / PortfolioCalculator / Paginator
@@ -1804,25 +1839,25 @@ ANNUALIZATION_DAYS = 365                     # 年化换算的年度天数（需
 
 #### 2.2 表模型（`models.py`）
 
-**为什么用 `DecimalText`**：SQLite 没有原生 `NUMERIC` 精确类型，SQLAlchemy `Numeric` 在 SQLite 上退化为 `REAL`（浮点），会破坏「交易单价恰有两位小数」「估值上限 999999999.99」等约束的精确性。因此定义 `DecimalText(TypeDecorator, impl=String)`：写入时 `str(value.quantize(Decimal('0.01')))`，读取时 `Decimal(value)`。既有 [omo/models.py](../../../src/web/backEnd/app/omo/models.py) 同样以字符串存放金额，风格一致。
+**为什么用无标度 `DecimalText`**：SQLite 没有原生精确 `NUMERIC` 类型，SQLAlchemy `Numeric` 在 SQLite 上可能退化为 `REAL`（浮点）。交易价格与交易数量因此以 `DecimalText(TypeDecorator, impl=Text)` 保存为**不量化的**十进制文本：写入时仅将已验证的 `Decimal` 转为无指数的规范文本，读取时以 `Decimal(value)` 还原，全程不经 `float`。该列类型不得声明 `String(n)` 或调用 `quantize`，从而不引入小数位、整数位或最大数值限制；业务校验负责有限性、正值以及股票数量整数性。估值精度规则独立于本次交易字段修订。
 
 ```python
 # types.py
 class DecimalText(TypeDecorator):
-    """把 Decimal 以定长十进制字符串存入 TEXT 列的自定义列类型。
+    """把 Decimal 以无标度十进制文本存入 TEXT 列的自定义列类型。
 
-    存在意义：SQLite 无精确 NUMERIC，直接用 Numeric 会退化为浮点并破坏两位小数约束。
-    cache_ok=True 允许 SQLAlchemy 缓存使用本类型的编译后语句。
+    SQLite 无精确 NUMERIC；直接使用 Numeric 可能退化为浮点。此类型只负责
+    Decimal 与文本的精确转换，不验证范围、整数性、位数，不做补零、截断或量化。
     """
 
-    impl = String          # 底层实际列类型
+    impl = Text            # 底层实际列类型；不指定长度，避免形成数值位数上限
     cache_ok = True
 
     def process_bind_param(self, value: Decimal | None, dialect) -> str | None:
-        """写库方向：Decimal → 两位小数字符串；None 透传（表示 SQL NULL）。"""
+        """写库方向：Decimal → 无指数十进制字符串；None 原样透传。"""
 
     def process_result_value(self, value: str | None, dialect) -> Decimal | None:
-        """读库方向：字符串 → Decimal，全程不经过 float；None 透传。"""
+        """读库方向：字符串 → Decimal，全程不经过 float；None 原样透传。"""
 ```
 
 ```python
@@ -1834,7 +1869,7 @@ primaryKey = Annotated[int, mapped_column(primary_key=True, autoincrement=True)]
 
 
 class Base(DeclarativeBase):
-    """本模块独立的声明式基类；其 metadata 在 app/models.py 的 initAppModels() 中 create_all。"""
+    """本模块独立的声明式基类；metadata 仅由通过 SchemaManager 门禁后的 initAppModels() 用于创建缺失表。"""
     ...
 
 
@@ -1851,10 +1886,10 @@ class Transaction(Base):
     product_name: Mapped[str]      = mapped_column(String(100))
     # 产品代码，1..32 字符；与 product_type 共同构成产品键
     product_code: Mapped[str]      = mapped_column(String(32), index=True)
-    # 交易单价，> 0 且恰两位小数；以 TEXT 精确存放 Decimal（见 DecimalText 说明）
-    unit_price:   Mapped[Decimal]  = mapped_column(DecimalText(20))
-    # 交易数量，> 0 的整数
-    quantity:     Mapped[int]
+    # 交易价格：有限且 > 0；以无标度 TEXT 精确存放 Decimal（见 DecimalText 说明）
+    transaction_price:    Mapped[Decimal]  = mapped_column(DecimalText())
+    # 交易数量：有限且 > 0；WEALTH/FUND 可为任意精度 Decimal，STOCK 必须为整数
+    transaction_quantity: Mapped[Decimal]  = mapped_column(DecimalText())
     # 交易方向英文码，取值 ∈ {BUY, SELL}
     direction:    Mapped[str]      = mapped_column(String(16), index=True)
     # 交易日期（有效公历日期）；建索引以支撑区间筛选与排序（需求 2.16、2.15）
@@ -1901,6 +1936,31 @@ class Valuation(Base):
 
 **估值表的写入边界**：`il_valuation` 由 `ValuationRepository` 在核心事务中维护，公开 `router.py`、`TransactionService`、前端 API 客户端均没有估值写方法。采集器提交的标准结果必须经过字段和来源校验；同一产品、估值日期、来源的结果使用唯一约束和幂等更新，不能通过用户界面或账本 API 覆盖。产品同日跨来源冲突按 `source_priority` 确定统计采用的记录，所有冲突写入结构化日志。
 
+#### 2.3 Schema 版本、实际列检查与迁移策略
+
+`create_all` **不是迁移工具**：它只在表不存在时创建表，不会为已存在的 `il_transaction` 增加 `transaction_price` / `transaction_quantity`，也不会重命名或删除 `unit_price` / `quantity`。服务启动必须先执行 `SchemaManager.checkOrMigrate()`，通过后才允许 `create_all` 补建缺失的新表并注册路由；任何 ORM 查询不得在 schema 未通过时静默继续。
+
+**版本与期望结构**：在数据库中维护 `il_schema_version`（`version` 主键、`applied_at`、`migration_id`、`checksum`），当前 canonical 交易 schema 版本为 `2`。`SchemaManager` 使用 SQLAlchemy Inspector/SQLite `PRAGMA table_info` 读取实际列，而不是仅比较 ORM metadata；至少检查 `il_transaction` 的 `product_type`、`product_name`、`product_code`、`transaction_price`、`transaction_quantity`、`direction`、`trade_date`、`created_at` 及必要索引。版本记录缺失但表已存在时按实际列判定：完整 canonical 结构可登记当前版本；只有旧字段或字段组合不完整则进入明确迁移/失败路径，不能把“无版本记录”当成最新版本。
+
+**受控入口与装配点**：
+
+- `investmentLedger/schema.py` 提供 `SchemaManager.inspect() -> SchemaStatus`、`checkOrMigrate(mode)` 和 `backupDatabase()`；`migrations/` 中每个版本脚本只接受受控数据库连接，不接受前端参数。
+- `app/main.py` / 应用 lifespan 在 `app/database.py` 建立 Engine 后调用启动自检；`app/models.py:initAppModels()` 只能在自检成功后执行 `LedgerBase.metadata.create_all(bind=engine)`，且必须在注释和测试中明确其不负责升级已有表。
+- 受控命令提供 `python -m app.investmentLedger.schema check --database <path>` 和 `... migrate --database <path> --backup <path>`；生产环境默认只 `check`，迁移由发布/运维步骤显式执行，不由每次 Web 启动自动删除或重建生产表。
+- 开发环境检测到 schema 不匹配时抛出 `SchemaMismatchError`，日志给出数据库路径、期望版本、实际版本和缺失/多余列，并让服务启动失败；不得降级为旧 ORM 字段、跳过检查或静默新建另一份数据库。
+
+**旧字段到 canonical 字段的迁移（v001 → v002）**：
+
+1. **备份**：在取得数据库锁并开始写事务前，使用 SQLite 在线备份/API 或受控文件副本生成带时间戳的备份；校验备份可打开且包含 `il_transaction`，记录备份路径和校验摘要。备份失败立即终止，不改原库。
+2. **锁与事务**：连接设置明确的 busy timeout，执行 `BEGIN IMMEDIATE`，在同一事务中完成结构变化、数据回填、约束/索引检查和版本记录；事务提交前任何异常都 `ROLLBACK`，恢复原连接状态。备份是事务回滚之外的恢复保障。
+3. **字段映射**：旧 `unit_price` → 新 `transaction_price`，旧 `quantity` → 新 `transaction_quantity`；新列使用与 `DecimalText` 一致的 `TEXT` 语义。若新列已存在，则只回填新列为空的行；若同一行新旧值都存在但 Decimal 语义不相等，视为数据冲突并中止，禁止覆盖。逐行检查可解析、非空和与现有业务数值定义兼容；异常行、无法解析值或数量语义不明确时输出主键计数/脱敏诊断，回滚并要求人工修复。
+4. **旧列隔离**：迁移成功后将旧列重命名为 `legacy_unit_price`、`legacy_quantity`（或在 SQLite 不支持安全重命名时通过受控 shadow table 保留），使 ORM 和新 SQL 不再读取旧列，同时保留回滚/审计数据。不得在启动迁移中直接 `DROP COLUMN`、删除表或重建覆盖生产库；旧列的物理删除只能作为后续另一个经审批、已备份且可恢复的迁移。
+5. **一致性与版本登记**：重新读取实际列，确认 canonical 列存在、每行映射值与旧值 Decimal 语义一致、业务读路径只引用 canonical 列，再在同一事务插入 v002 版本记录和 checksum 后提交。提交后再次执行只读自检，失败则服务保持不可用并按备份恢复流程处理。
+
+**幂等与回滚**：迁移脚本以版本记录和实际列集合双重判定；已完成 v002 且 canonical 列/隔离列完整时再次执行返回 `already_applied`，不得重复建列、改值或增加版本记录。迁移中断、锁超时、冲突、类型转换失败、校验失败或版本跳跃均回滚整个事务；若进程在提交后异常，下一次 `check/migrate` 依据版本和列状态安全续检，不重复回填。回滚命令只能使用已验证备份或显式反向迁移脚本，不在 Web 请求中执行。
+
+**当前错误的直接防护**：当 ORM 查询计划包含 `il_transaction.transaction_price` 而 Inspector 发现只有 `unit_price` 时，`SchemaManager` 在启动阶段报告“schema mismatch: missing transaction_price/transaction_quantity; legacy unit_price/quantity detected”，记录 schema 版本并拒绝服务；即使请求绕过启动门禁，`OperationalError` 也必须按下文数据库/schema 类异常处理，不能把 SQL 文本返回客户端。
+
 ### 3. Pydantic 模型（`schemas.py`）
 
 字段内部使用 snake_case，通过 `model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)` 对外输出 camelCase，与前端字段命名直接对齐。所有金额/比率以**十进制字符串**序列化，避免 JSON 浮点误差。
@@ -1917,7 +1977,7 @@ class ApiResponse(BaseModel, Generic[T]):
 class FieldErrorItem(BaseModel):
     """字段级错误项，前端据此定位到交易表单项（需求 1.2）。"""
 
-    field: str    # camelCase 字段名，如 unitPrice
+    field: str    # camelCase 字段名，如 transactionPrice
     code: str     # 英文错误码，如 INVALID_SCALE / NOT_IN_ENUM
     message: str  # 中文原因，直接渲染给用户
 
@@ -1931,17 +1991,23 @@ class Metric(BaseModel):
 
 
 class TransactionCreate(BaseModel):
-    """创建交易的入参（需求 1.1、1.2）。"""
+    """创建交易的入参（需求 1.1、1.2）。
 
-    product_type: ProductType   # 英文码枚举，非法值由 Pydantic 直接拒绝并给出可选值列表
+    `alias_generator=to_camel` 将 `transaction_price` / `transaction_quantity`
+    稳定暴露为 `transactionPrice` / `transactionQuantity`。界面标签不参与 API 契约。
+    """
+
+    product_type: ProductType   # 英文码枚举，非法值由 Pydantic 拒绝
     product_name: str           # 1..100 字符
     product_code: str           # 1..32 字符
-    unit_price: Decimal         # > 0 且小数位恰为 2
-    quantity: int               # > 0 的整数
+    transaction_price: Decimal  # 有限且 > 0；无小数位、整数位或最大值限制
+    transaction_quantity: Decimal  # 有限且 > 0；STOCK 时另校验为整数
     direction: TradeDirection   # 英文码枚举
     trade_date: date            # 有效公历日期，非法日期在解析阶段即失败
-    # 校验器：长度、> 0、恰两位小数（exponent == -2）；枚举合法集为英文码，
-    #        中文字面量（如「理财」）与大小写不符的码一律判为无效
+
+    # before 校验：只以 Decimal 精确解析并拒绝 float、NaN 与 Infinity；不量化。
+    # after 校验：价格对全部产品类型要求 > 0；数量在 WEALTH/FUND 要求 > 0，
+    # 在 STOCK 额外要求 value == value.to_integral_value()。不设置任何位数或数值上界。
 
 
 class TransactionOut(BaseModel):
@@ -1951,8 +2017,8 @@ class TransactionOut(BaseModel):
     product_type: ProductType   # 英文码，前端经展示映射转中文
     product_name: str           # 产品名称
     product_code: str           # 产品代码
-    unit_price: str             # 十进制字符串，恰两位小数（序列化为 str 以规避 JSON 浮点误差）
-    quantity: int               # 交易数量
+    transaction_price: str      # 有限正十进制字符串；不补零/量化
+    transaction_quantity: str   # 有限正十进制字符串；STOCK 时为整数文本
     direction: TradeDirection   # 英文码
     trade_date: date            # 序列化为 YYYY-MM-DD
 
@@ -2273,6 +2339,17 @@ class Paginator:
 
 （数据模型与表结构）
 
+### Schema 元数据与迁移审计模型
+
+| 表 | 字段 | 语义 |
+| --- | --- | --- |
+| `il_schema_version` | `version` | 单调递增 schema 版本，当前 canonical 交易字段版本为 `2` |
+|  | `migration_id` | 版本迁移脚本稳定标识，如 `v002_transaction_canonical_columns` |
+|  | `applied_at` | 迁移成功提交时间 |
+|  | `checksum` | 迁移脚本/期望结构摘要，用于发现脚本漂移 |
+
+该表只由受控 schema 管理器写入，不属于公开 API，也不由业务 CRUD 读取。`SchemaStatus` 同时包含 expected version、actual version、实际列集合、缺失列、多余/legacy 列、数据库路径（仅服务端日志）和是否可服务；它是启动门禁与测试断言的唯一状态来源。
+
 ### 后端持久化模型（表结构与业务约束）
 
 ORM 定义见「后端设计 2」。业务级约束与需求映射如下：
@@ -2283,8 +2360,8 @@ ORM 定义见「后端设计 2」。业务级约束与需求映射如下：
 | | `product_type` | `String(16)`，`∈ {WEALTH, FUND, STOCK}`（英文码，展示时前端映射为理财/基金/股票），索引 | 1.1、1.2 |
 | | `product_name` | `String(100)`，非空且 ≤ 100 字符 | 1.2 |
 | | `product_code` | `String(32)`，非空且 ≤ 32 字符，索引 | 1.2 |
-| | `unit_price` | `DecimalText`，`> 0` 且恰有两位小数 | 1.2 |
-| | `quantity` | `Integer`，`> 0` 的整数 | 1.2 |
+| | `transaction_price` | `DecimalText`（无长度、无量化文本），有限且 `> 0`；不限制小数位、整数位或最大数值 | 1.2 |
+| | `transaction_quantity` | `DecimalText`（无长度、无量化文本），有限且 `> 0`；理财/基金允许任意小数，股票必须是整数 | 1.2 |
 | | `direction` | `String(16)`，`∈ {BUY, SELL}`（英文码，展示时前端映射为买入/卖出），索引 | 1.1、1.2 |
 | | `trade_date` | `Date`，有效日历日期，索引（排序与区间筛选） | 1.2、2.16 |
 | | `created_at` | `DateTime`，写入时间；同日交易的稳定次序依据 | 2.15 |
@@ -2400,7 +2477,7 @@ sequenceDiagram
         V-->>S: {valid:true}
         S->>A: createTransaction(payload)
         A->>R: POST /transactions
-        R->>SC: Pydantic 校验（枚举/长度/正整数/两位小数/日期）
+        R->>SC: Pydantic 校验（枚举/长度/有限正 Decimal/按产品类型的数量规则/日期；payload 为 transactionPrice、transactionQuantity）
         alt 后端校验失败
             SC-->>R: RequestValidationError
             R-->>A: 422 {code:422, data:{fieldErrors}}
@@ -2625,9 +2702,9 @@ sequenceDiagram
 
 以下 13 条属性已按预分析完成反思：查询谓词合并所有条件组合，分页合并所有边界，浏览状态合并所有重置路径；采集器部分将标准化、故障隔离、幂等与来源冲突分别保留，因为它们验证不同的不变量。
 
-### Property 1: 交易草稿校验拒绝无效输入并保留原值
+### Property 1: 差异化交易数值校验拒绝无效输入并保留原值
 
-*For any（对于任意）*至少包含一个无效字段的交易草稿（产品类型或交易方向不属于预定义取值、产品名称为空或超过 100 字符、产品代码为空或超过 32 字符、交易数量不是大于 0 的整数、交易单价不大于 0 或小数位不恰为 2 位、交易日期不是有效日历日期），校验都必须拒绝创建，为每一个无效字段返回一条错误原因，并且草稿中所有字段值保持不变。
+*For any（对于任意）*至少包含一个无效字段的交易草稿：产品类型或交易方向不属于预定义取值、产品名称为空或超过 100 字符、产品代码为空或超过 32 字符、交易日期不是有效日历日期、交易价格不是有限且大于 0 的数值，或交易数量不满足当前产品类型的规则（理财/基金不是有限且大于 0 的数值；股票不是大于 0 的整数），校验都必须拒绝创建，为每一个无效字段返回一条以 `transactionPrice` 或 `transactionQuantity` 标识的错误原因，并且草稿中所有字段值保持不变。对任意有效的理财/基金草稿，任意小数位数的有限正交易价格和交易数量均被接受；对任意有效的股票草稿，任意小数位数的有限正交易价格与正整数交易数量均被接受；校验不限制整数位数或数值最大值，也不改变输入标度。
 
 **Validates: Requirements 1.2**
 
@@ -2679,9 +2756,9 @@ sequenceDiagram
 
 **Validates: Requirements 3.7, 3.8, 3.9**
 
-### Property 10: 交易写入语义（创建可检索、删除即消失且互不影响）
+### Property 10: 交易写入语义（canonical 字段创建可检索、删除即消失且互不影响）
 
-*For any（对于任意）*字段完全合法的交易记录集合：逐笔创建后，按对应产品条件查询都能取回与提交值逐字段相等的记录；随后删除其中任意一笔，该笔记录不再出现在任何查询结果中，总条数恰好减少 1，且其余每一笔记录的所有字段保持不变。
+*For any（对于任意）*字段完全合法的交易记录集合：逐笔以 `transactionPrice`、`transactionQuantity` 创建，经 camelCase DTO、snake_case 服务契约和 `DecimalText` 持久化后，按对应产品条件查询都能取回数值语义相等且产品类型规则仍成立的记录；理财/基金的任意小数份额、股票的任意小数单价与整数数量不因存取而补零、截断、四舍五入或改名。随后删除其中任意一笔，该笔记录不再出现在任何查询结果中，总条数恰好减少 1，且其余每一笔记录的所有字段保持不变。
 
 **Validates: Requirements 1.3, 1.5**
 
@@ -2718,7 +2795,7 @@ sequenceDiagram
 ### 统一错误响应
 
 ```json
-{ "code": 422, "msg": "参数校验失败", "data": { "fieldErrors": [ { "field": "unitPrice", "code": "INVALID_SCALE", "message": "交易单价必须为大于 0 且恰有两位小数的数值" } ] } }
+{ "code": 422, "msg": "参数校验失败", "data": { "fieldErrors": [ { "field": "transactionQuantity", "code": "NOT_INTEGER", "message": "股票数量必须为大于 0 的整数" } ] } }
 ```
 
 ### 后端异常体系（`exceptions.py`）
@@ -2746,7 +2823,53 @@ sequenceDiagram
 
 采集器不得把异常堆栈、外部响应原文或敏感请求信息返回到前端；日志保留可审计的插件标识、批次号、阶段和脱敏 `source_reference`。缺失估值时，产品持仓数量和累计交易金额等不依赖估值的指标仍正常输出；持仓市值、收益、收益率及其依赖项按需求 3.6/3.7-3.9 标记为不可用，不以 0 代替。
 
-`LedgerError` → 统一信封；`RequestValidationError` → 把 Pydantic 的 `loc/msg/type` 翻译为 `fieldErrors`（`field` 用 camelCase 别名，`code` 用英文常量如 `NOT_IN_ENUM` / `INVALID_SCALE` / `OUT_OF_RANGE` / `TOO_LONG`，`message` 为中文）。枚举取值非法时 `code` 恒为 `NOT_IN_ENUM`，`message` 直接书写完整中文句子（如「产品类型必须为理财、基金或股票之一」），**不把英文码原样回显给用户**。数据库异常（`IntegrityError`、`OperationalError`）统一转为 `code: 500`、`msg: "数据保存失败，请稍后重试"`，**不外泄 SQL、表名或堆栈**；写操作在 `try/except` 中 `db.rollback()`。
+`LedgerError` → 统一信封；`RequestValidationError` → 把 Pydantic 的 `loc/msg/type` 翻译为 `fieldErrors`（`field` 用 camelCase 别名，`code` 用英文常量如 `NOT_IN_ENUM` / `INVALID_SCALE` / `OUT_OF_RANGE` / `TOO_LONG`，`message` 为中文）。枚举取值非法时 `code` 恒为 `NOT_IN_ENUM`，`message` 直接书写完整中文句子（如「产品类型必须为理财、基金或股票之一」），**不把英文码原样回显给用户**。`OperationalError` 必须按 `SCHEMA_OR_DATABASE_UNAVAILABLE` 单独识别并按上表返回通用 503/既有 500；其它数据库异常（`IntegrityError`、其它 `SQLAlchemyError`）统一转为通用 500。所有数据库写操作失败都执行 `db.rollback()`；任何类别均不外泄 SQL、表名、参数、连接字符串或堆栈。
+
+### 统一后端接口异常边界与响应映射
+
+所有公开 FastAPI 路由（6 个账本接口）以及受控估值采集入口必须经过同一套 middleware/exception handler 装配，不允许在每个业务函数中自行拼装不同错误格式。路由和服务层只抛领域异常或原始技术异常，由 `exceptions.py` 的 `registerLedgerExceptionHandlers(app)` 统一捕获、记录和转换；现有 `{code,msg,data}` JSON 信封不变，成功和既有业务错误的 API 契约不改变。
+
+捕获顺序必须从具体到一般：
+
+1. `LedgerError` 及其子类：记录已处理业务失败，不记录完整堆栈；按异常携带的 HTTP/code/fieldErrors 返回既有中文提示。
+2. `RequestValidationError`（Pydantic/FastAPI 参数绑定）：逐项转换为 `fieldErrors`，保留客户端可修正的字段信息，但不回显完整请求体；返回 422。
+3. `sqlalchemy.exc.OperationalError`：单独归类为 `SCHEMA_OR_DATABASE_UNAVAILABLE`，区分 schema 缺列、连接不可用、锁超时等子原因；服务端以 `logger.exception` 记录完整堆栈、数据库路径、接口方法/路径、request/trace id 和 schema 版本，客户端只收到通用 503 或既有 500 信封，不包含 SQL、表名、路径细节或堆栈。
+4. 其它 `SQLAlchemyError`（如 `IntegrityError`、事务提交失败）：执行安全 rollback，记录数据库异常类别和必要的脱敏上下文，返回通用 500/503；不把 constraint、SQL、参数或连接字符串返回客户端。
+5. 未预期 `Exception`：记录完整堆栈并返回通用 500；客户端只见“服务暂时不可用，请稍后重试”，不泄露内部模块、SQL、表名或敏感请求内容。
+
+业务写操作的事务回滚由 service/repository 的统一 decorator 或明确 `try/except/finally` 保证；异常处理器不得因为日志失败而改变原 HTTP 状态、统一响应或正常请求流程。`OperationalError` 不是字段校验错误，不得伪装成 422；它必须单独可检索和告警。
+
+| 异常分类 | HTTP | `code` | 客户端响应 | 服务端记录 |
+| --- | ---: | ---: | --- | --- |
+| `LedgerError` 业务异常 | 400/404/422（按既有子类） | 同 HTTP 或既有业务码 | 既有中文 `msg`，必要时 `fieldErrors` | `WARNING`，异常类别、业务码、方法/路径、request id；不堆栈 |
+| `RequestValidationError` | 422 | 422 | `fieldErrors`，不含完整请求体 | `INFO/WARNING`，字段名和校验类型脱敏记录；不堆栈 |
+| `OperationalError` / schema 不可用 | 503（可按现有契约保留 500） | 503/500 | 通用数据库暂不可用提示 | `ERROR` + 完整堆栈、数据库路径、schema 版本、方法/路径、request id |
+| 其它 `SQLAlchemyError` | 500 | 500 | 通用数据处理失败提示 | `ERROR` + 完整堆栈和脱敏上下文 |
+| 未预期 `Exception` | 500 | 500 | 通用服务端错误提示 | `ERROR` + 完整堆栈和脱敏上下文 |
+
+### 异常日志与开发模式调试日志
+
+统一日志模块放在 `app/investmentLedger/logging.py`（如项目已有 logging 工厂则复用其 handler/config，不另建平行日志系统），使用 Python `logging`，禁止在业务代码中 `print`。默认输出到 `log/various_data.log`，同时支持受控 `StreamHandler` 输出控制台；文件 handler 应使用既有轮转/编码策略，避免异常风暴无限增长。
+
+每条错误日志至少包含以下结构化字段（JSON 或现有格式化器的等价键值格式）：
+
+```text
+ timestamp=<ISO-8601 UTC> level=<INFO|WARNING|ERROR|DEBUG>
+ logger=<module> event=<event_name> service=investment-trade-ledger
+ request_id=<opaque-id> trace_id=<opaque-id> method=<HTTP method or CLI>
+ path=<route path or command> status_code=<integer> business_code=<code|null>
+ exception_type=<qualified type> schema_version=<actual/expected>
+ database=<redacted path or configured database label>
+ message=<sanitized message>
+```
+
+`request_id`/`trace_id` 由 middleware 读取受信 header 或生成随机不透明标识，并在响应 header（若现有 API 已支持）中返回同一标识；不得接受客户端提供的敏感内容作为日志上下文。数据库路径只写服务端日志且按规则隐藏用户名、凭据和连接参数；生产日志可用配置的数据库 label 替代完整路径。
+
+**开发模式**（显式 `APP_ENV=development` 或等价受控配置）才启用 `DEBUG`：记录请求/响应耗时、路由、状态码、request/trace id、启动时 schema 检查结果，以及 SQLAlchemy 的**参数化 SQL 模板**（可通过受控 engine logger/handler 开关，而不是业务代码拼接 SQL）。开发日志同样禁止密码、token、Cookie、认证 header、完整请求体、交易价格、交易数量、产品名称、产品代码和连接字符串；SQL 参数一律不落日志，或由过滤器统一替换为 `[REDACTED]`。响应体不记录，必要时仅记录字段名/条数等非敏感摘要。
+
+**生产模式**默认 `INFO`/`WARNING`，数据库 SQL logger/engine echo 关闭，不记录 SQL 参数、请求体和敏感字段；`ERROR` 仅为诊断保存未预期异常堆栈。日志过滤器在 formatter 前执行，按字段名和键名大小写不敏感匹配 `password`、`token`、`secret`、`authorization`、`cookie`、`request_body`、`transaction_price`、`transaction_quantity`、`product_name`、`product_code`、`database_url` 等敏感键，并对 URL query、header、异常消息中的凭据做替换。异常堆栈仅服务端文件日志可见，仍不得包含原始请求体或 SQL 参数；必要时用 `logger.exception` 后由脱敏 handler 处理。
+
+日志 schema 检查事件至少为 `schema_check_started`、`schema_check_passed`、`schema_mismatch`、`schema_migration_applied`、`schema_migration_rolled_back`；接口事件至少为 `request_failed`；数据库错误事件必须含 `exception_type=OperationalError`、实际/期望 schema 版本和 `database` 标签。日志写入失败由 logging handler 内部降级到控制台/标准错误并触发监控，但不得覆盖原请求响应；业务代码不能捕获日志异常后重新抛错。
 
 ### 前端错误处理
 
@@ -2791,8 +2914,8 @@ sequenceDiagram
 - 生成器（`strategies.py`）必须偏置以下边界：
   - 枚举字段：合法取值只从**英文码全集**中采样（`WEALTH` / `FUND` / `STOCK`，`BUY` / `SELL`，即 `sampled_from(list(ProductType))`）；非法取值必须覆盖中文字面量（`'理财'`、`'买入'`）、大小写不符的码（`'buy'`、`'Stock'`）、空串与 `None`，用于驱动 Property 1 的 `NOT_IN_ENUM` 分支。
   - 产品名称长度 0 / 1 / 100 / 101，含中文、emoji、空白串；产品代码长度 0 / 1 / 32 / 33。
-  - 交易单价：`0.00`、`0.01`、正常两位小数、三位小数、负数、非数字字符串。
-  - 数量：`0`、`1`、负数、非整数、极大值。
+  - 交易数值：对理财/基金生成任意长度（在测试资源可承受范围内）的有限正 Decimal 文本，覆盖整数、小数、前导/尾随零、高精度小数和极大数量级；对股票生成同样的有限正价格以及正整数数量。无效集覆盖 `0`、负数、`NaN`、Infinity、非数字文本和（仅股票数量）含小数文本。生成器和断言不得以两位小数、固定整数位、`String(n)`、或最大数值作为有效性边界。
+  - DTO/持久化：生成 `transactionPrice` / `transactionQuantity` 的 camelCase 负载，断言经 Pydantic 别名、服务映射和数据库 `transaction_price` / `transaction_quantity` 往返后不发生量化或字段语义漂移。
   - 日期：闰年 2 月 29 日、`2 月 30 日`（非法）、跨年区间、`start == end`、`start > end`；持有天数 1 天与数千天。
   - 采集器：`plugin_id`、版本和 manifest 入口生成重复/冲突组合；标准估值生成合法与非法产品类型、代码长度、日期、正数 Decimal、来源不一致、缺失引用；批次生成同来源重复值、同日跨来源冲突、乱序到达和部分失败插件。
   - 分页：`total = 0`、`total < pageSize`、整除与非整除、`pageSize = 1` 与 `pageSize = 100`。
@@ -2813,9 +2936,32 @@ sequenceDiagram
 11. 缺失估值时验证产品数量/累计金额仍输出，依赖估值的产品/组合指标显示不可用而不是 0。
 12. 全部集成测试使用临时 SQLite 文件并在结束后清理，**不得连接 `various_data.db` 或 `various_data_dev.db`**，不访问真实金融接口。
 
+### Schema、异常与日志验证
+
+1. **临时 SQLite schema 夹具**：每个测试创建临时数据库文件并在 teardown 删除，禁止连接 `various_data.db`、`various_data_dev.db` 或生产路径。分别构造 canonical v002 表、旧字段 `unit_price/quantity` 表、缺一列/混合新旧列表和无版本记录表，断言 `SchemaManager.inspect()` 依据实际列而非 ORM metadata 给出准确状态。
+2. **迁移成功与字段语义**：旧表含多行整数、小数、中文和边界值时，先备份再迁移；断言新 `transaction_price` / `transaction_quantity` 与旧值 Decimal 语义相等，旧列被隔离为 `legacy_unit_price` / `legacy_quantity`，版本/checksum 正确，业务查询只读 canonical 列；不得丢行、量化、四舍五入或改变原始语义。
+3. **事务失败回滚**：注入锁超时、不可解析值、新旧值冲突、版本跳跃和 checksum 不一致，断言迁移事务完全回滚，原表/原列/原数据不变；备份失败时原库不变。对提交后进程中断场景，下一次运行必须能由版本与实际列状态安全识别，不重复回填。
+4. **幂等与非破坏性**：对同一旧库重复执行 `migrate`，断言第二次返回 `already_applied` 且行数、值、版本记录不变；断言迁移不会 `DROP TABLE`、不会未经批准删除旧列、不会创建第二份静默数据库。另测 `create_all` 在已有旧表上不被视为升级，并由启动门禁先拒绝服务。
+5. **启动与错误响应**：使用 TestClient/测试 lifespan，schema 不匹配时断言服务启动失败并出现明确 mismatch 信息；分别触发 `LedgerError`、`RequestValidationError`、`OperationalError`、其它 `SQLAlchemyError` 和未知异常，断言所有公开路由仍返回统一 `{code,msg,data}`，状态码/业务码按映射表，客户端不包含 SQL、表名、堆栈、数据库路径、请求体或敏感字段。
+6. **日志字段与堆栈策略**：对已处理业务/校验异常断言 `log/various_data.log` 有方法、路径、状态码、业务码、异常类别和 request/trace id 且无完整堆栈；对 `OperationalError` 和未知异常断言有完整堆栈、数据库路径或 database label、schema 版本、方法/路径和 request/trace id。模拟日志 handler 写失败，断言原 HTTP 响应和状态不变。
+7. **开发/生产日志隔离**：开发模式断言记录耗时、路由、状态码、schema 检查结果和参数化 SQL 模板，但参数、密码、token、Cookie、完整请求体、交易价格/数量、产品名/代码均被过滤；生产模式断言默认 INFO/WARNING、SQL logger/echo 关闭且不记录 SQL 参数。测试日志只能使用临时文件/内存 handler，不能污染正式日志。
+
+### 实施顺序与验收条件
+
+实现必须严格按以下顺序推进，任何一步失败都停止后续服务暴露：**备份 → 迁移 → schema 自检 → 接口异常日志 → 开发调试日志 → 测试**。
+
+- **备份**：能生成并验证可打开的 SQLite 备份；备份失败不改原库。
+- **迁移**：旧 `unit_price/quantity` 已安全映射到 canonical `transaction_price/transaction_quantity`，旧列被隔离而非未经批准删除；迁移具备事务回滚、冲突中止、幂等和可恢复备份。
+- **Schema 自检**：启动和受控命令都检查实际 `il_transaction` 列、索引和版本；`create_all` 不再被当作升级手段；不匹配时开发/生产均 fail closed，给出明确服务端错误，不静默继续。
+- **接口异常日志**：所有公开接口与受控采集入口覆盖业务、参数校验、数据库和未知异常；`OperationalError` 可单独检索；统一 JSON 契约保持不变且客户端无内部细节。
+- **开发调试日志**：仅显式开发模式启用 DEBUG；日志统一进入 `log/various_data.log` 并可输出控制台；敏感字段、SQL 参数和完整请求体始终脱敏；业务代码无 `print`。
+- **测试**：临时 SQLite 迁移/回滚/幂等测试、FastAPI 异常映射测试、日志脱敏/堆栈测试全部通过，再执行既有 `pytest -q`、`npm test`、`npm run type-check` 和 `npm run build:web`。验收不得要求连接正式数据库或真实外部金融网站。
+
+**验收总条件**：对一个仍含旧列的现有 SQLite 数据库，执行受控迁移后账本查询不再触发 `no such column: il_transaction.transaction_price`；canonical 字段数据完整可读，重复迁移无副作用；schema 不匹配会明确阻止启动；任何公开接口错误均保持现有 JSON 信封且不泄露内部细节；错误与调试日志符合字段、环境级别和脱敏规则；既有业务 API 路径、方法、请求/响应字段和用户可见业务语义不改变。
+
 ### 前端示例测试要点
 
-- 历史交易表格：列集合与顺序恰为 7 列 + 操作列；渲染文本中不出现记录 id；无编辑入口（需求 1.4、2.12、2.23）。
+- 交易表单与历史交易表格：对 WEALTH/FUND 渲染「净值」「份额」，对 STOCK 渲染「单价」「数量」；切换产品类型只改变标签，草稿、请求、字段错误和表格数据键仍为 `transactionPrice` / `transactionQuantity`。历史混合列表在中性列标题下为每行展示正确的产品类型标签；无 id、无编辑入口（需求 1.1、1.2、1.4、2.12、2.23）。
 - 持仓表格：7 列只读；无新增/删除/编辑控件；无展开行（需求 2.4、2.6、2.7）。
 - 空结果：0 行但列头保留（需求 2.22）。
 - 分页：页大小选项为 10/20/50；`pageCount === 0` 时显示「当前结果没有可浏览的页」（需求 2.24、2.31）。
