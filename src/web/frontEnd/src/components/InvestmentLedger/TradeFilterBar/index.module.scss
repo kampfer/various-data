@@ -22,13 +22,15 @@
 }
 
 .datePicker {
-  flex: 1 1 230px;
-  min-width: 210px;
+  flex: 0 0 200px;
+  width: 200px;
+  min-width: 180px;
 }
 
 .searchInput {
-  flex: 1 1 160px;
-  min-width: 128px;
+  flex: 0 1 140px;
+  width: 140px;
+  min-width: 120px;
 }
 
 @media (max-width: 900px) {

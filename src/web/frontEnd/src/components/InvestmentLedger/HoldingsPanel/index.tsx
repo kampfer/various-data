@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Table, message } from 'antd';
 import type { TableProps } from 'antd';
 import type { HoldingOut } from '../../../api/types';
+import { PAGE_SIZE_OPTIONS } from '../../../domain/ledger/constants';
 import type { HoldingSortField, SortOrder } from '../../../domain/ledger/constants';
 import type { ProductScope } from '../../../domain/ledger/LedgerQueryState';
 import { PRODUCT_TYPE_LABELS } from '../../../domain/ledger/labels';
@@ -29,6 +30,16 @@ export interface HoldingsPanelProps {
   readonly onViewTransactions: (scope: ProductScope) => void;
   /** 只读意图提示完成后的通知，不承载写请求。 */
   readonly onReadOnlyIntent: (kind: ReadOnlyIntent) => void;
+  /** 当前页码，1 起；未提供时表格不启用分页。 */
+  readonly page?: number;
+  /** 当前页大小；未提供时表格不启用分页。 */
+  readonly pageSize?: number;
+  /** 分页前结果总数；未提供时表格不启用分页。 */
+  readonly total?: number;
+  /** 翻页回调。 */
+  readonly onPageChange?: (page: number) => void;
+  /** 页大小变更回调；redux 会负责把页码重置为 1。 */
+  readonly onPageSizeChange?: (size: number) => void;
 }
 
 /** 仅展示产品级汇总，不持有逐笔数据，也不提供任何写控件。 */
@@ -40,12 +51,31 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
     if (this.props.sortOrder === 'desc') return 'descend';
     return null;
   }
-  /** 表格排序仅允许持仓与总收益，取消排序时恢复来源顺序。 */
+  /** 表格 onChange 同时承接分页与排序；页大小变化优先，其次翻页，最后排序。 */
   private readonly handleTableChange: TableChangeHandler = (
-    _pagination,
+    pagination,
     _filters,
     sorter,
   ): void => {
+    const nextPageSize = pagination.pageSize;
+    const nextPage = pagination.current;
+    if (
+      typeof this.props.pageSize === 'number'
+      && typeof nextPageSize === 'number'
+      && nextPageSize !== this.props.pageSize
+    ) {
+      this.props.onPageSizeChange?.(nextPageSize);
+      return;
+    }
+    if (
+      typeof this.props.page === 'number'
+      && typeof nextPage === 'number'
+      && nextPage !== this.props.page
+    ) {
+      this.props.onPageChange?.(nextPage);
+      return;
+    }
+
     const activeSorter = Array.isArray(sorter)
       ? sorter.find((item) => item.columnKey === 'position' || item.columnKey === 'totalProfit')
       : sorter;
@@ -132,6 +162,23 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
     ];
   }
 
+  /** 根据传入的分页 props 构造 antd Table 分页配置；缺少任一字段则禁用分页。 */
+  private renderPagination(): false | NonNullable<TableProps<HoldingOut>['pagination']> {
+    const { page, pageSize, total } = this.props;
+    if (typeof page !== 'number' || typeof pageSize !== 'number' || typeof total !== 'number') {
+      return false;
+    }
+    const pageCount = pageSize > 0 ? Math.ceil(total / pageSize) : 0;
+    return {
+      current: page,
+      pageSize,
+      total,
+      showSizeChanger: true,
+      pageSizeOptions: PAGE_SIZE_OPTIONS.map(String),
+      showTotal: () => `第 ${page} 页 / 共 ${pageCount} 页`,
+    };
+  }
+
   public override render(): React.ReactNode {
     return (
       <section className={styles.panel} aria-label="持仓面板">
@@ -142,7 +189,7 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
             dataSource={this.props.items}
             loading={this.props.loading}
             locale={{ emptyText: '暂无数据' }}
-            pagination={false}
+            pagination={this.renderPagination()}
             rowKey={(record) => `${record.productType}:${record.productCode}`}
             onChange={this.handleTableChange}
           />

@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Popconfirm, Table, Tag } from 'antd';
 import type { TableProps } from 'antd';
 import type { TransactionOut } from '../../../api/types';
+import { PAGE_SIZE_OPTIONS } from '../../../domain/ledger/constants';
 import type { SortOrder } from '../../../domain/ledger/constants';
 import type { ProductScope } from '../../../domain/ledger/LedgerQueryState';
 import {
@@ -28,6 +29,16 @@ export interface TradeHistoryPanelProps {
   readonly onSortChange: (order: SortOrder | null) => void;
   /** 确认删除后的回调；id 不向用户展示。 */
   readonly onDelete: (transactionId: number) => void;
+  /** 当前页码，1 起；未提供时表格不启用分页。 */
+  readonly page?: number;
+  /** 当前页大小；未提供时表格不启用分页。 */
+  readonly pageSize?: number;
+  /** 分页前结果总数；未提供时表格不启用分页。 */
+  readonly total?: number;
+  /** 翻页回调。 */
+  readonly onPageChange?: (page: number) => void;
+  /** 页大小变更回调；redux 会负责把页码重置为 1。 */
+  readonly onPageSizeChange?: (size: number) => void;
 }
 
 /** 只负责历史交易展示与用户意图回调，不请求接口或编辑交易。 */
@@ -42,12 +53,31 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
     });
   }
 
-  /** 把 antd 排序状态转换为领域排序码；只有交易日期列可触发。 */
+  /** 表格 onChange 同时承接分页与排序；页大小变化优先，其次翻页，最后排序。 */
   private readonly handleTableChange: TableChangeHandler = (
-    _pagination,
+    pagination,
     _filters,
     sorter,
   ): void => {
+    const nextPageSize = pagination.pageSize;
+    const nextPage = pagination.current;
+    if (
+      typeof this.props.pageSize === 'number'
+      && typeof nextPageSize === 'number'
+      && nextPageSize !== this.props.pageSize
+    ) {
+      this.props.onPageSizeChange?.(nextPageSize);
+      return;
+    }
+    if (
+      typeof this.props.page === 'number'
+      && typeof nextPage === 'number'
+      && nextPage !== this.props.page
+    ) {
+      this.props.onPageChange?.(nextPage);
+      return;
+    }
+
     const activeSorter = Array.isArray(sorter)
       ? sorter.find((item) => item.columnKey === 'tradeDate')
       : sorter;
@@ -124,6 +154,23 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
     ];
   }
 
+  /** 根据传入的分页 props 构造 antd Table 分页配置；缺少任一字段则禁用分页。 */
+  private renderPagination(): false | NonNullable<TableProps<TransactionOut>['pagination']> {
+    const { page, pageSize, total } = this.props;
+    if (typeof page !== 'number' || typeof pageSize !== 'number' || typeof total !== 'number') {
+      return false;
+    }
+    const pageCount = pageSize > 0 ? Math.ceil(total / pageSize) : 0;
+    return {
+      current: page,
+      pageSize,
+      total,
+      showSizeChanger: true,
+      pageSizeOptions: PAGE_SIZE_OPTIONS.map(String),
+      showTotal: () => `第 ${page} 页 / 共 ${pageCount} 页`,
+    };
+  }
+
   public override render(): React.ReactNode {
     const { loading, scope } = this.props;
     return (
@@ -142,7 +189,7 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
             dataSource={this.uniqueItems()}
             loading={loading}
             locale={{ emptyText: '暂无数据' }}
-            pagination={false}
+            pagination={this.renderPagination()}
             rowKey={(record) => record.id}
             onChange={this.handleTableChange}
           />

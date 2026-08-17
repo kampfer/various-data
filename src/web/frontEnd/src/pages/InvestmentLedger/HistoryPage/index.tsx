@@ -8,10 +8,8 @@ import type { RootState, AppDispatch } from '../../../store';
 import type { TradeDraft, TransactionOut } from '../../../api/types';
 import type { LedgerQuerySnapshot, ProductScope } from '../../../domain/ledger/LedgerQueryState';
 import type { SortOrder } from '../../../domain/ledger/constants';
-import QueryInputValidator from '../../../domain/ledger/QueryInputValidator';
 import TradeFilterBar from '../../../components/InvestmentLedger/TradeFilterBar';
 import TradeFormModal from '../../../components/InvestmentLedger/TradeFormModal';
-import LedgerPagination from '../../../components/InvestmentLedger/LedgerPagination';
 import TradeHistoryPanel from '../../../components/InvestmentLedger/TradeHistoryPanel';
 import {
   applyQuery,
@@ -31,7 +29,6 @@ import {
 import type { LedgerState } from '../../../store/ledger/types';
 import {
   rejectionMessage,
-  rejectInvalidPageInput,
   type LedgerNavigationState,
   validateQueryPatch,
 } from '../pageUtils';
@@ -52,8 +49,6 @@ type HistoryPageProps = StateProps & DispatchProps & OwnProps;
 
 /** 历史子路由容器：处理范围/深链初始化、交易查询及唯一的交易写入入口。 */
 export class HistoryPageContainer extends React.Component<HistoryPageProps> {
-  private readonly queryValidator = new QueryInputValidator();
-
   public override componentDidMount(): void {
     const { navigation } = this.props;
     if (navigation?.ledgerNavigation === 'holding-scope') {
@@ -94,22 +89,14 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
     this.load();
   };
 
+  /** antd Table 内置分页已约束页码有效，直接派发并重新拉取。 */
   private readonly handlePageChange = (page: number): void => {
-    const result = this.queryValidator.validatePage(page, this.props.history.pageCount);
-    if (rejectInvalidPageInput(
-      !result.valid,
-      result.fieldErrors[0]?.message ?? '请求的页码无效',
-    )) return;
     this.props.dispatch(changePage({ module: 'history', page }));
     this.load();
   };
 
+  /** 切换页大小由 redux 把页码重置为 1，再重新拉取。 */
   private readonly handlePageSizeChange = (size: number): void => {
-    const result = this.queryValidator.validatePageSize(size);
-    if (rejectInvalidPageInput(
-      !result.valid,
-      result.fieldErrors[0]?.message ?? '自定义页大小无效',
-    )) return;
     this.props.dispatch(changePageSize({ module: 'history', size }));
     this.load();
   };
@@ -155,11 +142,8 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
           scope={scope}
           onSortChange={this.handleSort}
           onDelete={this.handleDelete}
-        />
-        <LedgerPagination
           page={history.page}
           pageSize={history.pageSize}
-          pageCount={history.pageCount}
           total={history.total}
           onPageChange={this.handlePageChange}
           onPageSizeChange={this.handlePageSizeChange}

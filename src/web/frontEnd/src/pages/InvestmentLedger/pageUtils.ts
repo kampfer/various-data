@@ -44,15 +44,3 @@ export const validateQueryPatch = (
   }
   return true;
 };
-
-/** 提示页码或页大小错误；返回 true 表示输入无效。 */
-export const rejectInvalidPageInput = (
-  valid: boolean,
-  messageText: string,
-): boolean => {
-  if (!valid) {
-    void message.error(messageText);
-    return true;
-  }
-  return false;
-};
