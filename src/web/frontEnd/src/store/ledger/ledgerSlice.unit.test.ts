@@ -125,7 +125,7 @@ describe('ledger slice 查询状态不变量', () => {
       thunks.fetchHistory.fulfilled(historyPage, 'history-success', undefined),
     );
 
-    const scope = { productType: 'STOCK' as const, productCode: '600000' };
+    const scope = { productCode: '600000', productName: '示例股票' };
     state = ledgerReducer(state, openHistoryScope(scope));
 
     expect(state).not.toHaveProperty('activeModule');

@@ -12,5 +12,5 @@ export interface PortfolioStatisticsOut { totalPosition: Metric; totalProfit: Me
 export interface InitialModuleOut { module: LedgerModule; }
 /** 新交易草稿；所有数值始终保留为原始文本。 */
 export interface TradeDraft { productType?: ProductType | null; productName?: string | null; productCode?: string | null; transactionPrice?: string | null; transactionQuantity?: string | null; direction?: TradeDirection | null; tradeDate?: string | null; }
-export interface TransactionQueryParams { productType?: ProductType; direction?: TradeDirection; startDate?: string; endDate?: string; productName?: string; productCode?: string; tradeDateOrder?: SortOrder; scopeProductType?: ProductType; scopeProductCode?: string; page?: number; pageSize?: number; }
+export interface TransactionQueryParams { productType?: ProductType; direction?: TradeDirection; startDate?: string; endDate?: string; productName?: string; productCode?: string; tradeDateOrder?: SortOrder; scopeProductCode?: string; page?: number; pageSize?: number; }
 export interface HoldingQueryParams extends TransactionQueryParams { holdingSortField?: HoldingSortField; holdingSortOrder?: SortOrder; }

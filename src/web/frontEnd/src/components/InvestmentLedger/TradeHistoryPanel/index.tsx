@@ -1,10 +1,9 @@
 import React from 'react';
-import { Button, Popconfirm, Table, Tag } from 'antd';
+import { Button, Popconfirm, Table } from 'antd';
 import type { TableProps } from 'antd';
 import type { TransactionOut } from '../../../api/types';
 import { PAGE_SIZE_OPTIONS } from '../../../domain/ledger/constants';
 import type { SortOrder } from '../../../domain/ledger/constants';
-import type { ProductScope } from '../../../domain/ledger/LedgerQueryState';
 import {
   PRODUCT_TYPE_LABELS,
   TRADE_DIRECTION_LABELS,
@@ -23,8 +22,6 @@ export interface TradeHistoryPanelProps {
   readonly loading: boolean;
   /** 当前交易日期排序；null 表示未启用。 */
   readonly tradeDateOrder: SortOrder | null;
-  /** 产品历史交易范围；即使范围结果为空也可展示。 */
-  readonly scope?: ProductScope | null;
   /** 交易日期排序变化回调。 */
   readonly onSortChange: (order: SortOrder | null) => void;
   /** 确认删除后的回调；id 不向用户展示。 */
@@ -172,16 +169,9 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
   }
 
   public override render(): React.ReactNode {
-    const { loading, scope } = this.props;
+    const { loading } = this.props;
     return (
       <section className={styles.panel} aria-label="历史交易面板">
-        {scope != null && (
-          <div className={styles.scope} aria-label="产品历史交易范围">
-            <Tag color="blue">
-              产品范围：{PRODUCT_TYPE_LABELS[scope.productType]} / {scope.productCode}
-            </Tag>
-          </div>
-        )}
         <div className={styles.table}>
           <Table<TransactionOut>
             aria-label="历史交易表格"

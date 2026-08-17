@@ -51,13 +51,13 @@ describe('HoldingsPanel', () => {
     expect(screen.getByRole('button', { name: '查看沪深300ETF的历史交易' })).not.toHaveAttribute('style');
   });
 
-  it('以产品名称提供历史入口，并只传递产品类型与代码', () => {
+  it('以产品名称提供历史入口，并传递产品代码与名称', () => {
     const onViewTransactions = vi.fn();
     renderPanel({ onViewTransactions });
 
     fireEvent.click(screen.getByRole('button', { name: '查看沪深300ETF的历史交易' }));
     expect(onViewTransactions).toHaveBeenCalledOnce();
-    expect(onViewTransactions).toHaveBeenCalledWith({ productType: 'FUND', productCode: '510300' });
+    expect(onViewTransactions).toHaveBeenCalledWith({ productCode: '510300', productName: '沪深300ETF' });
   });
 
   it('持仓与总收益支持升降序，并在取消时清除数值排序', () => {

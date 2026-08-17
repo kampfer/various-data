@@ -95,8 +95,8 @@ describe('ledger selectors', () => {
 
   it('记忆化派生查询对象并识别产品历史范围', () => {
     const scopedQuery = LedgerQueryState.defaultWithScope('history', {
-      productType: 'STOCK',
       productCode: '600000',
+      productName: '浦发银行',
     }).toSnapshot();
     const state = rootState({
       ...initialLedger,

@@ -10,45 +10,32 @@ describe('LedgerQueryState', () => {
     expect(history).toEqual(holdings);
     expect(history).not.toHaveProperty('activeModule');
     expect(history.page).toBe(1);
-    expect(history.scopeProductType).toBeNull();
     expect(history.scopeProductCode).toBeNull();
   });
 
-  it('仅允许历史模块通过范围入口生成成对范围参数', () => {
+  it('仅允许历史模块通过范围入口生成范围参数', () => {
     const scoped = LedgerQueryState.defaultWithScope('history', {
-      productType: 'STOCK',
       productCode: '600000',
+      productName: '示例股票',
     });
 
     expect(scoped.toSnapshot()).toMatchObject({
-      scopeProductType: 'STOCK',
       scopeProductCode: '600000',
       page: 1,
     });
     expect(scoped.toParams()).toMatchObject({
-      scopeProductType: 'STOCK',
       scopeProductCode: '600000',
     });
+    expect(scoped.toParams()).not.toHaveProperty('productName');
     expect(() => LedgerQueryState.defaultWithScope('holdings', {
-      productType: 'STOCK',
       productCode: '600000',
+      productName: '示例股票',
     })).toThrow();
-  });
-
-  it('半范围快照不会被序列化为不完整的历史范围', () => {
-    const partial = LedgerQueryState.from({
-      ...LedgerQueryState.default('history').toSnapshot(),
-      scopeProductType: 'FUND',
-    });
-
-    expect(partial.toSnapshot().scopeProductType).toBeNull();
-    expect(partial.toSnapshot().scopeProductCode).toBeNull();
-    expect(partial.toParams()).not.toHaveProperty('scopeProductType');
   });
 
   it('条件、排序或页大小变化将页码归一到第一页，范围不被普通筛选补丁修改', () => {
     const applied = LedgerQueryState.defaultWithScope('history', {
-      productType: 'FUND', productCode: 'F001',
+      productCode: 'F001', productName: '示例基金',
     }).withPage(4);
 
     const changed = applied.withFilters({ tradeDateOrder: 'desc', scopeProductCode: 'OTHER' });

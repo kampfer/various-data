@@ -38,10 +38,6 @@ def _transactionPredicates(query: TransactionQuery) -> list[ColumnElement[bool]]
                 query.product_code, autoescape=True
             )
         )
-    if query.scope_product_type is not None:
-        predicates.append(
-            models.Transaction.product_type == query.scope_product_type
-        )
     if query.scope_product_code is not None:
         predicates.append(
             models.Transaction.product_code == query.scope_product_code

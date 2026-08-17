@@ -1,12 +1,12 @@
 import React from 'react';
 import { Button, message } from 'antd';
 import { connect } from 'react-redux';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import type { Location, NavigateFunction } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import type { RootState, AppDispatch } from '../../../store';
 import type { TradeDraft, TransactionOut } from '../../../api/types';
-import type { LedgerQuerySnapshot, ProductScope } from '../../../domain/ledger/LedgerQueryState';
+import type { LedgerQuerySnapshot } from '../../../domain/ledger/LedgerQueryState';
 import type { SortOrder } from '../../../domain/ledger/constants';
 import TradeFilterBar from '../../../components/InvestmentLedger/TradeFilterBar';
 import TradeFormModal from '../../../components/InvestmentLedger/TradeFormModal';
@@ -44,18 +44,17 @@ interface DispatchProps {
 interface OwnProps {
   readonly navigation: LedgerNavigationState;
   readonly navigate: NavigateFunction;
+  /** URL 查询参数中的产品代码；非空表示进入产品历史交易范围。 */
+  readonly scopeProductCode: string | null;
+  /** URL 查询参数中的产品名称；仅供页面标题展示。 */
+  readonly scopeProductName: string | null;
 }
 type HistoryPageProps = StateProps & DispatchProps & OwnProps;
 
 /** 历史子路由容器：处理范围/深链初始化、交易查询及唯一的交易写入入口。 */
 export class HistoryPageContainer extends React.Component<HistoryPageProps> {
   public override componentDidMount(): void {
-    const { navigation } = this.props;
-    if (navigation?.ledgerNavigation === 'holding-scope') {
-      this.props.dispatch(openHistoryScope(navigation.scope));
-    } else if (navigation?.ledgerNavigation !== 'module-switch') {
-      this.props.dispatch(resetHistory());
-    }
+    this.syncScopeFromUrl();
     void this.props.dispatch(fetchHistory());
   }
 
@@ -64,7 +63,29 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
       && this.props.history.error !== previousProps.history.error) {
       void message.error(this.props.history.error);
     }
+    // URL 中的产品代码变化时重新同步范围并刷新
+    if (this.props.scopeProductCode !== previousProps.scopeProductCode) {
+      this.syncScopeFromUrl();
+      void this.props.dispatch(fetchHistory());
+    }
   }
+
+  /** 根据 URL 中的 productCode 同步 redux 中的范围状态。 */
+  private readonly syncScopeFromUrl = (): void => {
+    const { scopeProductCode, scopeProductName, navigation } = this.props;
+    if (scopeProductCode !== null) {
+      this.props.dispatch(openHistoryScope({
+        productCode: scopeProductCode,
+        productName: scopeProductName ?? '',
+      }));
+      return;
+    }
+    // URL 无范围参数时：非模块切换或 redux 中残留旧范围都需要重置
+    const hasStaleScope = this.props.history.query.scopeProductCode !== null;
+    if (navigation?.ledgerNavigation !== 'module-switch' || hasStaleScope) {
+      this.props.dispatch(resetHistory());
+    }
+  };
 
   private readonly load = (): void => {
     void this.props.dispatch(fetchHistory());
@@ -80,13 +101,9 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
     this.handleApplyQuery({ tradeDateOrder: order });
   };
 
+  /** 退出产品范围：导航到无参数的历史路由，componentDidUpdate 会自动同步并刷新。 */
   private readonly handleClearScope = (): void => {
-    this.props.dispatch(resetHistory());
-    this.props.navigate('/investmentLedger/history', {
-      replace: true,
-      state: { ledgerNavigation: 'module-switch' },
-    });
-    this.load();
+    this.props.navigate('/investmentLedger/history', { replace: true });
   };
 
   /** antd Table 内置分页已约束页码有效，直接派发并重新拉取。 */
@@ -112,19 +129,18 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
   };
 
   public override render(): React.ReactNode {
-    const { history, tradeForm } = this.props;
-    const scope: ProductScope | null = history.query.scopeProductType !== null
-      && history.query.scopeProductCode !== null
-      ? {
-          productType: history.query.scopeProductType,
-          productCode: history.query.scopeProductCode,
-        }
-      : null;
+    const { history, tradeForm, scopeProductCode, scopeProductName } = this.props;
+    const scoped = scopeProductCode !== null;
 
     return (
       <div className={styles.modulePage}>
         <div className={styles.moduleHeader}>
-          <h2 className={styles.moduleTitle}>历史交易记录</h2>
+          <h2 className={styles.moduleTitle}>
+            {scoped ? `${scopeProductName ?? scopeProductCode} - 历史交易` : '历史交易记录'}
+          </h2>
+          {scoped && (
+            <Button onClick={this.handleClearScope}>返回全部交易</Button>
+          )}
           <Button type="primary" onClick={() => this.props.dispatch(openTradeForm())}>
             新建交易
           </Button>
@@ -132,14 +148,13 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
         <TradeFilterBar
           query={history.query}
           module="history"
+          scoped={scoped}
           onApply={this.handleApplyQuery}
-          onClearScope={this.handleClearScope}
         />
         <TradeHistoryPanel
           items={history.items as TransactionOut[]}
           loading={history.loading}
           tradeDateOrder={history.query.tradeDateOrder}
-          scope={scope}
           onSortChange={this.handleSort}
           onDelete={this.handleDelete}
           page={history.page}
@@ -172,11 +187,21 @@ const ConnectedHistoryPage = connect<StateProps, DispatchProps, OwnProps, RootSt
   mapDispatchToProps,
 )(HistoryPageContainer);
 
-/** 从路由 state 注入导航意图；普通深链没有 state，按默认历史状态处理。 */
+/** 从路由 state 注入导航意图；URL 查询参数提供产品历史交易范围。 */
 const HistoryPage: React.FC = () => {
   const location = useLocation() as Location & { state: LedgerNavigationState };
   const navigate = useNavigate();
-  return <ConnectedHistoryPage navigation={location.state ?? null} navigate={navigate} />;
+  const [searchParams] = useSearchParams();
+  const scopeProductCode = searchParams.get('productCode');
+  const scopeProductName = searchParams.get('productName');
+  return (
+    <ConnectedHistoryPage
+      navigation={location.state ?? null}
+      navigate={navigate}
+      scopeProductCode={scopeProductCode}
+      scopeProductName={scopeProductName}
+    />
+  );
 };
 
 export default HistoryPage;

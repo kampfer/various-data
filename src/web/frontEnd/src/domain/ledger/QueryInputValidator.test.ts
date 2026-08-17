@@ -118,7 +118,7 @@ const FIXED_SNAPSHOT: LedgerQuerySnapshot = {
   productType: 'FUND', direction: 'BUY', startDate: '2024-01-01', endDate: '2024-12-31',
   productName: '指数', productCode: '510300', tradeDateOrder: 'desc',
   holdingSortField: 'totalProfit', holdingSortOrder: 'asc', page: 2, pageSize: 20,
-  scopeProductType: null, scopeProductCode: null,
+  scopeProductCode: null,
 };
 const FIXED_RESULTS: BrowsedResult[] = [{ productCode: '510300', productName: '沪深300ETF', amount: 100 }];
 const example = (input: InvalidQueryInput): [Scenario] => [{

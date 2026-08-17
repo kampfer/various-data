@@ -1,5 +1,5 @@
 import React from 'react';
-import { DatePicker, Input, Select, Tag, message } from 'antd';
+import { DatePicker, Input, Select, message } from 'antd';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import type { ChangeEvent } from 'react';
@@ -25,10 +25,10 @@ export interface TradeFilterBarProps {
   readonly query: LedgerQuerySnapshot;
   /** 当前所在模块。 */
   readonly module: LedgerModule;
+  /** 是否处于产品历史交易范围模式；为 true 时隐藏名称、代码、类型筛选项。 */
+  readonly scoped: boolean;
   /** 仅在待应用输入校验通过后调用。 */
   readonly onApply: (patch: Partial<LedgerQuerySnapshot>) => void;
-  /** 清除产品历史交易范围。 */
-  readonly onClearScope: () => void;
 }
 
 /** 组件内保存尚未应用的搜索值和日期范围草稿。 */
@@ -133,34 +133,46 @@ export default class TradeFilterBar extends React.Component<TradeFilterBarProps,
   };
 
   public override render(): React.ReactNode {
-    const { query, module } = this.props;
-    const scoped = module === 'history'
-      && query.scopeProductType !== null
-      && query.scopeProductCode !== null;
+    const { query, scoped } = this.props;
 
+    /** 筛选条件按 产品类型 → 产品名称 → 产品代码 → 交易方向 → 时间 顺序排列；
+     *  范围模式下隐藏名称、代码、类型筛选项。 */
     return (
       <section className={styles.container} aria-label="交易筛选与搜索">
-        {scoped && (
-          <Tag
-            className={styles.scope}
-            color="blue"
-            closable
-            closeIcon={<span aria-label="清除范围">×</span>}
-            onClose={this.props.onClearScope}
-          >
-            产品范围：{query.scopeProductCode}
-          </Tag>
+        {!scoped && (
+          <Select<ProductType>
+            aria-label="产品类型筛选"
+            className={styles.select}
+            allowClear
+            virtual={false}
+            placeholder="产品类型"
+            value={query.productType ?? undefined}
+            options={[...productTypeOptions()]}
+            onChange={this.handleProductTypeChange}
+          />
         )}
-        <Select<ProductType>
-          aria-label="产品类型筛选"
-          className={styles.select}
-          allowClear
-          virtual={false}
-          placeholder="产品类型"
-          value={query.productType ?? undefined}
-          options={[...productTypeOptions()]}
-          onChange={this.handleProductTypeChange}
-        />
+        {!scoped && (
+          <Input
+            aria-label="产品名称搜索"
+            className={styles.searchInput}
+            allowClear
+            value={this.state.productName}
+            placeholder="产品名称（回车搜索）"
+            onChange={this.handleProductNameChange}
+            onPressEnter={(event) => this.applySearch('productName', event.currentTarget.value)}
+          />
+        )}
+        {!scoped && (
+          <Input
+            aria-label="产品代码搜索"
+            className={styles.searchInput}
+            allowClear
+            value={this.state.productCode}
+            placeholder="产品代码（回车搜索）"
+            onChange={this.handleProductCodeChange}
+            onPressEnter={(event) => this.applySearch('productCode', event.currentTarget.value)}
+          />
+        )}
         <Select<TradeDirection>
           aria-label="交易方向筛选"
           className={styles.select}
@@ -178,24 +190,6 @@ export default class TradeFilterBar extends React.Component<TradeFilterBarProps,
           format="YYYY-MM-DD"
           onCalendarChange={this.handleDateCalendarChange}
           onChange={this.handleDateRangeChange}
-        />
-        <Input
-          aria-label="产品名称搜索"
-          className={styles.searchInput}
-          allowClear
-          value={this.state.productName}
-          placeholder="产品名称（回车搜索）"
-          onChange={this.handleProductNameChange}
-          onPressEnter={(event) => this.applySearch('productName', event.currentTarget.value)}
-        />
-        <Input
-          aria-label="产品代码搜索"
-          className={styles.searchInput}
-          allowClear
-          value={this.state.productCode}
-          placeholder="产品代码（回车搜索）"
-          onChange={this.handleProductCodeChange}
-          onPressEnter={(event) => this.applySearch('productCode', event.currentTarget.value)}
         />
       </section>
     );

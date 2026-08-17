@@ -1,11 +1,10 @@
 import { message } from 'antd';
 import QueryInputValidator from '../../domain/ledger/QueryInputValidator';
-import type { LedgerQuerySnapshot, ProductScope } from '../../domain/ledger/LedgerQueryState';
+import type { LedgerQuerySnapshot } from '../../domain/ledger/LedgerQueryState';
 
-/** 页面间共享的路由导航意图；scope 只用于 holding-scope 历史入口。 */
+/** 页面间共享的路由导航意图；产品历史交易范围改由 URL 查询参数承载。 */
 export type LedgerNavigationState =
   | { readonly ledgerNavigation: 'module-switch' }
-  | { readonly ledgerNavigation: 'holding-scope'; readonly scope: ProductScope }
   | null;
 
 /** 从未知异常提取用户可读中文消息。 */

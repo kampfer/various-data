@@ -386,10 +386,7 @@ class TransactionQuery(LedgerSchema):
     #: 交易日期排序方向；None=未启用日期排序，此时按 id 升序保证顺序稳定（需求 2.15）
     trade_date_order: SortOrderLiteral | None = None
 
-    #: 产品历史交易范围的产品类型码；与 scope_product_code 同时为 None 或同时非 None（需求 2.9、2.10）
-    scope_product_type: ProductType | None = None
-
-    #: 产品历史交易范围的产品代码，1..32 字符（需求 2.9、2.10）
+    #: 产品历史交易范围的产品代码，1..32 字符；None=未启用范围（需求 2.9、2.10）
     scope_product_code: str | None = Field(
         None, min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH
     )
@@ -420,20 +417,6 @@ class TransactionQuery(LedgerSchema):
             raise PydanticCustomError(
                 ERROR_CODE_OUT_OF_RANGE,
                 "交易日期范围的起始日期不能晚于结束日期",
-            )
-        return self
-
-    @model_validator(mode="after")
-    def checkProductScope(self) -> "TransactionQuery":
-        """校验产品历史交易范围的两个字段成对出现（需求 2.9、2.10）。
-
-        :returns: 校验通过的自身实例。
-        :raises PydanticCustomError: 仅提供产品类型或仅提供产品代码。
-        """
-        if (self.scope_product_type is None) != (self.scope_product_code is None):
-            raise PydanticCustomError(
-                ERROR_CODE_OUT_OF_RANGE,
-                "产品历史交易范围必须同时提供产品类型与产品代码",
             )
         return self
 

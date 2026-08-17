@@ -16,7 +16,7 @@ import {
 const MODULES: readonly LedgerModule[] = ['history', 'holdings'];
 
 /** 产品范围字段：只应由「持仓条目入口」注入，不参与默认状态比较（需求 2.9） */
-const SCOPE_KEYS = ['scopeProductType', 'scopeProductCode'] as const;
+const SCOPE_KEYS = ['scopeProductCode'] as const;
 
 /** 需求 2.27 列举的「可变更条件」字段：改动其中任一项都必须把页码重置为 1 */
 const CONDITION_KEYS = [
@@ -64,20 +64,13 @@ const snapshotArb: fc.Arbitrary<LedgerQuerySnapshot> = fc.record({
   holdingSortOrder: optional(fc.constantFrom('asc' as const, 'desc' as const)),
   page: fc.integer({ min: 1, max: 500 }),
   pageSize: fc.integer({ min: MIN_PAGE_SIZE, max: MAX_PAGE_SIZE }),
-  scope: optional(fc.record({
-    scopeProductType: fc.constantFrom(...PRODUCT_TYPES),
-    scopeProductCode: productCodeArb,
-  })),
-}).map(({ scope, ...snapshot }) => ({
-  ...snapshot,
-  scopeProductType: scope?.scopeProductType ?? null,
-  scopeProductCode: scope?.scopeProductCode ?? null,
-}));
+  scopeProductCode: optional(productCodeArb),
+});
 
-/** 持仓条目产品键 */
+/** 持仓条目产品范围：productCode 用于查询，productName 用于展示 */
 const scopeArb: fc.Arbitrary<ProductScope> = fc.record({
-  productType: fc.constantFrom(...PRODUCT_TYPES),
   productCode: productCodeArb,
+  productName: searchArb,
 });
 
 /** 非空的条件变更补丁：至少改动 CONDITION_KEYS 中的一个字段（需求 2.27） */
@@ -134,7 +127,6 @@ describe('Property 2: 浏览状态转换遵守重置不变量', () => {
         expect(navigated.isDefault(target)).toBe(true);
         expectDefaultExceptScope(navigated.toSnapshot(), target);
         // 导航后不携带任何产品历史交易范围
-        expect(navigated.toSnapshot().scopeProductType).toBeNull();
         expect(navigated.toSnapshot().scopeProductCode).toBeNull();
         // 原状态未被改变（值对象不可变）
         expect(applied.toSnapshot()).toEqual(snapshot);
@@ -152,12 +144,10 @@ describe('Property 2: 浏览状态转换遵守重置不变量', () => {
 
         expect(scoped.isDefault('history')).toBe(true);
         expectDefaultExceptScope(result, 'history');
-        // 仅附加范围：scope 两字段恰为该持仓条目的产品键
-        expect(result.scopeProductType).toBe(scope.productType);
+        // 仅附加范围：scopeProductCode 恰为该持仓条目的产品代码
         expect(result.scopeProductCode).toBe(scope.productCode);
         // 范围会随请求下发，其余未启用条件仍被省略
         const params = scoped.toParams();
-        expect(params.scopeProductType).toBe(scope.productType);
         expect(params.scopeProductCode).toBe(scope.productCode);
         expect(params.productType).toBeUndefined();
         expect(params.tradeDateOrder).toBeUndefined();

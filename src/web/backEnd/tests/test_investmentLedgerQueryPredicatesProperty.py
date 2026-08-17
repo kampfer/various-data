@@ -133,12 +133,10 @@ def queryCases(
     if "scope" in enabled:
         if records and draw(st.booleans()):
             scopedRecord = draw(st.sampled_from(records))
-            scopeType, scopeCode = scopedRecord.product_type, scopedRecord.product_code
+            scopeCode = scopedRecord.product_code
         else:
-            scopeType = draw(st.sampled_from(PRODUCT_TYPES))
             scopeCode = draw(st.text(CODE_ALPHABET, min_size=1, max_size=12))
         arguments.update(
-            scope_product_type=scopeType,
             scope_product_code=scopeCode,
         )
 
@@ -157,8 +155,6 @@ def satisfiesAllPredicates(
             query.end_date is None or record.trade_date <= query.end_date,
             query.product_name is None or query.product_name in record.product_name,
             query.product_code is None or query.product_code in record.product_code,
-            query.scope_product_type is None
-            or record.product_type == query.scope_product_type.value,
             query.scope_product_code is None
             or record.product_code == query.scope_product_code,
         )

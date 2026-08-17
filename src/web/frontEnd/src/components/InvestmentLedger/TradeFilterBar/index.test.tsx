@@ -16,7 +16,6 @@ const createQuery = (patch: Partial<LedgerQuerySnapshot> = {}): LedgerQuerySnaps
   holdingSortOrder: null,
   page: 1,
   pageSize: 20,
-  scopeProductType: null,
   scopeProductCode: null,
   ...patch,
 });
@@ -28,8 +27,8 @@ describe('TradeFilterBar', () => {
       <TradeFilterBar
         query={createQuery()}
         module="history"
+        scoped={false}
         onApply={(patch) => patches.push(patch)}
-        onClearScope={() => undefined}
       />,
     );
 
@@ -61,8 +60,8 @@ describe('TradeFilterBar', () => {
       <TradeFilterBar
         query={createQuery()}
         module="holdings"
+        scoped={false}
         onApply={(patch) => patches.push(patch)}
-        onClearScope={() => undefined}
       />,
     );
 
@@ -85,8 +84,8 @@ describe('TradeFilterBar', () => {
       <TradeFilterBar
         query={createQuery()}
         module="history"
+        scoped={false}
         onApply={(patch) => patches.push(patch)}
-        onClearScope={() => undefined}
       />,
     );
 
@@ -105,8 +104,8 @@ describe('TradeFilterBar', () => {
       <TradeFilterBar
         query={createQuery({ startDate: '2024-01-01', endDate: '2024-01-31' })}
         module="history"
+        scoped={false}
         onApply={() => undefined}
-        onClearScope={() => undefined}
       />,
     );
 
@@ -115,19 +114,20 @@ describe('TradeFilterBar', () => {
     expect(screen.queryByRole('button', { name: '搜索产品代码' })).not.toBeInTheDocument();
   });
 
-  it('历史交易产品范围可通过标签关闭图标移除', () => {
-    let clearCount = 0;
+  it('范围模式下隐藏名称、代码、类型筛选项，仅保留交易方向与日期', () => {
     render(
       <TradeFilterBar
-        query={createQuery({ scopeProductType: 'STOCK', scopeProductCode: '600000' })}
+        query={createQuery()}
         module="history"
+        scoped
         onApply={() => undefined}
-        onClearScope={() => { clearCount += 1; }}
       />,
     );
 
-    expect(screen.getByText('产品范围：600000')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('清除范围'));
-    expect(clearCount).toBe(1);
+    expect(screen.queryByRole('combobox', { name: '产品类型筛选' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('产品名称搜索')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('产品代码搜索')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '交易方向筛选' })).toBeInTheDocument();
+    expect(screen.getByLabelText('交易日期范围')).toBeInTheDocument();
   });
 });

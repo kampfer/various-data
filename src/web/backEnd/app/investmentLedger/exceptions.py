@@ -276,7 +276,6 @@ REQUEST_SOURCES = ("body", "query", "path", "header", "cookie")
 #: 使前端仍能把提示挂到具体控件上。
 MODEL_LEVEL_FIELD_HINTS = (
     ("交易日期范围", "startDate"),  # 日期范围成对性与先后顺序 → 定位到起始日期控件
-    ("产品历史交易范围", "scopeProductType"),  # 范围成对性 → 定位到范围产品类型
     ("指标", "available"),  # Metric 可用性不变量（仅出参构造期出现）
 )
 
@@ -310,7 +309,6 @@ FIELD_LABELS = {
     "tradeDateOrder": "交易日期排序方向",
     "holdingSortField": "持仓条目排序字段",
     "holdingSortOrder": "持仓条目排序方向",
-    "scopeProductType": "产品历史交易范围的产品类型",
     "scopeProductCode": "产品历史交易范围的产品代码",
 }
 
@@ -322,9 +320,6 @@ FALLBACK_FIELD_LABEL = "该输入项"
 FIELD_MESSAGES = {
     ("productType", ERROR_CODE_NOT_IN_ENUM): "产品类型必须为理财、基金或股票之一",
     ("direction", ERROR_CODE_NOT_IN_ENUM): "交易方向必须为买入或卖出之一",
-    ("scopeProductType", ERROR_CODE_NOT_IN_ENUM): (
-        "产品历史交易范围的产品类型必须为理财、基金或股票之一"
-    ),
     ("tradeDateOrder", ERROR_CODE_NOT_IN_ENUM): "交易日期排序方向必须为升序或降序",
     ("holdingSortField", ERROR_CODE_NOT_IN_ENUM): (
         "持仓条目排序字段必须为持仓或总收益"

@@ -57,12 +57,14 @@ export class HoldingsPageContainer extends React.Component<HoldingsPageProps> {
   };
 
   private readonly handleViewTransactions = (scope: {
-    readonly productType: 'WEALTH' | 'FUND' | 'STOCK';
     readonly productCode: string;
+    readonly productName: string;
   }): void => {
-    this.props.navigate('/investmentLedger/history', {
-      state: { ledgerNavigation: 'holding-scope', scope },
+    const params = new URLSearchParams({
+      productCode: scope.productCode,
+      productName: scope.productName,
     });
+    this.props.navigate(`/investmentLedger/history?${params.toString()}`);
   };
 
   /** antd Table 内置分页已约束页码有效，直接派发并重新拉取。 */
@@ -84,8 +86,8 @@ export class HoldingsPageContainer extends React.Component<HoldingsPageProps> {
         <TradeFilterBar
           query={holdings.query}
           module="holdings"
+          scoped={false}
           onApply={this.handleApplyQuery}
-          onClearScope={() => undefined}
         />
         <PortfolioSummary portfolio={holdings.portfolio} loading={holdings.loading} />
         <HoldingsPanel

@@ -31,18 +31,19 @@ export interface LedgerQuerySnapshot {
   readonly page: number;
   /** 当前页大小，闭区间 1..100（需求 2.24、2.25） */
   readonly pageSize: number;
-  /** 产品历史交易范围的产品类型码；与 scopeProductCode 同时为 null 或同时非 null（需求 2.9、2.10） */
-  readonly scopeProductType: ProductType | null;
-  /** 产品历史交易范围的产品代码（需求 2.9、2.10） */
+  /** 产品历史交易范围的产品代码（需求 2.9、2.10）；null=未启用范围 */
   readonly scopeProductCode: string | null;
 }
 
-/** 产品键：持仓条目的唯一标识，也是「从持仓进入历史交易」时携带的范围参数（需求 2.5、2.9） */
+/**
+ * 产品历史交易范围：从持仓进入历史交易时携带的范围参数。
+ * 产品名称仅供页面标题展示，不进入后端查询（需求 2.5、2.9）。
+ */
 export interface ProductScope {
-  /** 产品类型码 */
-  readonly productType: ProductType;
-  /** 产品代码 */
+  /** 产品代码（范围精确匹配） */
   readonly productCode: string;
+  /** 产品名称（仅用于展示） */
+  readonly productName: string;
 }
 
 /**
@@ -61,7 +62,7 @@ const MODULE_DEFAULT_PAGE_SIZE: Record<LedgerModule, number> = {
 };
 
 /** 产品历史交易范围字段：不参与「是否为默认浏览状态」的比较（需求 2.9） */
-const SCOPE_KEYS: readonly (keyof LedgerQuerySnapshot)[] = ['scopeProductType', 'scopeProductCode'];
+const SCOPE_KEYS: readonly (keyof LedgerQuerySnapshot)[] = ['scopeProductCode'];
 
 /** 可由 withFilters 修改的查询条件；页码、页大小和产品范围由专门方法/导航意图管理。 */
 const FILTER_KEYS: readonly (keyof LedgerQuerySnapshot)[] = [
@@ -104,14 +105,13 @@ export default class LedgerQueryState {
       holdingSortOrder: null,
       page: 1,
       pageSize: MODULE_DEFAULT_PAGE_SIZE[module],
-      scopeProductType: null,
       scopeProductCode: null,
     });
   }
 
   /**
-   * 构造「默认浏览状态 + 产品历史交易范围」：除 scope 两字段外与 default(module) 完全相同。
-   * @param scope 来源持仓条目的产品键
+   * 构造「默认浏览状态 + 产品历史交易范围」：除 scopeProductCode 外与 default(module) 完全相同。
+   * @param scope 来源持仓条目的产品范围（productCode 用于查询，productName 仅用于页面标题展示）
    * @returns 需求 2.9 要求的状态（不继承任何此前条件）
    */
   static defaultWithScope(module: LedgerModule, scope: ProductScope): LedgerQueryState {
@@ -120,7 +120,6 @@ export default class LedgerQueryState {
     }
     return new LedgerQueryState({
       ...LedgerQueryState.default(module).snapshot,
-      scopeProductType: scope.productType,
       scopeProductCode: scope.productCode,
     });
   }
@@ -192,14 +191,13 @@ export default class LedgerQueryState {
   }
 
   /**
-   * 规范化产品历史交易范围：状态中不能出现只含一个范围键的快照。
-   * 来自 Redux/持久化边界的异常半范围按「无范围」处理，避免把不完整范围误发给后端。
+   * 规范化产品历史交易范围：将 undefined 归一为 null，避免持久化边界引入的半空值。
    */
   private static normalizeScope(snapshot: LedgerQuerySnapshot): LedgerQuerySnapshot {
-    const hasType = snapshot.scopeProductType !== null && snapshot.scopeProductType !== undefined;
-    const hasCode = snapshot.scopeProductCode !== null && snapshot.scopeProductCode !== undefined;
-    if (hasType === hasCode) return { ...snapshot };
-    return { ...snapshot, scopeProductType: null, scopeProductCode: null };
+    if (snapshot.scopeProductCode === undefined) {
+      return { ...snapshot, scopeProductCode: null };
+    }
+    return { ...snapshot };
   }
 
   /**

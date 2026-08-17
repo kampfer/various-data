@@ -122,8 +122,8 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
             className={styles.historyLink}
             type="link"
             onClick={() => this.props.onViewTransactions({
-              productType: record.productType,
               productCode: record.productCode,
+              productName: value,
             })}
           >
             {value}
