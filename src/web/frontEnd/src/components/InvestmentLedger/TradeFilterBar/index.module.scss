@@ -1,60 +1,47 @@
 .container {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
   border: 1px solid #f0f0f0;
   border-radius: 8px;
   background: #fff;
 }
 
-.scope,
-.filters,
-.searches,
-.dateFilter {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
 .scope {
-  justify-content: flex-start;
+  flex: 0 0 auto;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .select {
-  min-width: 160px;
+  flex: 0 1 120px;
+  width: 120px;
+  min-width: 104px;
 }
 
-.dateFilter {
-  flex: 1 1 360px;
+.datePicker {
+  flex: 1 1 230px;
+  min-width: 210px;
 }
 
-.searchItem {
-  display: flex;
-  flex: 1 1 420px;
-  gap: 8px;
-  max-width: 600px;
+.searchInput {
+  flex: 1 1 160px;
+  min-width: 128px;
 }
 
-.searchItem > :global(.ant-input-search) {
-  flex: 1 1 320px;
-}
-
-@media (max-width: 720px) {
-  .filters,
-  .searches,
-  .dateFilter,
-  .searchItem {
-    align-items: stretch;
-    flex-direction: column;
+@media (max-width: 900px) {
+  .container {
+    flex-wrap: wrap;
   }
+}
 
+@media (max-width: 560px) {
   .select,
-  .dateFilter :global(.ant-picker),
-  .searchItem,
-  .searchItem > :global(.ant-input-search) {
+  .datePicker,
+  .searchInput {
+    flex: 1 1 100%;
     width: 100%;
-    max-width: none;
   }
 }

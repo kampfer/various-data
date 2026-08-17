@@ -161,7 +161,7 @@ flowchart TB
 | 侧 | 模块 | 主要类型 / 接口 | 对外契约 |
 | --- | --- | --- | --- |
 | 前端 | `pages/InvestmentLedger` | `LedgerLayout`（`index.tsx`，父路由布局）、`IndexRedirect`（默认重定向）、`HoldingsPage`、`HistoryPage`（两个子路由容器） | 两个子路由承载两个独立模块，`LedgerLayout` 渲染 `ModuleSwitch` + `<Outlet />` |
-| 前端 | `components/InvestmentLedger` | `TradeHistoryPanel`、`HoldingsPanel`、`TradeFilterBar`、`TradeFormModal`、`PortfolioSummary`、`MetricValue`、`LedgerPagination`（均为 `.tsx`，props 接口显式声明） | props 入、回调出，无自有请求 |
+| 前端 | `components/InvestmentLedger` | `TradeHistoryPanel`、`HoldingsPanel`、`TradeFilterBar`、`TradeFormModal`、`PortfolioSummary`、`MetricValue`（均为 `.tsx`，props 接口显式声明） | props 入、回调出；两张 Table 使用自身受控 pagination，无独立分页组件，无自有请求 |
 | 前端 | `store/ledger` | `ledgerSlice`（`createSlice`）、`createAsyncThunk` 集合、`createSelector` 选择器 | `state.ledger` 形状见「前端设计 4」 |
 | 前端 | `domain/ledger` | `LedgerQueryState`、`TradeDraftValidator`、`QueryInputValidator`、`constants`（英文枚举码）、`labels`（码→中文展示映射） | 纯函数/纯类，可独立测试 |
 | 前端 | `api` | `request.ts`（axios 实例 + 泛型解包）、`ledger.ts`（6 个函数）、`types.ts`（DTO 接口） | 唯一 HTTP 出口 |
@@ -187,7 +187,7 @@ flowchart TB
 | 能力 | 采用方案 | package.json 现状 | 是否新增 |
 | --- | --- | --- | --- |
 | UI 框架 | React 18 class 组件 | `react@^18.1.0`、`react-dom@^18.1.0` | 否（复用） |
-| 组件库 | antd 5（`Table`、`Form`、`Select`、`DatePicker.RangePicker`、`InputNumber`、`Input.Search`、`Modal`、`Pagination`、`Radio.Group`、`Descriptions`、`Popconfirm`、`Tooltip`、`message`） | `antd@^5.8.4` | 否（复用；antd 5 自带 TS 类型） |
+| 组件库 | antd 5（`Table`、`Form`、`Select`、`DatePicker`、`DatePicker.RangePicker`、`InputNumber`、`Input`、`Modal`、`Radio.Group`、`Descriptions`、`Popconfirm`、`Tooltip`、`message`） | `antd@^5.8.4` | 否（复用；antd 5 自带 TS 类型） |
 | 图标 | `@ant-design/icons` | `^5.2.5` | 否（复用，自带类型） |
 | 状态管理（容器绑定） | react-redux `connect` | `react-redux@^8.0.2` | 否（复用；**v8 自带 TS 类型**，不需要 `@types/react-redux`） |
 | 状态管理（store / 切片） | **Redux Toolkit**：`configureStore`、`createSlice`、`createAsyncThunk`、`createSelector` | `@reduxjs/toolkit@^1.9.7` | 否（当前已具备，保持 1.9 线） |
@@ -214,7 +214,7 @@ flowchart TB
 - `ts-loader` / `fork-ts-checker-webpack-plugin`：见「调研结论 3」的取舍说明。
 - `decimal.js`：金额/比率不在前端参与运算（后端以字符串下发）。
 - `@types/node`：前端源码不使用 Node API；webpack 配置文件保持 `.js`，不纳入类型检查。
-- 额外表格库：antd `Table` + `Pagination` 已满足分页与排序。
+- 额外表格或分页库：antd `Table` 自带受控分页与排序能力，页大小选项固定为 10/20/50。
 
 #### 1.2 `tsconfig.json`（仓库根，新增）
 
@@ -353,7 +353,7 @@ src/web/frontEnd/src/
 │   ├── labels.ts                       # 展示标签映射：码 → 中文文案 + antd 选项生成器（仅展示用）
 │   ├── LedgerQueryState.ts             # 浏览状态值对象（readonly 字段，含重置/翻页规则）
 │   ├── TradeDraftValidator.ts          # 交易草稿校验（需求 1.2）
-│   └── QueryInputValidator.ts          # 搜索值/日期范围/页大小/页码校验（需求 2.20/2.21/2.26/2.30）
+│   └── QueryInputValidator.ts          # 搜索值/日期范围/页码校验（需求 2.20/2.21/2.32）
 ├── store/
 │   ├── index.ts                        # 改写：configureStore + RootState/AppDispatch（原 index.js 删除）
 │   ├── actions.js                      # 既有，不改动
@@ -373,7 +373,7 @@ src/web/frontEnd/src/
 │   ├── index.module.scss
 │   ├── IndexRedirect.tsx               # 父路由 index 子路由：根据是否存在历史交易决定默认重定向目标（需求 2.2、2.3）
 │   ├── HoldingsPage/index.tsx          # /investmentLedger/holdings 子路由 element：渲染 HoldingsPanel
-│   └── HistoryPage/index.tsx           # /investmentLedger/history 子路由 element：渲染 TradeFilterBar + TradeHistoryPanel + LedgerPagination
+│   └── HistoryPage/index.tsx           # /investmentLedger/history 子路由 element：渲染 TradeFilterBar + 带受控分页的 TradeHistoryPanel
 ├── components/InvestmentLedger/         # 新增：展示组件（每个组件显式声明 Props 接口）
 │   ├── ModuleSwitch/{index.tsx,index.module.scss}
 │   ├── TradeHistoryPanel/{index.tsx,index.module.scss}
@@ -381,8 +381,7 @@ src/web/frontEnd/src/
 │   ├── TradeFilterBar/{index.tsx,index.module.scss}
 │   ├── TradeFormModal/index.tsx
 │   ├── PortfolioSummary/{index.tsx,index.module.scss}
-│   ├── MetricValue/{index.tsx,index.module.scss}
-│   └── LedgerPagination/index.tsx
+│   └── MetricValue/{index.tsx,index.module.scss}
 └── router.js                            # 既有，追加 /investmentLedger 父路由与 holdings/history 两个子路由（import 无扩展名）
 ```
 
@@ -390,7 +389,7 @@ src/web/frontEnd/src/
 
 本节是需求 2.1「THE 投资交易账本 SHALL 将持仓模块和历史交易记录模块提供为两个独立的用户界面模块」在视觉与导航层面的设计落地方案；不新增验收标准，仅描述现有目录结构中各组件如何组合成最终页面。与之相关的还有需求 2.2/2.3（默认打开哪个模块）、2.13（直接切换保留目标模块状态）、2.16-2.19（筛选/搜索/排序）与 2.24（分页），这些行为已在「前端设计 4」「前端设计 7」中定义，本节只补充它们在页面上的**布局位置**与**导航方式**，不改变其行为契约。
 
-**导航方式：两个子路由，而非内部状态切换**。持仓模块与历史交易记录模块分别对应 `#/investmentLedger/holdings` 与 `#/investmentLedger/history` 两个子路由（命名沿用 `router.js` 现有的 camelCase 路径风格，如 `/chartWithNews`、`/crawlersAdmin`）；当前显示哪个模块由 **URL 决定**，不再由 redux 中的 `activeModule` 字段决定。`router.js` 使用 `createHashRouter` 的嵌套路由能力：父路由 `/investmentLedger` 的 `element` 为 `pages/InvestmentLedger/index.tsx`（`LedgerLayout`，布局容器），其内部渲染左侧导航 + `<Outlet />`；两个子路由的 `element` 分别是 `HoldingsPage`（渲染 `HoldingsPanel`）与 `HistoryPage`（渲染 `TradeFilterBar` + `TradeHistoryPanel` + `LedgerPagination`）：
+**导航方式：两个子路由，而非内部状态切换**。持仓模块与历史交易记录模块分别对应 `#/investmentLedger/holdings` 与 `#/investmentLedger/history` 两个子路由（命名沿用 `router.js` 现有的 camelCase 路径风格，如 `/chartWithNews`、`/crawlersAdmin`）；当前显示哪个模块由 **URL 决定**，不再由 redux 中的 `activeModule` 字段决定。`router.js` 使用 `createHashRouter` 的嵌套路由能力：父路由 `/investmentLedger` 的 `element` 为 `pages/InvestmentLedger/index.tsx`（`LedgerLayout`，布局容器），其内部渲染左侧导航 + `<Outlet />`；两个子路由的 `element` 分别是 `HoldingsPage`（渲染带自身受控分页的 `HoldingsPanel`）与 `HistoryPage`（渲染 `TradeFilterBar` + 带自身受控分页的 `TradeHistoryPanel`）：
 
 ```mermaid
 flowchart LR
@@ -400,8 +399,8 @@ flowchart LR
     Outlet["右侧内容区域 .content<br/>&lt;Outlet /&gt;（渲染当前匹配的子路由 element）"]
   end
   Nav -- "Link/NavLink 或 onClick → navigate(path)" --> Outlet
-  Outlet --> HoldingsRoute["子路由 path='holdings'<br/>HoldingsPage → HoldingsPanel<br/>持仓汇总（只读表格，对应持仓模块）"]
-  Outlet --> HistoryRoute["子路由 path='history'<br/>HistoryPage → TradeFilterBar（搜索 + 筛选）<br/>↓<br/>TradeHistoryPanel（antd Table，交易日期列可排序）<br/>↓<br/>LedgerPagination（分页）"]
+  Outlet --> HoldingsRoute["子路由 path='holdings'<br/>HoldingsPage → HoldingsPanel<br/>持仓汇总（只读 antd Table，自身受控分页）"]
+  Outlet --> HistoryRoute["子路由 path='history'<br/>HistoryPage → TradeFilterBar（搜索 + 筛选）<br/>↓<br/>TradeHistoryPanel（antd Table，交易日期列可排序，自身受控分页）"]
   IndexRoute["子路由 index（无 path）<br/>IndexRedirect：按是否存在历史交易 Navigate 到 holdings 或 history（需求 2.2、2.3）"] -.->|"仅在访问 /investmentLedger 且未指定子路径时命中"| Outlet
 ```
 
@@ -422,9 +421,8 @@ flowchart LR
 │ │           │   TradeFilterBar（产品类型/交易方向筛选、       ││
 │ │           │     交易日期范围、产品名称/代码搜索）             ││
 │ │           │   TradeHistoryPanel（逐行交易，支持按交易       ││
-│ │           │     日期列排序）                                ││
-│ │           │   LedgerPagination（页大小 10/20/50 + 自        ││
-│ │           │     定义页大小 + 页码）                          ││
+│ │           │     日期列排序；Table 自身受控分页，页大小       ││
+│ │           │     仅 10/20/50）                               ││
 │ │           │                                                 ││
 │ │           │ URL = /investmentLedger（无子路径）：            ││
 │ │           │   IndexRedirect → 按是否存在历史交易             ││
@@ -438,7 +436,7 @@ flowchart LR
 | 导航入口 | 子路由路径 | 对应模块码（`domain/ledger/constants.ts` 的 `LedgerModule`） | 子路由渲染的组件 | 对应需求 |
 | --- | --- | --- | --- | --- |
 | 持仓汇总 | `/investmentLedger/holdings` | `holdings` | `HoldingsPage` → `HoldingsPanel`（持仓模块，只读） | 2.1、2.4-2.8 |
-| 历史交易 | `/investmentLedger/history` | `history` | `HistoryPage` → `TradeFilterBar` + `TradeHistoryPanel` + `LedgerPagination`（历史交易记录模块） | 2.1、2.11、2.12、2.16-2.19、2.24 |
+| 历史交易 | `/investmentLedger/history` | `history` | `HistoryPage` → `TradeFilterBar` + 带受控分页的 `TradeHistoryPanel`（历史交易记录模块） | 2.1、2.11、2.12、2.16-2.20、2.26-2.33 |
 
 **`ModuleSwitch` 的职责调整为「路由高亮 + 路由导航」**：`ModuleSwitch` 仍由展示层的 antd `Menu`（`mode="inline"`）渲染两个 `Menu.Item`（对应 `holdings` / `history`），但职责从「派发 redux action 切换内部状态」调整为：
 
@@ -476,13 +474,12 @@ flowchart LR
 
 菜单项的中文文案为导航专用静态文案，与「前端设计 3.1」中产品类型/交易方向的展示标签映射（`labels.ts`）是不同的关注点，不写入 `labels.ts`。
 
-**历史交易记录模块的表格能力**：历史交易记录模块在 `/investmentLedger/history` 子路由对应的内容区域中始终以“一个表格”的形式呈现，搜索、筛选、排序均由已有组件组合完成，本节不新增任何组件：
+**历史交易记录模块的表格能力**：历史交易记录模块在 `/investmentLedger/history` 子路由对应的内容区域中始终以“一个表格”的形式呈现，搜索、筛选、排序和分页均由已有组件组合完成，本节不新增任何组件：
 
-- **搜索 + 筛选**：`TradeFilterBar` 提供产品名称/产品代码搜索（`Input.Search`）与产品类型、交易方向、交易日期范围筛选（`Select`、`Radio.Group`、`DatePicker.RangePicker`），置于表格上方；提交前经 `QueryInputValidator` 校验（需求 2.20、2.21）。
-- **排序**：`TradeHistoryPanel` 的交易日期列启用 antd `Table` 原生 `sorter`，触发 `onSortChange`（需求 2.15）。
-- **分页**：`LedgerPagination` 置于表格下方，提供页大小 10/20/50 与自定义页大小（需求 2.24-2.31）。
+- **搜索 + 筛选**：`TradeFilterBar` 将 `DatePicker.RangePicker`、产品名称普通 `Input` 和产品代码普通 `Input` 设为紧凑宽度并置于表格上方。两个 `Input` 使用 `allowClear`，按 Enter 才应用非空搜索值；清空图标在字段已应用时提交对应字段 `null`，移除该搜索条件并刷新。日期范围提交前在 UI 边界从 `[Dayjs, Dayjs]` 转为 `YYYY-MM-DD` 字符串，Redux/API 不存 Dayjs；所有输入提交前经 `QueryInputValidator` 校验（需求 2.18-2.23、2.26）。
+- **排序 + 分页**：`TradeHistoryPanel` 和 `HoldingsPanel` 均使用 antd `Table` 自身的受控 `pagination`，`current`、`pageSize`、`total` 来自 Redux，`pageSizeOptions` 固定为 `['10', '20', '50']`，不存在独立分页组件或任意页大小输入。页面容器在 Table `onChange` 中读取 `extra.action`：`paginate` 只处理翻页/改页大小，`sort` 只处理排序；改页大小和排序均回第 1 页，每次用户动作只 dispatch 一次状态变更并 fetch 一次，避免重复请求（需求 2.27-2.33）。
 
-三者在 `HistoryPage`（`history` 子路由的 element）内垂直堆叠（`TradeFilterBar` → `TradeHistoryPanel` → `LedgerPagination`）；`HoldingsPage`（`holdings` 子路由的 element）渲染 `HoldingsPanel`。两个子路由页面各自 `connect` 到 `store/ledger` 中对应模块的切片（`state.ledger.history` / `state.ledger.holdings`），`TradeHistoryPanel` 自身不发请求、不内置筛选/排序状态（状态来自 `store/ledger`，见「前端设计 4」）。
+`HistoryPage`（`history` 子路由的 element）垂直堆叠 `TradeFilterBar` 与 `TradeHistoryPanel`；`HoldingsPage`（`holdings` 子路由的 element）渲染 `HoldingsPanel`。两个子路由页面各自 `connect` 到 `store/ledger` 中对应模块的切片（`state.ledger.history` / `state.ledger.holdings`），表格面板自身不发请求，受控排序与分页事件统一上抛给页面容器，再由容器 dispatch Redux + fetch。
 
 **默认重定向规则（需求 2.2、2.3）与父路由装配**：`router.js` 的父路由不再直接渲染唯一的账本页面，而是承载一个 `index` 子路由（无 `path`，仅在访问 `/investmentLedger` 且未指定 `holdings`/`history` 子路径时命中），其 `element` 为 `pages/InvestmentLedger/IndexRedirect.tsx`——一个轻量的重定向组件：挂载时直接调用 `api/ledger.ts` 的 `fetchInitialModule()`（不经过 redux）判定是否存在已保存的历史交易，再用 `react-router-dom` 的 `<Navigate to={...} replace />` 跳转到 `holdings` 或 `history`：
 
@@ -575,17 +572,14 @@ export const TRADE_DIRECTIONS = ['BUY', 'SELL'] as const;
 /** 交易方向：与后端 TradeDirection 枚举、`il_transaction.direction` 列值逐字符一致 */
 export type TradeDirection = typeof TRADE_DIRECTIONS[number];
 
-/** 需求 2.24 规定必须提供的三个预设页大小，直接喂给 antd Pagination 的 pageSizeOptions */
+/** 需求 2.27 规定的全部合法页大小，直接用于两张 antd Table 的 pageSizeOptions */
 export const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
+/** 合法页大小联合类型；不接受任意自定义数值 */
+export type PageSize = typeof PAGE_SIZE_OPTIONS[number];
+
 /** 默认浏览状态使用的页大小（需求「默认浏览状态」定义中的模块预设页大小） */
-export const DEFAULT_PAGE_SIZE = 20;
-
-/** 自定义页大小下界，闭区间（需求 2.25、2.26） */
-export const MIN_PAGE_SIZE = 1;
-
-/** 自定义页大小上界，闭区间（需求 2.25、2.26） */
-export const MAX_PAGE_SIZE = 100;
+export const DEFAULT_PAGE_SIZE: PageSize = 20;
 
 /** 两个独立界面模块的标识：history=历史交易记录模块，holdings=持仓模块（需求 2.1） */
 export type LedgerModule = 'history' | 'holdings';
@@ -644,7 +638,7 @@ export const tradeDirectionOptions = (): readonly LabeledOption<TradeDirection>[
 // domain/ledger/LedgerQueryState.ts
 // 浏览状态（筛选 + 搜索 + 排序 + 分页 + 产品范围）的不可变值对象：
 // 所有变换方法返回新实例，重置规则（需求 2.9 / 2.13 / 2.27）在此唯一实现。
-import type { ProductType, TradeDirection, LedgerModule, SortOrder, HoldingSortField } from './constants';
+import type { ProductType, TradeDirection, LedgerModule, SortOrder, HoldingSortField, PageSize } from './constants';
 import { DEFAULT_PAGE_SIZE } from './constants';
 
 /**
@@ -672,8 +666,8 @@ export interface LedgerQuerySnapshot {
   readonly holdingSortOrder: SortOrder | null;
   /** 当前页码，1 起；有效范围 1..pageCount（需求 2.28、2.30） */
   readonly page: number;
-  /** 当前页大小，闭区间 1..100（需求 2.24、2.25） */
-  readonly pageSize: number;
+  /** 当前页大小，只能为 10、20 或 50（需求 2.27、2.29） */
+  readonly pageSize: PageSize;
   /** 产品历史交易范围的产品类型码；与 scopeProductCode 同时为 null 或同时非 null（需求 2.9、2.10） */
   readonly scopeProductType: ProductType | null;
   /** 产品历史交易范围的产品代码（需求 2.9、2.10） */
@@ -733,10 +727,10 @@ export default class LedgerQueryState {
 
   /**
    * 切换页大小。
-   * @param size 已由 QueryInputValidator 校验通过的 1..100 整数
-   * @returns 新实例；**不变量：page 置为 1**（需求 2.25）
+   * @param size 来自受控 Table 的合法选项 10/20/50
+   * @returns 新实例；**不变量：page 置为 1**（需求 2.29）
    */
-  withPageSize(size: number): LedgerQueryState { /* ... */ }
+  withPageSize(size: PageSize): LedgerQueryState { /* ... */ }
 
   /**
    * 仅翻页。
@@ -804,7 +798,7 @@ export interface TradeDraft {
   readonly transactionQuantity?: string | null;
   /** 交易方向：期望为 TRADE_DIRECTIONS 中的英文码 */
   readonly direction?: string | null;
-  /** 交易日期：YYYY-MM-DD，且必须是有效公历日期（如拒绝 2 月 30 日） */
+  /** 交易日期：Redux/API 中恒为 YYYY-MM-DD 字符串；DatePicker 的 Dayjs 值不得进入草稿 */
   readonly tradeDate?: string | null;
 }
 
@@ -836,9 +830,10 @@ export default class TradeDraftValidator {
 - 不设置、推断或间接引入固定小数位、整数位长度或最大数值限制；不得使用 `toFixed`、`quantize(Decimal('0.01'))`、`InputNumber.precision`、数据库 `String(n)` 数值长度、或以 `Number`/`float` 上限作为交易数值规则。仅允许拒绝空值、无法解析的数值、非有限值、非正值，以及股票数量的小数值。
 - `TradeDraftValidator` 必须逐字段返回 `transactionPrice` / `transactionQuantity` 的错误并原样保留草稿；它可复用无固定标度的十进制文本解析器，且以产品类型选择数量规则。`INVALID_SCALE` 不再用于交易价格或理财/基金份额；股票数量含小数返回 `NOT_INTEGER`，非正数返回 `OUT_OF_RANGE`。
 
+- `TradeFormModal` 的交易日期字段使用 antd `DatePicker`。组件渲染时仅在 UI 边界通过 `dayjs(draft.tradeDate, 'YYYY-MM-DD')` 将 Redux 中的字符串还原为 Dayjs；`DatePicker.onChange` 立即以 `value?.format('YYYY-MM-DD') ?? null` 回传。Dayjs 不进入 `TradeDraft`、Redux action、Redux state 或 API DTO，Redux/API 的 `tradeDate` 始终是 `YYYY-MM-DD` 字符串。
 - `TradeDraftValidator.validate(draft)` → `{ valid, fieldErrors: [{ field, code, message }] }`，逐字段给出中文原因，**不修改 draft**（需求 1.2 保留已提交值）。
 - **枚举字段的合法集为英文码**：`productType ∈ PRODUCT_TYPES`（`WEALTH` / `FUND` / `STOCK`）、`direction ∈ TRADE_DIRECTIONS`（`BUY` / `SELL`）。中文字面量（如 `'理财'`）、大小写不符的码（如 `'buy'`）一律判为 `NOT_IN_ENUM` 无效；错误 `message` 仍为中文（例如「产品类型必须为理财、基金或股票之一」），由 `PRODUCT_TYPE_LABELS` 拼装以避免文案与码脱节。
-- `QueryInputValidator` 提供 `validateSearchValue(value: string): ValidationResult`、`validateDateRange(start: string | null, end: string | null): ValidationResult`、`validatePageSize(size: unknown): ValidationResult`、`validatePage(page: number, pageCount: number): ValidationResult`；校验失败时容器只 `message.error(...)`，**不 dispatch 查询变更**，从而保证「保留当前结果」（需求 2.20/2.21/2.26/2.30）。各方法的参数与返回契约：`validateSearchValue` 判定长度 1..100；`validateDateRange` 判定成对出现、日历有效性与 `start <= end`；`validatePageSize` 接受 `unknown` 以拦截非整数与非数字输入；`validatePage` 需要 `pageCount` 才能判定上界，`pageCount === 0` 时任何页码都无效（需求 2.31）。`LedgerQueryState.toParams()` 还必须在两个 scope 字段同时非空时输出 `scopeProductType` / `scopeProductCode`，否则省略二者；普通筛选和搜索不得替代产品范围。
+- `QueryInputValidator` 提供 `validateSearchValue(value: string): ValidationResult`、`validateDateRange(start: string | null, end: string | null): ValidationResult`、`validatePage(page: number, pageCount: number): ValidationResult`；校验失败时容器只 `message.error(...)`，**不 dispatch 查询变更**，从而保证「保留当前结果」（需求 2.22/2.23/2.32）。`validateSearchValue` 仅校验按 Enter 提交的非空值长度不超过 100；`allowClear` 清空已应用搜索是移除条件的合法动作，不按“空搜索值”报错。`validateDateRange` 判定成对出现、日历有效性与 `start <= end`；`validatePage` 需要 `pageCount` 才能判定上界，`pageCount === 0` 时任何页码都无效（需求 2.33）。页大小不再接受用户任意输入，而是由 `PageSize` 与 `PAGE_SIZE_OPTIONS` 静态限制为 10/20/50。`LedgerQueryState.toParams()` 还必须在两个 scope 字段同时非空时输出 `scopeProductType` / `scopeProductCode`，否则省略二者；普通筛选和搜索不得替代产品范围。
 - 领域层不含任何金额公式，公式唯一实现在后端计算层，避免双份实现漂移。
 - 领域层不含任何中文展示文案的判定逻辑；`labels.ts` 只被展示层引用，校验器只在拼装 `message` 时读取它。
 
@@ -1078,8 +1073,8 @@ const ledgerSlice = createSlice({
     },
     /** 翻页：仅改 page，其余字段逐字段不变（需求 2.28） */
     changePage(state, action: PayloadAction<{ module: LedgerModule; page: number }>) { /* withPage */ },
-    /** 改页大小：page 归 1（需求 2.25）；size 已由 QueryInputValidator 保证为 1..100 整数 */
-    changePageSize(state, action: PayloadAction<{ module: LedgerModule; size: number }>) { /* withPageSize，page 归 1 */ },
+    /** 改页大小：size 只能为 10/20/50，page 归 1（需求 2.29） */
+    changePageSize(state, action: PayloadAction<{ module: LedgerModule; size: PageSize }>) { /* withPageSize，page 归 1 */ },
     /** 打开新建交易弹窗：草稿与字段错误全部重置，避免上次失败残留 */
     openTradeForm(state) { /* visible=true，draft 置空，fieldErrors 清空 */ },
     /** 关闭新建交易弹窗：仅改可见性，草稿保留以便用户重新打开继续编辑 */
@@ -1126,7 +1121,7 @@ export default ledgerSlice.reducer;
 | （无导航上下文直接打开 `history`） | `HistoryPage` 将 history query 初始化为默认浏览状态后再请求全部交易 | 2.14 |
 | `openHistoryWithScope`（同步 case reducer） | 仅重置 `history.query = defaultWithScope(...)`（仅保留产品范围）；容器随后另行调用 `navigate('/investmentLedger/history')` | 2.9、2.10 |
 | `applyQuery`（同步 case reducer） | `query = LedgerQueryState.from(query).withFilters(patch)`（page 归 1） | 2.27 |
-| `changePageSize`（同步 case reducer） | `withPageSize(size)`（page 归 1） | 2.25 |
+| `changePageSize`（同步 case reducer） | `withPageSize(size)`，其中 size ∈ {10,20,50}（page 归 1） | 2.29 |
 | `changePage`（同步 case reducer） | 仅改 page，其它字段不变 | 2.28 |
 | `fetchHistory.rejected` / `fetchHoldings.rejected` / `fetchPortfolioStatistics.rejected` | 只写 `error` 与 `loading=false`，**不清空 items / 不改 query** | 2.20、2.21、2.26、2.30 |
 | `submitTrade.rejected` | 只写 `fieldErrors`，`draft` 原样保留 | 1.2 |

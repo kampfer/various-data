@@ -55,7 +55,7 @@ describe('TradeFilterBar', () => {
 
     expect(patches).toEqual([{ productType: 'FUND' }, { direction: 'SELL' }]);
   });
-  it('产品名称与产品代码搜索分别应用，并可共同保留为查询条件', () => {
+  it('产品名称与产品代码搜索分别通过回车应用，并可共同保留为查询条件', () => {
     const patches: Partial<LedgerQuerySnapshot>[] = [];
     render(
       <TradeFilterBar
@@ -66,10 +66,12 @@ describe('TradeFilterBar', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('产品名称搜索'), { target: { value: '成长基金' } });
-    fireEvent.click(screen.getByRole('button', { name: '搜索产品名称' }));
-    fireEvent.change(screen.getByLabelText('产品代码搜索'), { target: { value: 'F001' } });
-    fireEvent.click(screen.getByRole('button', { name: '搜索产品代码' }));
+    const productNameInput = screen.getByLabelText('产品名称搜索');
+    fireEvent.change(productNameInput, { target: { value: '成长基金' } });
+    fireEvent.keyDown(productNameInput, { key: 'Enter', code: 'Enter' });
+    const productCodeInput = screen.getByLabelText('产品代码搜索');
+    fireEvent.change(productCodeInput, { target: { value: 'F001' } });
+    fireEvent.keyDown(productCodeInput, { key: 'Enter', code: 'Enter' });
 
     expect(patches).toEqual([
       { productName: '成长基金' },
@@ -88,46 +90,32 @@ describe('TradeFilterBar', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('产品名称搜索'), { target: { value: '名'.repeat(101) } });
-    fireEvent.click(screen.getByRole('button', { name: '搜索产品名称' }));
+    const productNameInput = screen.getByLabelText('产品名称搜索');
+    fireEvent.change(productNameInput, { target: { value: '名'.repeat(101) } });
+    fireEvent.keyDown(productNameInput, { key: 'Enter', code: 'Enter' });
 
     expect(patches).toEqual([]);
     await waitFor(() => {
       expect(screen.getByText('搜索值不能为空，且不能超过 100 个字符')).toBeInTheDocument();
     });
   });
-  it('日期范围先校验再提交，无效范围只显示错误', async () => {
-    const patches: Partial<LedgerQuerySnapshot>[] = [];
-    const { rerender } = render(
+
+  it('筛选栏不再显示日期、搜索与清除操作按钮', () => {
+    render(
       <TradeFilterBar
         query={createQuery({ startDate: '2024-01-01', endDate: '2024-01-31' })}
         module="history"
-        onApply={(patch) => patches.push(patch)}
+        onApply={() => undefined}
         onClearScope={() => undefined}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '应用日期范围' }));
-    expect(patches).toEqual([{ startDate: '2024-01-01', endDate: '2024-01-31' }]);
-
-    patches.length = 0;
-    rerender(
-      <TradeFilterBar
-        query={createQuery({ startDate: '2024-02-01', endDate: '2024-01-01' })}
-        module="history"
-        onApply={(patch) => patches.push(patch)}
-        onClearScope={() => undefined}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: '应用日期范围' }));
-
-    expect(patches).toEqual([]);
-    await waitFor(() => {
-      expect(screen.getByText('交易日期范围必须同时提供有效的起始日期与结束日期，且起始日期不能晚于结束日期')).toBeInTheDocument();
-    });
+    expect(screen.queryByRole('button', { name: '应用日期范围' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '搜索产品名称' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '搜索产品代码' })).not.toBeInTheDocument();
   });
 
-  it('历史交易产品范围可见且只能通过清除范围回调移除', () => {
+  it('历史交易产品范围可通过标签关闭图标移除', () => {
     let clearCount = 0;
     render(
       <TradeFilterBar
@@ -139,7 +127,7 @@ describe('TradeFilterBar', () => {
     );
 
     expect(screen.getByText('产品范围：600000')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '清除范围' }));
+    fireEvent.click(screen.getByLabelText('清除范围'));
     expect(clearCount).toBe(1);
   });
 });
