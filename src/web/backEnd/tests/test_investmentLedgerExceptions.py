@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.investmentLedger.exceptions import (
+    InsufficientHolding,
     InvalidDateRange,
     InvalidPageSize,
     InvalidSearchValue,
@@ -44,6 +45,7 @@ def exceptionApp() -> FastAPI:
         "invalidPageSize": lambda: InvalidPageSize(pageSize="一百零一"),
         "invalidDateRange": InvalidDateRange,
         "invalidSearchValue": lambda: InvalidSearchValue(field="productCode"),
+        "insufficientHolding": InsufficientHolding,
     }
 
     @app.get("/business/{errorName}")
@@ -146,6 +148,21 @@ def exceptionClient(exceptionApp: FastAPI) -> Iterator[TestClient]:
                         "field": "productCode",
                         "code": "OUT_OF_RANGE",
                         "message": "搜索值不能为空，且不能超过 100 个字符",
+                    }
+                ]
+            },
+        ),
+        (
+            "insufficientHolding",
+            422,
+            422,
+            "卖出数量超过当前持仓",
+            {
+                "fieldErrors": [
+                    {
+                        "field": "transactionQuantity",
+                        "code": "INSUFFICIENT_HOLDING",
+                        "message": "卖出数量超过当前持仓",
                     }
                 ]
             },

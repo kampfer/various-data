@@ -1304,8 +1304,6 @@ export interface PageOut<T> {
 export interface PortfolioStatisticsOut {
   /** 总持仓 = Σ 各产品持仓市值 */
   totalPosition: Metric;
-  /** 总持仓量 = Σ 各已估值产品持仓数量（累计买入 − 累计卖出），与总持仓同口径 */
-  totalPositionQuantity: Metric;
   /** 总收益 = Σ 各产品收益 */
   totalProfit: Metric;
   /** 总收益率 = 总收益 ÷ Σ 累计买入金额 */
@@ -1447,6 +1445,9 @@ export const fetchTransactions = (params: TransactionQueryInput): Promise<PageOu
  * 创建一笔交易（历史交易模块是唯一写入入口，需求 1.3）。
  * @param payload 已通过前端领域层校验的草稿
  * @returns 落库后的交易记录；后端二次校验失败时抛 LedgerApiError(fieldErrors)
+ * @throws LedgerApiError 后端预演该笔交易后持仓数量 < 0 时返回 422 + fieldErrors 指向
+ *   `transactionQuantity`（code: `INSUFFICIENT_HOLDING`，message: 「卖出数量超过当前持仓」），
+ *   不写入记录、不清空草稿，由前端在 transactionQuantity 字段展示原因
  */
 export const createTransaction = (payload: TradeDraft): Promise<TransactionOut> =>
   unwrap(http.post<ApiEnvelope<TransactionOut>>('/transactions', payload));
@@ -2061,7 +2062,6 @@ class PortfolioStatisticsOut(BaseModel):
     """投资组合统计出参：只聚合具有最新估值的产品（需求 3.7-3.9）。"""
 
     total_position: Metric          # 总持仓 = Σ 持仓市值
-    total_position_quantity: Metric # 总持仓量 = Σ 已估值产品持仓数量（累计买入 − 累计卖出），与总持仓同口径
     total_profit: Metric            # 总收益 = Σ 收益
     total_profit_rate: Metric        # 总收益率 = 总收益 ÷ Σ 累计买入金额
     total_annualized_rate: Metric   # 总年化收益率 = Σ(年化 × 累计买入) ÷ Σ 累计买入
@@ -2152,6 +2152,9 @@ class TransactionService:
 
         :param payload: 已通过 Pydantic 校验的入参
         :return: 落库后的交易；不变量：写入值与入参逐字段相等
+        :raises InsufficientHolding: 落库前预演该笔交易后，同产品（按 product_type + product_code）
+            的持仓数量（Σ 买入数量 − Σ 卖出数量，含本次）小于 0；不写入任何记录，
+            返回 `fieldErrors` 指向 `transactionQuantity` 的中文原因（如「卖出数量超过当前持仓」）
         """
 
     def deleteTransaction(self, transactionId: int) -> None:
@@ -2474,17 +2477,25 @@ sequenceDiagram
         else 校验通过
             SC-->>R: TransactionCreate
             R->>SV: createTransaction(payload)
-            SV->>C: addTransaction(...)
-            C->>DB: INSERT INTO il_transaction ... ; COMMIT
-            DB-->>C: 新记录
-            C-->>SV: Transaction
-            SV-->>R: TransactionOut
-            R-->>A: {code:200, data:{...}}
-            A-->>S: 创建成功
-            S->>S: 关闭弹窗、清空草稿
-            S->>A: fetchTransactions(当前 query)
-            A-->>S: 最新分页数据
-            S-->>P: 表格刷新（新交易不可编辑）
+            SV->>SV: 预演该笔交易后持仓（按 product_type + product_code 聚合 Σ 买入数量 − Σ 卖出数量，含本次）
+            alt 卖出后持仓 < 0
+                SV-->>R: raise InsufficientHolding
+                R-->>A: 422 {code:422, msg:"卖出数量超过当前持仓", data:{fieldErrors:[{field:"transactionQuantity", code:"INSUFFICIENT_HOLDING", message:"卖出数量超过当前持仓"}]}}
+                A-->>S: LedgerApiError(fieldErrors)
+                S-->>F: transactionQuantity 字段展示中文原因，草稿与输入原样保留，不写入记录
+            else 持仓 ≥ 0 或为买入交易
+                SV->>C: addTransaction(...)
+                C->>DB: INSERT INTO il_transaction ... ; COMMIT
+                DB-->>C: 新记录
+                C-->>SV: Transaction
+                SV-->>R: TransactionOut
+                R-->>A: {code:200, data:{...}}
+                A-->>S: 创建成功
+                S->>S: 关闭弹窗、清空草稿
+                S->>A: fetchTransactions(当前 query)
+                A-->>S: 最新分页数据
+                S-->>P: 表格刷新（新交易不可编辑）
+            end
         end
     end
 ```
@@ -2793,6 +2804,7 @@ sequenceDiagram
 | `LedgerError`（基类） | 400 | 400 | 兜底业务错误 | — |
 | `LedgerValidationError` | 422 | 422 | 服务层或标准化器判定的业务校验失败（含 `fieldErrors`）；采集批次内部错误由编排器隔离而不返回前端 | 1.2、3.12 |
 | `TransactionNotFound` | 404 | 404 | 删除的交易不存在 | 1.5 |
+| `InsufficientHolding` | 422 | 422 | 创建卖出交易后该产品持仓数量（Σ 买入数量 − Σ 卖出数量，含本次）< 0；`msg` 为「卖出数量超过当前持仓」，`fieldErrors` 指向 `transactionQuantity`，不写入记录、不修改既有行 | 1.3 |
 | `PageOutOfRange` | 422 | 422 | 页码 < 1 或 > 总页数，`msg` 含「有效页码为 1 至 N」 | 2.30 |
 | `InvalidPageSize` | 422 | 422 | 页大小不是 1-100 的整数 | 2.26 |
 | `InvalidDateRange` | 422 | 422 | 日期范围缺项或起始晚于结束 | 2.21 |
@@ -2865,6 +2877,7 @@ sequenceDiagram
 | --- | --- | --- |
 | 表单字段无效（前端领域层拦截） | 不发请求；按字段渲染中文错误；输入内容原样保留 | 1.2 |
 | 后端 422 带 `fieldErrors` | 映射到 antd `Form.Item.help/validateStatus`；输入保留 | 1.2、3.2 |
+| 创建卖出交易后持仓 < 0（后端拦截） | `transactionQuantity` 字段渲染「卖出数量超过当前持仓」（`code: INSUFFICIENT_HOLDING`）；草稿与输入保留，不写入记录、不关闭弹窗 | 1.3 |
 | 搜索值 / 日期范围 / 页大小 / 页码无效 | `message.error(原因)`；**不更新 query、不清空 items** | 2.20、2.21、2.26、2.30 |
 | 404 删除失败 | `message.error`；表格与查询状态不变 | 1.5 |
 | 网络异常 / 超时 / 5xx | `message.error('网络异常，请稍后重试')`；保留当前已渲染表格与浏览状态，允许重试 | — |
@@ -2915,8 +2928,9 @@ sequenceDiagram
 1. 空库 `GET /initialModule` → `history`；插入 1 笔后 → `holdings`（需求 2.2、2.3）。
 2. 通过内部 `CollectorOrchestrator` 和 fake collector 提交标准估值批次后，`GET /holdings` 与 `GET /portfolioStatistics` 读取最新估值并用于产品收益和组合统计（需求 3.1-3.9）。
 3. `POST /transactions` 有效数据 → 201/200 + 可在 `GET /transactions` 中检索到；无效数据 → 422 且响应含 `fieldErrors`（需求 1.2、1.3）。
-4. `DELETE /transactions/{id}` 存在 → 成功；不存在 → 404（需求 1.5）。
-5. 断言应用路由表中**不存在**交易更新方法与 `GET /transactions/{id}`（需求 1.4、2.23）。
+4. `POST /transactions` 卖出数量使同产品持仓数量（Σ 买入数量 − Σ 卖出数量，含本次）< 0 → 422 + `fieldErrors` 指向 `transactionQuantity`（`code: INSUFFICIENT_HOLDING`），不写入记录、不修改既有行，`GET /transactions` 中检索不到该笔卖出；买入交易或卖出后持仓 ≥ 0 时正常落库（需求 1.3）。
+5. `DELETE /transactions/{id}` 存在 → 成功；不存在 → 404（需求 1.5）。
+6. 断言应用路由表中**不存在**交易更新方法与 `GET /transactions/{id}`（需求 1.4、2.23）。
 7. 采集器集成边界：仅从白名单目录发现模块；manifest 与脚本版本/能力不一致或 `plugin_id` 冲突时拒绝注册；动态导入失败只隔离该插件。
 8. 使用 fake HTTP/插件验证一个插件超时、解析异常时其它插件仍完成，且有限重试、日志和批次报告可断言。
 9. 使用临时 SQLite 验证标准估值批次同产品同日同来源幂等、跨来源按优先级确定、事务失败回滚；重复批次不产生重复行。

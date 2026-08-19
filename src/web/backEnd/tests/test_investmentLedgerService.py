@@ -14,9 +14,14 @@ from app.investmentLedger.calculators import (
     Metric as CalculationMetric,
     ProductPerformance,
 )
-from app.investmentLedger.exceptions import PageOutOfRange, TransactionNotFound
+from app.investmentLedger.exceptions import (
+    InsufficientHolding,
+    PageOutOfRange,
+    TransactionNotFound,
+)
 from app.investmentLedger.models import Base, Transaction, Valuation
 from app.investmentLedger.schemas import (
+    ERROR_CODE_INSUFFICIENT_HOLDING,
     TransactionCreate,
     TransactionQuery,
 )
@@ -37,15 +42,24 @@ def ledgerSession(tempEngine: Engine, dbSession: Session) -> Iterator[Session]:
     yield dbSession
 
 
-def buildPayload(code: str = "F-001") -> TransactionCreate:
-    """构造已通过契约校验的交易创建参数。"""
+def buildPayload(
+    code: str = "F-001",
+    direction: str = "BUY",
+    quantity: int = 10,
+) -> TransactionCreate:
+    """构造已通过契约校验的交易创建参数。
+
+    :param code: 产品代码，默认 ``F-001``；不同产品需用不同 code 隔离持仓。
+    :param direction: 交易方向英文码，默认 ``BUY``；卖出传 ``SELL``。
+    :param quantity: 交易数量，默认 10。
+    """
     return TransactionCreate(
         product_type="FUND",
         product_name="成长基金",
         product_code=code,
         unit_price="1.25",
-        quantity=10,
-        direction="BUY",
+        quantity=quantity,
+        direction=direction,
         trade_date=date(2024, 2, 29),
     )
 
@@ -117,6 +131,86 @@ class TestTransactionService:
         service = TransactionService(ledgerSession)
 
         assert not hasattr(service, "updateTransaction")
+
+    def testSellWithinHoldingPersistsAndReducesPosition(
+        self, ledgerSession: Session
+    ) -> None:
+        """卖出数量不超过已有持仓时正常落库，持仓等量扣减。"""
+        service = TransactionService(ledgerSession)
+        service.createTransaction(buildPayload(quantity=10))
+        service.createTransaction(buildPayload(direction="SELL", quantity=3))
+
+        result = service.listTransactions(TransactionQuery(page=1, page_size=10))
+        assert len(result.items) == 2
+        assert ledgerSession.query(Transaction).count() == 2
+
+    def testSellEqualHoldingSucceedsWithZeroPosition(
+        self, ledgerSession: Session
+    ) -> None:
+        """卖出数量等于已有持仓时持仓归零，不视为持仓不足。"""
+        service = TransactionService(ledgerSession)
+        service.createTransaction(buildPayload(quantity=10))
+        service.createTransaction(buildPayload(direction="SELL", quantity=10))
+
+        assert ledgerSession.query(Transaction).count() == 2
+
+    def testSellBeyondHoldingRaisesInsufficientHoldingWithoutWrite(
+        self, ledgerSession: Session
+    ) -> None:
+        """卖出数量超过已有持仓时抛出 InsufficientHolding，且不写入任何记录。"""
+        service = TransactionService(ledgerSession)
+        service.createTransaction(buildPayload(quantity=10))
+
+        with pytest.raises(InsufficientHolding):
+            service.createTransaction(buildPayload(direction="SELL", quantity=11))
+
+        assert ledgerSession.query(Transaction).count() == 1
+        result = service.listTransactions(TransactionQuery(page=1, page_size=10))
+        assert [item.direction for item in result.items] == ["BUY"]
+
+    def testSellWithoutPriorBuyRaisesInsufficientHolding(
+        self, ledgerSession: Session
+    ) -> None:
+        """空库直接卖出第一笔时持仓不足，拦截且不写入。"""
+        service = TransactionService(ledgerSession)
+
+        with pytest.raises(InsufficientHolding):
+            service.createTransaction(buildPayload(direction="SELL", quantity=1))
+
+        assert ledgerSession.query(Transaction).count() == 0
+
+    def testInsufficientHoldingExposesFieldErrorsOnTransactionQuantity(
+        self, ledgerSession: Session
+    ) -> None:
+        """InsufficientHolding 的 fieldErrors 指向 transactionQuantity 字段。"""
+        service = TransactionService(ledgerSession)
+        service.createTransaction(buildPayload(quantity=10))
+
+        with pytest.raises(InsufficientHolding) as caught:
+            service.createTransaction(buildPayload(direction="SELL", quantity=11))
+
+        fieldErrors = caught.value.fieldErrors
+        assert len(fieldErrors) == 1
+        assert fieldErrors[0].field == "transactionQuantity"
+        assert fieldErrors[0].code == ERROR_CODE_INSUFFICIENT_HOLDING
+        assert fieldErrors[0].message == "卖出数量超过当前持仓"
+
+    def testSellOfOneProductDoesNotBlockAnother(
+        self, ledgerSession: Session
+    ) -> None:
+        """A 产品的卖出拦截不影响 B 产品的买入或卖出落库。"""
+        service = TransactionService(ledgerSession)
+        service.createTransaction(buildPayload(code="F-A", quantity=5))
+
+        with pytest.raises(InsufficientHolding):
+            service.createTransaction(
+                buildPayload(code="F-A", direction="SELL", quantity=6)
+            )
+
+        service.createTransaction(buildPayload(code="F-B", quantity=8))
+        service.createTransaction(buildPayload(code="F-B", direction="SELL", quantity=8))
+
+        assert ledgerSession.query(Transaction).count() == 3
 
 
 class TestHoldingGroupingAndSorting:
@@ -332,7 +426,6 @@ class TestHoldingService:
         statistics = HoldingService(ledgerSession).getPortfolioStatistics(query)
 
         assert statistics.total_position.value == "360.00"
-        assert statistics.total_position_quantity.value == "13"
         assert statistics.total_profit.value == "140.00"
         assert statistics.total_profit_rate.value == "0.56"
         assert statistics.total_annualized_rate.available is True
@@ -355,7 +448,6 @@ class TestHoldingService:
         assert page.total == 0
         assert page.page_count == 0
         assert statistics.total_position.value == "0"
-        assert statistics.total_position_quantity.value == "0"
         assert statistics.total_profit.value == "0"
         assert statistics.total_profit_rate.available is False
         assert statistics.total_annualized_rate.available is False

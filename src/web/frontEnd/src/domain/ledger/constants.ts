@@ -18,7 +18,7 @@ export type TradeDirection = typeof TRADE_DIRECTIONS[number];
 export const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
 /** 默认浏览状态使用的页大小（需求「默认浏览状态」定义中的模块预设页大小） */
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 10;
 
 /** 自定义页大小下界，闭区间（需求 2.25、2.26） */
 export const MIN_PAGE_SIZE = 1;

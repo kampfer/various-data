@@ -67,6 +67,9 @@ ERROR_CODE_OUT_OF_RANGE = "OUT_OF_RANGE"
 #: 文本长度超过上限（产品名称 100、产品代码 32、搜索值 100）
 ERROR_CODE_TOO_LONG = "TOO_LONG"
 
+#: 卖出数量使同产品持仓数量（Σ 买入 − Σ 卖出，含本次）小于 0（需求 1.3）
+ERROR_CODE_INSUFFICIENT_HOLDING = "INSUFFICIENT_HOLDING"
+
 # ---------------------------------------------------------------------------
 # 领域字面量类型：取值与前端 domain/ledger/constants.ts 的联合类型逐字符一致
 # ---------------------------------------------------------------------------
@@ -487,9 +490,6 @@ class PortfolioStatisticsOut(LedgerSchema):
 
     #: 总持仓 = Σ 各产品持仓市值（需求 3.10）
     total_position: Metric
-
-    #: 总持仓量 = Σ 各已估值产品持仓数量（累计买入 − 累计卖出），与总持仓同口径
-    total_position_quantity: Metric
 
     #: 总收益 = Σ 各产品收益（需求 3.10）
     total_profit: Metric

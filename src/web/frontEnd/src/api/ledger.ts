@@ -53,7 +53,10 @@ export const fetchTransactions = (
  * 创建一笔交易（接口 3：POST /transactions）——历史交易模块是唯一写入入口（需求 1.3）。
  * @param payload 已通过 TradeDraftValidator 校验的草稿
  * @returns 落库后的交易记录
- * @throws LedgerApiError 后端二次校验失败时携带 fieldErrors（需求 1.2）
+ * @throws LedgerApiError 后端二次校验失败时携带 fieldErrors（需求 1.2）；
+ *   卖出数量使同产品持仓数量（Σ 买入 − Σ 卖出，含本次）小于 0 时返回 422 +
+ *   `fieldErrors` 指向 `transactionQuantity`（code: `INSUFFICIENT_HOLDING`，
+ *   message: 「卖出数量超过当前持仓」），不写入记录、不清空草稿（需求 1.3）
  */
 export const createTransaction = (payload: TradeDraft): Promise<TransactionOut> =>
   unwrap(http.post<ApiEnvelope<TransactionOut>>('/transactions', payload));

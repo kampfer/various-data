@@ -5,21 +5,17 @@ import PortfolioSummary from './index';
 
 const portfolio: PortfolioStatisticsOut = {
   totalPosition: { available: true, value: '1000.00', unavailableReason: null },
-  totalPositionQuantity: { available: true, value: '88', unavailableReason: null },
   totalProfit: { available: true, value: '80.00', unavailableReason: null },
   totalProfitRate: { available: true, value: '0.08', unavailableReason: null },
   totalAnnualizedRate: { available: false, value: null, unavailableReason: '部分产品不可年化' },
 };
 
 describe('PortfolioSummary', () => {
-  it('通过 Descriptions 与 MetricValue 渲染五项指标', () => {
+  it('通过 Descriptions 与 MetricValue 渲染四项指标', () => {
     render(<PortfolioSummary portfolio={portfolio} loading={false} />);
 
     expect(screen.getByText('总持仓')).toBeInTheDocument();
     expect(screen.getByText('1000.00 元')).toBeInTheDocument();
-    expect(screen.getByText('总持仓量')).toBeInTheDocument();
-    expect(screen.getByText('88')).toBeInTheDocument();
-    expect(screen.queryByText('88 元')).not.toBeInTheDocument();
     expect(screen.getByText('总收益')).toBeInTheDocument();
     expect(screen.getByText('80.00 元')).toBeInTheDocument();
     expect(screen.getByText('总收益率')).toBeInTheDocument();

@@ -30,10 +30,9 @@ class ProductCase:
 
 @dataclass(frozen=True, slots=True)
 class ExpectedPortfolio:
-    """独立参考聚合得到的五项组合指标。"""
+    """独立参考聚合得到的四项组合指标。"""
 
     total_position: Decimal
-    total_position_quantity: Decimal
     total_profit: Decimal
     total_profit_rate: Decimal | None
     total_annualized_rate: Decimal | None
@@ -149,7 +148,6 @@ def referenceAggregate(cases: tuple[ProductCase, ...]) -> ExpectedPortfolio:
     with localcontext() as context:
         context.prec = 28
         totalPosition = Decimal(0)
-        totalPositionQuantity = Decimal(0)
         totalProfit = Decimal(0)
         totalBuyAmount = Decimal(0)
         annualizedWeightedSum = Decimal(0)
@@ -160,7 +158,6 @@ def referenceAggregate(cases: tuple[ProductCase, ...]) -> ExpectedPortfolio:
             if not case.has_valuation:
                 continue
             totalPosition += case.position
-            totalPositionQuantity += case.position_quantity
             totalProfit += case.total_profit
             totalBuyAmount += case.cumulative_buy_amount
             if case.cumulative_buy_amount > 0:
@@ -182,7 +179,6 @@ def referenceAggregate(cases: tuple[ProductCase, ...]) -> ExpectedPortfolio:
         )
         return ExpectedPortfolio(
             totalPosition,
-            totalPositionQuantity,
             totalProfit,
             totalProfitRate,
             totalAnnualizedRate,
@@ -230,7 +226,6 @@ def test_property_9_portfolio_aggregates_only_eligible_products_with_buy_weights
     )
 
     assertMetric(actual.total_position, expected.total_position)
-    assertMetric(actual.total_position_quantity, expected.total_position_quantity)
     assertMetric(actual.total_profit, expected.total_profit)
     assertMetric(actual.total_profit_rate, expected.total_profit_rate)
     assertMetric(actual.total_annualized_rate, expected.total_annualized_rate)

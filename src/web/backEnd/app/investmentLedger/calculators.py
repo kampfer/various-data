@@ -88,15 +88,12 @@ class ProductPerformance:
 class PortfolioStatistics:
     """投资组合的聚合统计结果（需求 3.10-3.12）。
 
-    总持仓量与总持仓同口径：只聚合具有最新估值的产品，合格集合为空时
+    总持仓与总收益只聚合具有最新估值的产品，合格集合为空时
     仍为可用的零值，绝不以 0 替代不可用语义。
     """
 
     #: 总持仓 = Σ 各产品持仓市值（需求 3.10）
     total_position: Metric
-
-    #: 总持仓量 = Σ 各已估值产品持仓数量（累计买入 − 累计卖出）
-    total_position_quantity: Metric
 
     #: 总收益 = Σ 各产品收益（需求 3.10）
     total_profit: Metric
@@ -116,14 +113,14 @@ class PortfolioCalculator:
     ) -> PortfolioStatistics:
         """按最新估值资格及累计买入金额权重聚合产品业绩。
 
-        总持仓、总持仓量与总收益只包含具有最新估值的产品，合格集合为空
-        时三者仍为可用的零值。总收益率仅在这些产品的累计买入金额总和
+        总持仓与总收益只包含具有最新估值的产品，合格集合为空
+        时两者仍为可用的零值。总收益率仅在这些产品的累计买入金额总和
         大于零时可用。总年化收益率使用其中累计买入金额大于零的产品集合；
         该集合必须非空，且每个产品的年化收益率都可用。任何前提不成立时
         均显式返回不可用指标，不以零替代。
 
         :param performances: 全部产品的业绩结果，输入集合不会被修改。
-        :return: 五项组合级统计指标。
+        :return: 四项组合级统计指标。
         """
         with localcontext() as context:
             context.prec = 28
@@ -138,14 +135,6 @@ class PortfolioCalculator:
                     performance.position.value
                     for performance in valuedPerformances
                     if performance.position.value is not None
-                ),
-                Decimal(0),
-            )
-            totalPositionQuantityValue = sum(
-                (
-                    performance.position_quantity.value
-                    for performance in valuedPerformances
-                    if performance.position_quantity.value is not None
                 ),
                 Decimal(0),
             )
@@ -209,7 +198,6 @@ class PortfolioCalculator:
 
             return PortfolioStatistics(
                 total_position=Metric.of(totalPositionValue),
-                total_position_quantity=Metric.of(totalPositionQuantityValue),
                 total_profit=Metric.of(totalProfitValue),
                 total_profit_rate=totalProfitRate,
                 total_annualized_rate=totalAnnualizedRate,

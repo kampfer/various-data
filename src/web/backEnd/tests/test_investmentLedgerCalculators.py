@@ -224,12 +224,10 @@ class TestPortfolioCalculator:
         result = PortfolioCalculator().aggregate(performances)
 
         assert result.total_position.value == Decimal("385")
-        assert result.total_position_quantity.value == Decimal("31")
         assert result.total_profit.value == Decimal("85")
         assert result.total_profit_rate.value == Decimal("0.2125")
         assert result.total_annualized_rate.value == Decimal("0.25")
         assert result.total_position.available is True
-        assert result.total_position_quantity.available is True
         assert result.total_profit.available is True
 
     def testEmptyPortfolioKeepsSumsAvailableAndRatesUnavailable(self) -> None:
@@ -239,7 +237,6 @@ class TestPortfolioCalculator:
         )
 
         assert result.total_position.value == Decimal(0)
-        assert result.total_position_quantity.value == Decimal(0)
         assert result.total_profit.value == Decimal(0)
         assert result.total_profit_rate.available is False
         assert result.total_profit_rate.value is None
@@ -257,7 +254,6 @@ class TestPortfolioCalculator:
         )
 
         assert result.total_position.value == Decimal("330")
-        assert result.total_position_quantity.value == Decimal("8")
         assert result.total_profit.value == Decimal("30")
         assert result.total_profit_rate.value == Decimal("0.1")
         assert result.total_annualized_rate.available is False

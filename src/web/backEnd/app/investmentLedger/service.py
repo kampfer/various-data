@@ -26,8 +26,10 @@ from app.investmentLedger.constants import (
     MAX_SEARCH_VALUE_LENGTH,
     MIN_PAGE_SIZE,
     SOURCE_PRIORITY,
+    TradeDirection,
 )
 from app.investmentLedger.exceptions import (
+    InsufficientHolding,
     InvalidDateRange,
     InvalidPageSize,
     InvalidSearchValue,
@@ -238,7 +240,22 @@ class TransactionService:
         )
 
     def createTransaction(self, payload: TransactionCreate) -> TransactionOut:
-        """创建并提交一笔不可编辑交易，返回最终落库值。"""
+        """创建并提交一笔不可编辑交易，返回最终落库值。
+
+        落库前对卖出交易预演持仓：若同产品（按 ``product_type`` + ``product_code``
+        聚合）的持仓数量（已落库 Σ 买入 − Σ 卖出，再扣减本次卖出数量）小于 0，
+        立即抛出 :class:`InsufficientHolding`，不写入任何记录、不修改既有行，
+        由路由层映射为 422 + ``fieldErrors`` 指向 ``transactionQuantity``（需求 1.3）。
+        买入交易天然不会使持仓变负，直接落库。
+        """
+        if payload.direction == TradeDirection.SELL:
+            currentQuantity = crud.getPositionQuantity(
+                self._db,
+                payload.product_type.value,
+                payload.product_code,
+            )
+            if currentQuantity - payload.transaction_quantity < 0:
+                raise InsufficientHolding()
         transaction = crud.addTransaction(self._db, payload)
         return TransactionOut.model_validate(transaction)
 

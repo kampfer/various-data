@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from sqlalchemy import ColumnElement, and_, func, select, tuple_
+from decimal import Decimal
+
+from sqlalchemy import ColumnElement, and_, case, func, select, tuple_
 from sqlalchemy.orm import Session
 
 from app.investmentLedger import models
-from app.investmentLedger.constants import SOURCE_PRIORITY
+from app.investmentLedger.constants import SOURCE_PRIORITY, TradeDirection
 from app.investmentLedger.schemas import TransactionCreate, TransactionQuery
 
 
@@ -99,6 +101,36 @@ def addTransaction(
     except Exception:
         db.rollback()
         raise
+
+
+def getPositionQuantity(
+    db: Session, productType: str, productCode: str
+) -> Decimal:
+    """只读查询同产品已落库持仓数量（Σ 买入数量 − Σ 卖出数量，需求 1.3 拦截前提）。
+
+    以单条 SQL 聚合 ``transaction_quantity``：买入方向取正、卖出方向取负，
+    无任何交易时返回 ``Decimal(0)``。本函数不写入、不抛业务异常，仅服务于
+    服务层在创建卖出交易前的预演判定。
+
+    :param productType: 产品类型英文码，与 ``Transaction.product_type`` 列值同口径。
+    :param productCode: 产品代码，与 ``Transaction.product_code`` 列值同口径。
+    :return: 已落库的累计买入数量减累计卖出数量；空结果为 ``Decimal(0)``。
+    """
+    deltaExpression = case(
+        (
+            models.Transaction.direction == TradeDirection.BUY.value,
+            models.Transaction.transaction_quantity,
+        ),
+        else_=-models.Transaction.transaction_quantity,
+    )
+    statement = select(
+        func.coalesce(func.sum(deltaExpression), 0)
+    ).where(
+        models.Transaction.product_type == productType,
+        models.Transaction.product_code == productCode,
+    )
+    total = db.execute(statement).scalar_one()
+    return total if isinstance(total, Decimal) else Decimal(total)
 
 
 def removeTransaction(

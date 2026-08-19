@@ -40,6 +40,7 @@ from app.investmentLedger.constants import (
     MIN_PAGE_SIZE,
 )
 from app.investmentLedger.schemas import (
+    ERROR_CODE_INSUFFICIENT_HOLDING,
     ERROR_CODE_INVALID_SCALE,
     ERROR_CODE_NOT_A_NUMBER,
     ERROR_CODE_NOT_IN_ENUM,
@@ -164,6 +165,31 @@ class TransactionNotFound(LedgerError):
         """
         self.transactionId = transactionId
         super().__init__()
+
+
+class InsufficientHolding(LedgerValidationError):
+    """卖出数量使同产品持仓数量（Σ 买入 − Σ 卖出，含本次）小于 0（需求 1.3）。
+
+    落库前由服务层预演该笔卖出交易后判定：若同产品（按 ``product_type`` +
+    ``product_code`` 聚合）的持仓数量小于 0，立即拦截并抛出本异常，不写入任何记录、
+    不修改既有行。对外 ``fieldErrors`` 指向 ``transactionQuantity``，前端据此
+    在交易数量输入框展示中文原因并保留草稿。
+    """
+
+    defaultMsg = "卖出数量超过当前持仓"
+
+    def __init__(self) -> None:
+        """构造持仓不足异常；提示语固定，无运行时参数。"""
+        super().__init__(
+            self.defaultMsg,
+            fieldErrors=[
+                FieldErrorItem(
+                    field="transactionQuantity",
+                    code=ERROR_CODE_INSUFFICIENT_HOLDING,
+                    message=self.defaultMsg,
+                )
+            ],
+        )
 
 
 class PageOutOfRange(LedgerValidationError):
