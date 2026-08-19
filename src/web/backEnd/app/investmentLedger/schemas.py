@@ -488,6 +488,9 @@ class PortfolioStatisticsOut(LedgerSchema):
     #: 总持仓 = Σ 各产品持仓市值（需求 3.10）
     total_position: Metric
 
+    #: 总持仓量 = Σ 各已估值产品持仓数量（累计买入 − 累计卖出），与总持仓同口径
+    total_position_quantity: Metric
+
     #: 总收益 = Σ 各产品收益（需求 3.10）
     total_profit: Metric
 

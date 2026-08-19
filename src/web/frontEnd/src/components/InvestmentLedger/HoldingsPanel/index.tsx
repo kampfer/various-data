@@ -103,7 +103,7 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
     this.props.onReadOnlyIntent(kind);
   };
 
-  /** 生成恰好 7 个只读列；产品名称本身作为进入历史交易的导航入口。 */
+  /** 生成恰好 8 个只读列；产品名称本身作为进入历史交易的导航入口。 */
   private columns(): HoldingColumns {
     return [
       {
@@ -138,6 +138,12 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
         sorter: true,
         sortOrder: this.sortOrderFor('position'),
         render: (metric: HoldingOut['position']) => <MetricValue metric={metric} kind="amount" />,
+      },
+      {
+        title: '持仓量',
+        dataIndex: 'positionQuantity',
+        key: 'positionQuantity',
+        render: (metric: HoldingOut['positionQuantity']) => <MetricValue metric={metric} kind="quantity" />,
       },
       {
         title: '总收益',

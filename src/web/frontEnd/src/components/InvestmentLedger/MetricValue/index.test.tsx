@@ -28,5 +28,12 @@ describe('MetricValue', () => {
       <MetricValue kind="rate" metric={{ available: true, value: '0.125', unavailableReason: null }} />,
     );
     expect(screen.getByText('0.125 %')).toBeInTheDocument();
+
+    rerender(
+      <MetricValue kind="quantity" metric={{ available: true, value: '88', unavailableReason: null }} />,
+    );
+    expect(screen.getByText('88')).toBeInTheDocument();
+    expect(screen.queryByText('88 元')).not.toBeInTheDocument();
+    expect(screen.queryByText('88 %')).not.toBeInTheDocument();
   });
 });

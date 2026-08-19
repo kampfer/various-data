@@ -181,12 +181,13 @@ class TestPortfolioCalculator:
         profit: str | None,
         buyAmount: str,
         annualizedRate: str | None,
+        positionQuantity: str = "0",
     ) -> ProductPerformance:
         """构造满足产品业绩值对象不变量的组合聚合输入。"""
         unavailableValuation = CalculationMetric.unavailable("缺少最新估值")
         hasValuation = position is not None and profit is not None
         return ProductPerformance(
-            position_quantity=CalculationMetric.of(0),
+            position_quantity=CalculationMetric.of(Decimal(positionQuantity)),
             position=(
                 CalculationMetric.of(Decimal(position))
                 if position is not None
@@ -214,28 +215,31 @@ class TestPortfolioCalculator:
     def testAggregatesOnlyValuedProductsAndWeightsAnnualizedRate(self) -> None:
         """无估值产品完全排除，年化按正累计买入金额加权（需求 3.10-3.12）。"""
         performances = [
-            self.performance("120", "20", "100", "0.10"),
-            self.performance("260", "60", "300", "0.30"),
-            self.performance(None, None, "1000", "0.90"),
-            self.performance("5", "5", "0", None),
+            self.performance("120", "20", "100", "0.10", "10"),
+            self.performance("260", "60", "300", "0.30", "20"),
+            self.performance(None, None, "1000", "0.90", "9999"),
+            self.performance("5", "5", "0", None, "1"),
         ]
 
         result = PortfolioCalculator().aggregate(performances)
 
         assert result.total_position.value == Decimal("385")
+        assert result.total_position_quantity.value == Decimal("31")
         assert result.total_profit.value == Decimal("85")
         assert result.total_profit_rate.value == Decimal("0.2125")
         assert result.total_annualized_rate.value == Decimal("0.25")
         assert result.total_position.available is True
+        assert result.total_position_quantity.available is True
         assert result.total_profit.available is True
 
     def testEmptyPortfolioKeepsSumsAvailableAndRatesUnavailable(self) -> None:
         """无已估值产品时求和为零，但两个比率不以零冒充（需求 3.10-3.12）。"""
         result = PortfolioCalculator().aggregate(
-            [self.performance(None, None, "100", "0.20")]
+            [self.performance(None, None, "100", "0.20", "7")]
         )
 
         assert result.total_position.value == Decimal(0)
+        assert result.total_position_quantity.value == Decimal(0)
         assert result.total_profit.value == Decimal(0)
         assert result.total_profit_rate.available is False
         assert result.total_profit_rate.value is None
@@ -247,12 +251,13 @@ class TestPortfolioCalculator:
         """正买入产品缺少年化时仅总年化不可用，其它组合指标继续输出。"""
         result = PortfolioCalculator().aggregate(
             [
-                self.performance("110", "10", "100", "0.10"),
-                self.performance("220", "20", "200", None),
+                self.performance("110", "10", "100", "0.10", "3"),
+                self.performance("220", "20", "200", None, "5"),
             ]
         )
 
         assert result.total_position.value == Decimal("330")
+        assert result.total_position_quantity.value == Decimal("8")
         assert result.total_profit.value == Decimal("30")
         assert result.total_profit_rate.value == Decimal("0.1")
         assert result.total_annualized_rate.available is False

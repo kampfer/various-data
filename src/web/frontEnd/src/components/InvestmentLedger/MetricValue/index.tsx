@@ -7,8 +7,8 @@ import styles from './index.module.scss';
 export interface MetricValueProps {
   /** 待展示指标；不可用时 value 必须为 null。 */
   readonly metric: Metric;
-  /** 展示单位，仅追加后缀，不执行浮点换算。 */
-  readonly kind: 'amount' | 'rate';
+  /** 展示单位，仅追加后缀，不执行浮点换算；quantity 为持仓量，不追加单位。 */
+  readonly kind: 'amount' | 'rate' | 'quantity';
 }
 
 /** 统一呈现可用与不可用统计指标，避免调用方以 0 代替缺失值。 */
@@ -17,7 +17,7 @@ export default class MetricValue extends React.Component<MetricValueProps> {
   private readonly unavailableReason = (): string =>
     this.props.metric.unavailableReason ?? '指标所需数据不完整';
 
-  /** 渲染统计值；金额与比率仅附加展示单位，不参与数值运算。 */
+  /** 渲染统计值；金额、比率仅附加展示单位，持仓量保持原始精度不追加后缀。 */
   public override render(): React.ReactNode {
     const { metric, kind } = this.props;
     if (!metric.available) {
@@ -32,7 +32,12 @@ export default class MetricValue extends React.Component<MetricValueProps> {
     }
 
     const value = metric.value ?? '--';
-    const suffix = kind === 'amount' ? '元' : '%';
-    return <span className={styles.value}>{value} {suffix}</span>;
+    const suffix = kind === 'amount' ? '元' : kind === 'rate' ? '%' : '';
+    return (
+      <span className={styles.value}>
+        {value}
+        {suffix ? ` ${suffix}` : ''}
+      </span>
+    );
   }
 }

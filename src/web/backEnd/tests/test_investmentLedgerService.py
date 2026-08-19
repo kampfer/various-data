@@ -332,6 +332,7 @@ class TestHoldingService:
         statistics = HoldingService(ledgerSession).getPortfolioStatistics(query)
 
         assert statistics.total_position.value == "360.00"
+        assert statistics.total_position_quantity.value == "13"
         assert statistics.total_profit.value == "140.00"
         assert statistics.total_profit_rate.value == "0.56"
         assert statistics.total_annualized_rate.available is True
@@ -354,6 +355,7 @@ class TestHoldingService:
         assert page.total == 0
         assert page.page_count == 0
         assert statistics.total_position.value == "0"
+        assert statistics.total_position_quantity.value == "0"
         assert statistics.total_profit.value == "0"
         assert statistics.total_profit_rate.available is False
         assert statistics.total_annualized_rate.available is False

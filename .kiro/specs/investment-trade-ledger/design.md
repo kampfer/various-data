@@ -1304,6 +1304,8 @@ export interface PageOut<T> {
 export interface PortfolioStatisticsOut {
   /** 总持仓 = Σ 各产品持仓市值 */
   totalPosition: Metric;
+  /** 总持仓量 = Σ 各已估值产品持仓数量（累计买入 − 累计卖出），与总持仓同口径 */
+  totalPositionQuantity: Metric;
   /** 总收益 = Σ 各产品收益 */
   totalProfit: Metric;
   /** 总收益率 = 总收益 ÷ Σ 累计买入金额 */
@@ -2058,10 +2060,11 @@ class PageOut(BaseModel, Generic[T]):
 class PortfolioStatisticsOut(BaseModel):
     """投资组合统计出参：只聚合具有最新估值的产品（需求 3.7-3.9）。"""
 
-    total_position: Metric         # 总持仓 = Σ 持仓市值
-    total_profit: Metric           # 总收益 = Σ 收益
-    total_profit_rate: Metric      # 总收益率 = 总收益 ÷ Σ 累计买入金额
-    total_annualized_rate: Metric  # 总年化收益率 = Σ(年化 × 累计买入) ÷ Σ 累计买入
+    total_position: Metric          # 总持仓 = Σ 持仓市值
+    total_position_quantity: Metric # 总持仓量 = Σ 已估值产品持仓数量（累计买入 − 累计卖出），与总持仓同口径
+    total_profit: Metric            # 总收益 = Σ 收益
+    total_profit_rate: Metric        # 总收益率 = 总收益 ÷ Σ 累计买入金额
+    total_annualized_rate: Metric   # 总年化收益率 = Σ(年化 × 累计买入) ÷ Σ 累计买入
 
 
 class InitialModuleOut(BaseModel):

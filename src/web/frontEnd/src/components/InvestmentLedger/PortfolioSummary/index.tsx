@@ -12,7 +12,7 @@ export interface PortfolioSummaryProps {
   readonly loading: boolean;
 }
 
-/** 以统一指标组件只读展示投资组合的四项统计。 */
+/** 以统一指标组件只读展示投资组合的五项统计。 */
 export default class PortfolioSummary extends React.Component<PortfolioSummaryProps> {
   public override render(): React.ReactNode {
     const { portfolio, loading } = this.props;
@@ -21,9 +21,12 @@ export default class PortfolioSummary extends React.Component<PortfolioSummaryPr
         {portfolio === null ? (
           <Skeleton active={loading} paragraph={{ rows: 1 }} />
         ) : (
-          <Descriptions bordered column={4} size="small">
+          <Descriptions bordered column={5} size="small">
             <Descriptions.Item label="总持仓">
               <MetricValue metric={portfolio.totalPosition} kind="amount" />
+            </Descriptions.Item>
+            <Descriptions.Item label="总持仓量">
+              <MetricValue metric={portfolio.totalPositionQuantity} kind="quantity" />
             </Descriptions.Item>
             <Descriptions.Item label="总收益">
               <MetricValue metric={portfolio.totalProfit} kind="amount" />

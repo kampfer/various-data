@@ -25,13 +25,15 @@ class ProductCase:
     total_profit: Decimal
     cumulative_buy_amount: Decimal
     annualized_rate: Decimal | None
+    position_quantity: Decimal
 
 
 @dataclass(frozen=True, slots=True)
 class ExpectedPortfolio:
-    """独立参考聚合得到的四项组合指标。"""
+    """独立参考聚合得到的五项组合指标。"""
 
     total_position: Decimal
+    total_position_quantity: Decimal
     total_profit: Decimal
     total_profit_rate: Decimal | None
     total_annualized_rate: Decimal | None
@@ -48,6 +50,7 @@ def productCase(
     profit: str,
     buyAmount: str,
     annualizedRate: str | None,
+    positionQuantity: str = "0",
 ) -> ProductCase:
     """为显式边界样例构造产品输入。"""
     return ProductCase(
@@ -56,6 +59,7 @@ def productCase(
         total_profit=Decimal(profit),
         cumulative_buy_amount=Decimal(buyAmount),
         annualized_rate=(Decimal(annualizedRate) if annualizedRate is not None else None),
+        position_quantity=Decimal(positionQuantity),
     )
 
 
@@ -81,6 +85,7 @@ def productCases(draw: st.DrawFn) -> tuple[ProductCase, ...]:
     amountUnits = st.integers(min_value=-1_000_000, max_value=1_000_000)
     buyUnits = st.integers(min_value=0, max_value=1_000_000)
     rateUnits = st.integers(min_value=-10_000, max_value=50_000)
+    quantityUnits = st.integers(min_value=-1_000_000, max_value=1_000_000)
     products = [
         ProductCase(
             has_valuation=draw(st.booleans()),
@@ -90,22 +95,23 @@ def productCases(draw: st.DrawFn) -> tuple[ProductCase, ...]:
             annualized_rate=draw(
                 st.one_of(st.none(), rateUnits.map(lambda value: decimalFromUnits(value, 10_000)))
             ),
+            position_quantity=decimalFromUnits(draw(quantityUnits)),
         )
         for _ in range(size)
     ]
 
     if scenario == "missing_valuation":
         products[0] = ProductCase(
-            False, Decimal("999999"), Decimal("888888"), Decimal("777777"), Decimal("9")
+            False, Decimal("999999"), Decimal("888888"), Decimal("777777"), Decimal("9"), Decimal("9999")
         )
     elif scenario == "zero_buy":
-        products[0] = ProductCase(True, Decimal("10"), Decimal("2"), Decimal(0), None)
+        products[0] = ProductCase(True, Decimal("10"), Decimal("2"), Decimal(0), None, Decimal("3"))
     elif scenario == "unavailable_annualized":
-        products[0] = ProductCase(True, Decimal("10"), Decimal("2"), Decimal("100"), None)
+        products[0] = ProductCase(True, Decimal("10"), Decimal("2"), Decimal("100"), None, Decimal("4"))
     elif scenario == "different_weights":
         products = [
-            ProductCase(True, Decimal("120"), Decimal("20"), Decimal("100"), Decimal("0.10")),
-            ProductCase(True, Decimal("260"), Decimal("60"), Decimal("300"), Decimal("0.30")),
+            ProductCase(True, Decimal("120"), Decimal("20"), Decimal("100"), Decimal("0.10"), Decimal("10")),
+            ProductCase(True, Decimal("260"), Decimal("60"), Decimal("300"), Decimal("0.30"), Decimal("20")),
             *products,
         ]
 
@@ -128,7 +134,7 @@ def toPerformance(case: ProductCase) -> ProductPerformance:
         else Metric.unavailable("年化收益率不可用")
     )
     return ProductPerformance(
-        position_quantity=Metric.of(0),
+        position_quantity=Metric.of(case.position_quantity),
         position=position,
         cumulative_buy_amount=case.cumulative_buy_amount,
         cumulative_sell_amount=Decimal(0),
@@ -143,6 +149,7 @@ def referenceAggregate(cases: tuple[ProductCase, ...]) -> ExpectedPortfolio:
     with localcontext() as context:
         context.prec = 28
         totalPosition = Decimal(0)
+        totalPositionQuantity = Decimal(0)
         totalProfit = Decimal(0)
         totalBuyAmount = Decimal(0)
         annualizedWeightedSum = Decimal(0)
@@ -153,6 +160,7 @@ def referenceAggregate(cases: tuple[ProductCase, ...]) -> ExpectedPortfolio:
             if not case.has_valuation:
                 continue
             totalPosition += case.position
+            totalPositionQuantity += case.position_quantity
             totalProfit += case.total_profit
             totalBuyAmount += case.cumulative_buy_amount
             if case.cumulative_buy_amount > 0:
@@ -174,6 +182,7 @@ def referenceAggregate(cases: tuple[ProductCase, ...]) -> ExpectedPortfolio:
         )
         return ExpectedPortfolio(
             totalPosition,
+            totalPositionQuantity,
             totalProfit,
             totalProfitRate,
             totalAnnualizedRate,
@@ -221,6 +230,7 @@ def test_property_9_portfolio_aggregates_only_eligible_products_with_buy_weights
     )
 
     assertMetric(actual.total_position, expected.total_position)
+    assertMetric(actual.total_position_quantity, expected.total_position_quantity)
     assertMetric(actual.total_profit, expected.total_profit)
     assertMetric(actual.total_profit_rate, expected.total_profit_rate)
     assertMetric(actual.total_annualized_rate, expected.total_annualized_rate)

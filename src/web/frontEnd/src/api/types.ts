@@ -8,7 +8,7 @@ export interface Metric { available: boolean; value: string | null; unavailableR
 export interface TransactionOut { id: number; productType: ProductType; productName: string; productCode: string; transactionPrice: string; transactionQuantity: string; direction: TradeDirection; tradeDate: string; }
 export interface HoldingOut { productType: ProductType; productName: string; productCode: string; position: Metric; positionQuantity: Metric; totalProfit: Metric; totalProfitRate: Metric; annualizedRate: Metric; }
 export interface PageOut<T> { items: T[]; total: number; page: number; pageSize: number; pageCount: number; }
-export interface PortfolioStatisticsOut { totalPosition: Metric; totalProfit: Metric; totalProfitRate: Metric; totalAnnualizedRate: Metric; }
+export interface PortfolioStatisticsOut { totalPosition: Metric; totalPositionQuantity: Metric; totalProfit: Metric; totalProfitRate: Metric; totalAnnualizedRate: Metric; }
 export interface InitialModuleOut { module: LedgerModule; }
 /** 新交易草稿；所有数值始终保留为原始文本。 */
 export interface TradeDraft { productType?: ProductType | null; productName?: string | null; productCode?: string | null; transactionPrice?: string | null; transactionQuantity?: string | null; direction?: TradeDirection | null; tradeDate?: string | null; }

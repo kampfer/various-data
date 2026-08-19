@@ -50,15 +50,13 @@ const validSnapshotArb: fc.Arbitrary<LedgerQuerySnapshot> = fc.record({
   )),
   page: fc.integer({ min: 1, max: 50 }),
   pageSize: fc.integer({ min: 1, max: 100 }),
-  scope: optional(fc.tuple(fc.constantFrom(...PRODUCT_TYPES), textOfLength(8))),
-}).map(({ dateRange, holdingSort, scope, ...snapshot }) => ({
+  scopeProductCode: optional(textOfLength(8)),
+}).map(({ dateRange, holdingSort, ...snapshot }) => ({
   ...snapshot,
   startDate: dateRange?.[0] ?? null,
   endDate: dateRange?.[1] ?? null,
   holdingSortField: holdingSort?.[0] ?? null,
   holdingSortOrder: holdingSort?.[1] ?? null,
-  scopeProductType: scope?.[0] ?? null,
-  scopeProductCode: scope?.[1] ?? null,
 }));
 
 const resultArb = (pageSize: number): fc.Arbitrary<BrowsedResult[]> => fc.array(fc.record({

@@ -38,14 +38,17 @@ const renderPanel = (
 );
 
 describe('HoldingsPanel', () => {
-  it('恰好渲染 7 个只读汇总列且无逐笔、展开或写控件', () => {
+  it('恰好渲染 8 个只读汇总列且无逐笔、展开或写控件', () => {
     const { container } = renderPanel();
 
     expect(screen.getAllByRole('columnheader').map((node) => node.textContent?.trim())).toEqual([
-      '产品类型', '产品名称', '产品代码', '持仓', '总收益', '总收益率', '年化收益率',
+      '产品类型', '产品名称', '产品代码', '持仓', '持仓量', '总收益', '总收益率', '年化收益率',
     ]);
     expect(screen.getByText('基金')).toBeInTheDocument();
-    expect(screen.queryByText(/交易单价|交易数量|新增|删除|编辑/)).not.toBeInTheDocument();
+    expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.queryByText('100 元')).not.toBeInTheDocument();
+    expect(screen.queryByText('100 %')).not.toBeInTheDocument();
+    expect(screen.queryByText(/交易单价|新增|删除|编辑/)).not.toBeInTheDocument();
     expect(container.querySelector('.ant-table-row-expand-icon')).toBeNull();
     expect(screen.getByLabelText('持仓面板')).not.toHaveAttribute('style');
     expect(screen.getByRole('button', { name: '查看沪深300ETF的历史交易' })).not.toHaveAttribute('style');
@@ -64,7 +67,7 @@ describe('HoldingsPanel', () => {
     const onSortChange = vi.fn();
     const { rerender } = renderPanel({ onSortChange });
 
-    fireEvent.click(screen.getByRole('columnheader', { name: /持仓/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓$/ }));
     expect(onSortChange).toHaveBeenLastCalledWith('position', 'asc');
     rerender(
       <HoldingsPanel
@@ -77,7 +80,7 @@ describe('HoldingsPanel', () => {
         onReadOnlyIntent={() => undefined}
       />,
     );
-    fireEvent.click(screen.getByRole('columnheader', { name: /持仓/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓$/ }));
     expect(onSortChange).toHaveBeenLastCalledWith('position', 'desc');
     rerender(
       <HoldingsPanel
@@ -90,7 +93,7 @@ describe('HoldingsPanel', () => {
         onReadOnlyIntent={() => undefined}
       />,
     );
-    fireEvent.click(screen.getByRole('columnheader', { name: /持仓/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓$/ }));
     expect(onSortChange).toHaveBeenLastCalledWith(null, null);
 
     rerender(
@@ -135,7 +138,7 @@ describe('HoldingsPanel', () => {
   it('空结果保留全部列头', () => {
     const { container } = renderPanel({ items: [] });
 
-    expect(screen.getAllByRole('columnheader')).toHaveLength(7);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(8);
     expect(container.querySelectorAll('tbody .ant-table-row')).toHaveLength(0);
     expect(screen.getByText('暂无数据')).toBeInTheDocument();
   });

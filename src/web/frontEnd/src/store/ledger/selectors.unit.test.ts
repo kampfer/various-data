@@ -111,6 +111,7 @@ describe('ledger selectors', () => {
   it('派生组合统计并将字段错误按字段映射', () => {
     const portfolio: PortfolioStatisticsOut = {
       totalPosition: availableMetric('100.00'),
+      totalPositionQuantity: availableMetric('7'),
       totalProfit: availableMetric('5.00'),
       totalProfitRate: availableMetric('0.05'),
       totalAnnualizedRate: availableMetric('0.08'),

@@ -107,11 +107,11 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
       { title: '产品代码', dataIndex: 'productCode', key: 'productCode' },
       {
         title: '净值/单价', dataIndex: 'transactionPrice', key: 'transactionPrice',
-        render: (value: string, record: TransactionOut) => `${TRADE_VALUE_LABELS[record.productType].price}：${value}`,
+        // render: (value: string, record: TransactionOut) => `${TRADE_VALUE_LABELS[record.productType].price}：${value}`,
       },
       {
         title: '份额/数量', dataIndex: 'transactionQuantity', key: 'transactionQuantity',
-        render: (value: string, record: TransactionOut) => `${TRADE_VALUE_LABELS[record.productType].quantity}：${value}`,
+        // render: (value: string, record: TransactionOut) => `${TRADE_VALUE_LABELS[record.productType].quantity}：${value}`,
       },
       {
         title: '交易方向',

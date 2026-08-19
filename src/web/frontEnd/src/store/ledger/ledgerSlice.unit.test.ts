@@ -48,6 +48,7 @@ const holding: HoldingOut = {
 
 const portfolio: PortfolioStatisticsOut = {
   totalPosition: availableMetric('12.50'),
+  totalPositionQuantity: availableMetric('8'),
   totalProfit: availableMetric('0.00'),
   totalProfitRate: availableMetric('0'),
   totalAnnualizedRate: availableMetric('0'),
