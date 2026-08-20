@@ -10,6 +10,7 @@
 import http, { unwrap } from './request';
 import type {
   ApiEnvelope,
+  FundSearchOut,
   InitialModuleOut,
   PageOut,
   TransactionOut,
@@ -89,3 +90,12 @@ export const fetchPortfolioStatistics = (
   params: HoldingQueryInput
 ): Promise<PortfolioStatisticsOut> =>
   unwrap(http.get<ApiEnvelope<PortfolioStatisticsOut>>('/portfolioStatistics', { params }));
+
+/**
+ * 搜索匹配的基金（接口 7：GET /fundSearch，需求 5.2）。
+ * @param keyword 用户输入内容；由后端转发至第三方接口并格式化为标准结果
+ * @returns 基金条目列表；第三方失败/超时/无匹配时由后端收敛为空数组（需求 5.6、5.4）
+ * @throws LedgerApiError 仅在网络异常或服务端非预期错误时抛出；业务上空结果不抛异常
+ */
+export const searchFunds = (keyword: string): Promise<FundSearchOut[]> =>
+  unwrap(http.get<ApiEnvelope<FundSearchOut[]>>('/fundSearch', { params: { keyword } }));

@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { TradeDraft } from '../../../api/types';
+import { vi } from 'vitest';
+import type { FundSearchOut, TradeDraft } from '../../../api/types';
 import TradeFormModal from './index';
-const Harness = ({ initialDraft, onSubmit }: { initialDraft: TradeDraft; onSubmit: (draft: TradeDraft) => void }): React.ReactElement => { const [draft, setDraft] = useState(initialDraft); return <TradeFormModal visible draft={draft} fieldErrors={[]} submitting={false} onChange={(patch) => setDraft((old) => ({ ...old, ...patch }))} onSubmit={onSubmit} onCancel={() => undefined} />; };
+
+// 隔离真实 HTTP：把 searchFunds 替换为受控 mock，避免触达后端/第三方。
+vi.mock('../../../api/ledger', () => ({
+  searchFunds: vi.fn().mockResolvedValue([] as FundSearchOut[]),
+}));
+
+// 顶层 await 拿到被 mock 后的模块引用，便于在每个用例内改写其返回值
+const { searchFunds } = await import('../../../api/ledger');
+
+const Harness = ({ initialDraft, onSubmit }: { initialDraft: TradeDraft; onSubmit: (draft: TradeDraft) => void }): React.ReactElement => {
+  const [draft, setDraft] = useState(initialDraft);
+  return <TradeFormModal visible draft={draft} fieldErrors={[]} submitting={false} onChange={(patch) => setDraft((old) => ({ ...old, ...patch }))} onSubmit={onSubmit} onCancel={() => undefined} />;
+};
 describe('TradeFormModal', () => {
   it('使用动态标签但以 canonical 字段提交并在切换类型时保留数值', async () => {
     const submitted: TradeDraft[] = []; render(<Harness initialDraft={{ productType: 'FUND', direction: 'BUY', productName: '基金', productCode: 'F001', transactionPrice: '1.2345', transactionQuantity: '2.5', tradeDate: '2024-02-29' }} onSubmit={(draft) => submitted.push(draft)} />);
@@ -16,5 +29,19 @@ describe('TradeFormModal', () => {
     render(<Harness initialDraft={{ productType: 'STOCK', transactionPrice: 'NaN', transactionQuantity: '1.5' }} onSubmit={() => undefined} />); fireEvent.click(screen.getByRole('button', { name: '创建交易' }));
     await waitFor(() => expect(screen.getByText('股票数量必须为正整数')).toBeInTheDocument());
     expect(screen.getByLabelText('单价')).toHaveValue('NaN'); expect(screen.getByLabelText('数量')).toHaveValue('1.5');
+  });
+
+  it('基金类型下输入触发搜索后无匹配，仍展示空态浮动框（需求 5.4）', async () => {
+    // 让 searchFunds 立即 resolve 空数组，模拟"搜索后无结果"
+    vi.mocked(searchFunds).mockResolvedValueOnce([]);
+    render(<Harness initialDraft={{ productType: 'FUND', direction: 'BUY' }} onSubmit={() => undefined} />);
+
+    // 输入产品名称触发 500ms 防抖搜索
+    fireEvent.change(screen.getByLabelText('产品名称'), { target: { value: '易方达' } });
+
+    // 等待防抖结束 + 请求 resolve 后空态浮动框出现（需求 5.4：无匹配仍展示空态提示）
+    expect(await screen.findByText('没有匹配的基金', undefined, { timeout: 2000 })).toBeInTheDocument();
+    // 空态分支不应渲染 listbox（列表仅在有结果时出现）
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 });

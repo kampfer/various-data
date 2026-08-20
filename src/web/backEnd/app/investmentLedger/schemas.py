@@ -579,3 +579,35 @@ class InitialModuleOut(LedgerSchema):
 
     #: 应默认打开的模块：无任何已保存交易时为 history，否则为 holdings
     module: LedgerModuleLiteral
+
+
+# ---------------------------------------------------------------------------
+# 基金搜索辅助（需求 5）
+# ---------------------------------------------------------------------------
+
+
+class FundSearchQuery(LedgerSchema):
+    """基金搜索入参：只接受一个参数，即用户输入内容（需求 5.2）。
+
+    ``keyword`` 同时承担「产品名称片段」或「产品代码片段」的语义，长度上限与
+    产品名称搜索值一致（``MAX_SEARCH_VALUE_LENGTH``），空值由 Pydantic 拒绝。
+    本入参不区分用途是名称还是代码，由后端原样转发至第三方接口。
+    """
+
+    #: 用户输入内容，1..100 字符；空值或超长由 Pydantic 校验拒绝
+    keyword: str = Field(min_length=1, max_length=MAX_SEARCH_VALUE_LENGTH)
+
+
+class FundSearchOut(LedgerSchema):
+    """单条基金搜索结果出参：只暴露展示与填充所需的两个字段（需求 5.2）。
+
+    ``fund_name`` / ``fund_code`` 的长度上限分别与产品名称、产品代码上限对齐，
+    使前端选中后可直接回填交易草稿而不触发二次校验失败。本出参不携带第三方
+    原始富文本（``HIGHTLIGHT``）、内部标识或基金详情，避免把无关字段外泄给前端。
+    """
+
+    #: 基金名称，1..100 字符，可直接填入交易草稿的 productName
+    fund_name: str = Field(min_length=1, max_length=MAX_PRODUCT_NAME_LENGTH)
+
+    #: 基金代码，1..32 字符，可直接填入交易草稿的 productCode
+    fund_code: str = Field(min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH)

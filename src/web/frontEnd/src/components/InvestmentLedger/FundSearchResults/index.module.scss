@@ -1,0 +1,94 @@
+// 基金搜索结果浮动下拉框：参照 antd Select 下拉层样式，
+// 通过 position: absolute 贴附在产品名称/产品代码输入区域下方，
+// 不占据表单 grid 空间，避免结果出现时整体布局抖动。
+.results {
+  // 由调用方提供 position: relative 上下文；本组件绝对定位贴底浮动
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  // 留 4px 间隙与输入框分隔，避免边框重叠
+  margin-top: 4px;
+  // 高于其它表单项与 Modal 内容，确保覆盖
+  z-index: 10;
+  // 容器形状与 antd Select 下拉框一致
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
+}
+
+// 加载提示：横向排列 Spin 与文案
+.hint {
+  margin-left: 8px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+// 空态容器：紧凑展示，不占用过多高度
+.empty {
+  margin: 8px 0;
+}
+
+// 加载/空态容器需要 flex 居中，与 results 的 absolute 定位并存
+.status,
+.emptyWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+}
+
+// 单条结果项：移除列表默认样式，整行可点击
+.item {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+// 可点击按钮：占满整行，hover 高亮，移除按钮默认边框/背景
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+
+  &:hover,
+  &:focus-visible {
+    background: #f5f5f5;
+    outline: none;
+  }
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 2px #1677ff;
+  }
+}
+
+// 基金名称：主色，可截断
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+// 基金代码：次要色，等宽便于对齐
+.code {
+  flex: 0 0 auto;
+  color: rgba(0, 0, 0, 0.45);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+}

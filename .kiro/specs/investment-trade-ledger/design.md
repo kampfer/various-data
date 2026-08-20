@@ -1478,6 +1478,37 @@ export const fetchPortfolioStatistics = (params: HoldingQueryInput): Promise<Por
 
 响应体沿用项目既有 `{ code, msg, data }` 约定（[api/index.js](../../../src/web/frontEnd/src/api/index.js) 的 `get()` 已按此约定处理），前端行为保持一致；新客户端只是把该约定用泛型固化，并把错误统一为 `LedgerApiError`。
 
+#### 6.4 基金搜索 DTO 与 API 客户端（本次新增，需求 5）
+
+```ts
+// api/types.ts —— 基金搜索结果 DTO，与后端 FundSearchOut 的 camelCase 输出逐字段对齐
+/**
+ * 单条基金搜索结果：仅承载展示与填充所需的两个字段，不携带第三方原始富文本或内部标识。
+ */
+export interface FundSearchOut {
+  /** 基金名称，<= 100 字符，可直接填入交易草稿的 productName */
+  fundName: string;
+  /** 基金代码，<= 32 字符，可直接填入交易草稿的 productCode */
+  fundCode: string;
+}
+```
+
+```ts
+// api/ledger.ts —— 基金搜索唯一出口（需求 5.2）
+import type { FundSearchOut } from './types';
+
+/**
+ * 搜索匹配的基金（接口 7：GET /fundSearch，需求 5.2）。
+ * @param keyword 用户输入内容；由后端转发至第三方接口并格式化为标准结果
+ * @returns 基金条目列表；第三方失败/超时/无匹配时返回空数组（需求 5.6、5.4）
+ * @throws LedgerApiError 仅在网络异常或服务端非预期错误时抛出；业务上空结果不抛异常
+ */
+export const searchFunds = (keyword: string): Promise<FundSearchOut[]> =>
+  unwrap(http.get<ApiEnvelope<FundSearchOut[]>>('/fundSearch', { params: { keyword } }));
+```
+
+> 约束：前端只调用 `searchFunds(keyword)` 一个出口；不直接访问第三方域名，所有跨域、JSONP、超时与异常收敛均由本地后端代理承担（需求 5.2、5.6）。搜索结果不写入 Redux、不写入草稿，仅由 `TradeFormModal` 的局部状态持有（需求 5.8）。
+
 ### 7. 组件划分与渲染约束
 
 | 组件 | 职责 | 关键约束 |
@@ -1490,7 +1521,8 @@ export const fetchPortfolioStatistics = (params: HoldingQueryInput): Promise<Por
 | `HoldingsPanel` | antd `Table` 展示持仓条目，列：产品类型、产品名称、产品代码、持仓、总收益、总收益率、年化收益率 + 「查看交易」入口 | 只读：无新增/删除/编辑控件；`expandable` 未启用（需求 2.7 不展示逐笔）；持仓与总收益列可排序（需求 2.19）；任何写操作意图（若从其它入口触发）由 `message.info` 提示前往历史交易模块（需求 1.6、1.7） |
 | `TradeFilterBar` | 产品类型、交易方向、交易日期范围、产品名称搜索、产品代码搜索 | 受控组件；提交前经 `QueryInputValidator`；处于产品历史交易范围时展示范围标签与「清除范围」 |
 | `LedgerPagination` | antd `Pagination` + 自定义页大小输入（1-100） | `pageSizeOptions=['10','20','50']`，`showTotal` 展示当前页与总页数（需求 2.24、2.28）；`pageCount === 0` 时渲染「当前结果没有可浏览的页」（需求 2.31） |
-| `TradeFormModal` | antd `Form` 受控表单 | 产品类型变更即从 `tradeFieldPresentation` 派生字段标签与 `aria-label`：理财/基金显示「净值」「份额」，股票显示「单价」「数量」；受控字段和 `fieldErrors` 键仍固定为 `transactionPrice` / `transactionQuantity`。切换类型不重命名、不清空、不格式化已输入数值；校验失败时保留输入并按字段展示错误（需求 1.1、1.2） |
+| `TradeFormModal` | antd `Form` 受控表单 | 产品类型变更即从 `tradeFieldPresentation` 派生字段标签与 `aria-label`：理财/基金显示「净值」「份额」，股票显示「单价」「数量」；受控字段和 `fieldErrors` 键仍固定为 `transactionPrice` / `transactionQuantity`。切换类型不重命名、不清空、不格式化已输入数值；校验失败时保留输入并按字段展示错误（需求 1.1、1.2）。产品类型为基金时在产品名称与产品代码输入框下方渲染 `FundSearchResults`，由 `FundSearchController` 以 500ms 防抖发起请求、选择结果即回填两个字段并清空结果（需求 5.1-5.5、5.8） |
+| `FundSearchResults` | 基金搜索结果列表（受控展示组件，本次新增） | 仅展示「基金名称 + 基金代码」逐条结果与空态提示；选中结果回调由 `TradeFormModal` 处理；无自身请求、无 Redux 依赖、无 `style` 内联（需求 5.4） |
 | `PortfolioSummary` | `Descriptions` 展示总持仓、总收益、总收益率、总年化收益率 | 每项经 `MetricValue` 渲染 |
 | `MetricValue` | 统一渲染统计指标 | `available === false` → 渲染「不可用」并以 `Tooltip` 展示原因；**绝不以 0 或 `--` 之外的数值替代**（需求 3.9） |
 | 空结果 | 所有 `Table` 保留列头 + antd 默认 `Empty` | 需求 2.22 |
@@ -1703,6 +1735,100 @@ export default connect<StateProps, DispatchProps, {}, RootState>(
 // pages/InvestmentLedger/IndexRedirect.tsx —— 父路由的 index 子路由 element：默认模块的一次性判定
 // 见「前端设计 5」的完整实现；不连接 redux，只调用 api/ledger.ts 的 fetchInitialModule()。
 ```
+
+### 8. 基金搜索辅助（前端，本次新增，需求 5）
+
+#### 8.1 组件功能说明
+
+当用户在 `TradeFormModal` 中将产品类型选择为基金时，在产品名称与产品代码输入框下方渲染 `FundSearchResults` 列表。用户在任一输入框中输入非空内容后，经 500ms 防抖发起一次 `searchFunds(keyword)` 请求；结果以「基金名称 + 基金代码」逐条展示，用户选中某条结果即回填两个字段并清空结果区域。产品类型非基金时不渲染结果区域、不发起请求。搜索状态为 `TradeFormModal` 的局部状态，不进入 Redux、不进入交易草稿。
+
+#### 8.2 组件结构层次图
+
+```
+TradeFormModal（受控表单，React.Component）
+└── FundSearchResults（受控展示组件，React.Component）
+    └── 列表项（基金名称 + 基金代码，点击触发 onSelect）
+```
+
+#### 8.3 与业务逻辑层的交互流程图
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant M as TradeFormModal
+    participant C as FundSearchController（领域层）
+    participant A as api/ledger.ts
+    participant R as router.py（/fundSearch）
+    participant S as FundSearchService
+    participant T as 第三方接口
+    U->>M: 在产品名称/产品代码输入内容（productType=FUND）
+    M->>C: schedule(keyword)（500ms 防抖）
+    Note over C: 取消上次定时器；keyword 为空则直接回调空结果
+    C->>A: searchFunds(keyword)
+    A->>R: GET /fundSearch?keyword=...
+    R->>S: searchFunds(keyword)
+    S->>T: GET .../FundSearchAPI.ashx?m=1&key=<keyword>（无 callback，直接 JSON）
+    alt 第三方失败/超时/非法数据
+        T-->>S: 异常或非 JSON
+        S->>S: 记录服务端日志，返回 []
+        S-->>R: []
+    else 返回基金+非基金条目
+        T-->>S: JSON（Datas 数组）
+        S->>S: 仅保留 FundBaseInfo 非空或 CATEGORYDESC=="基金" 的条目
+        S-->>R: [{fundName, fundCode}, ...]
+    end
+    R-->>A: {code:200, data:[...]}
+    A-->>C: FundSearchOut[]
+    C->>M: onResults(最新请求结果)（旧请求结果被丢弃）
+    M->>M: setState({results, searching:false})
+    M-->>U: 列表展示「基金名称 + 基金代码」
+    U->>M: 选择某条结果
+    M->>M: 标记 justSelected，调用 onChange({productName, productCode})，清空 results
+    Note over M: componentDidUpdate 检测 justSelected，跳过搜索
+```
+
+#### 8.4 组件 Props
+
+```tsx
+// components/InvestmentLedger/FundSearchResults/index.tsx —— 受控展示组件，无自身请求
+/** 基金搜索结果列表的 Props（需求 5.4） */
+export interface FundSearchResultsProps {
+  /** 是否加载中；true 时渲染骨架/加载提示 */
+  loading: boolean;
+  /** 当前结果集；空数组配合 loading=false 渲染空态提示 */
+  results: readonly FundSearchOut[];
+  /** 选中某条结果；参数为该条目的名称与代码 */
+  onSelect: (fundName: string, fundCode: string) => void;
+}
+```
+
+```tsx
+// domain/ledger/FundSearchController.ts —— 防抖 + 竞态控制 + 请求出口（需求 5.3、5.6）
+/** FundSearchController 的回调集合，由 TradeFormModal 提供以接收结果与加载态 */
+export interface FundSearchControllerCallbacks {
+  /** 收到最新请求的结果；旧请求结果不会触发本回调 */
+  onResults: (results: readonly FundSearchOut[]) => void;
+  /** 加载态变更回调 */
+  onLoadingChange: (loading: boolean) => void;
+}
+
+/**
+ * 基金搜索控制器：封装 500ms 防抖与请求竞态保护。
+ * 仅当 keyword 非空时发起请求；空 keyword 立即回调空结果且不发请求（需求 5.3）。
+ * 每次请求递增 requestId，仅最新请求的结果会回调 onResults，杜绝竞态错位。
+ */
+export class FundSearchController {
+  /** @param callbacks 结果与加载态回调 */
+  constructor(callbacks: FundSearchControllerCallbacks, debounceMs?: number);
+  /** 调度一次防抖搜索；空 keyword 取消定时器并立即回调空结果 */
+  public search(keyword: string): void;
+  /** 取消挂起的定时器；TradeFormModal 卸载或切换为非基金类型时调用 */
+  public dispose(): void;
+}
+```
+
+> `TradeFormModal` 在 `componentDidMount` 构造 `FundSearchController`，在 `componentDidUpdate` 比较上一帧 `draft.productName` / `draft.productCode`：仅当 `productType==='FUND'` 且任一字段变化为非空时调用 `controller.search(最新变化字段值)`；切换为非基金类型或弹窗关闭时调用 `controller.dispose()` 并清空局部结果态。`justSelected` 标记保证选中结果回填后的同帧不再触发搜索（需求 5.5）。
 
 ---
 
@@ -2085,8 +2211,9 @@ class InitialModuleOut(BaseModel):
 | 4 | `DELETE /transactions/{transactionId}` | 路径参数 `int` | `null` | 1.5 |
 | 5 | `GET /holdings` | `HoldingQuery`（`Depends()`） | `PageOut[HoldingOut]` | 2.4、2.5、2.6、2.7、2.8、2.15、2.19、2.22、2.24、2.28、2.29、2.31、3.1、3.2、3.3、3.4、3.5、3.6 |
 | 6 | `GET /portfolioStatistics` | `HoldingQuery`（复用筛选/搜索，忽略分页与排序） | `PortfolioStatisticsOut` | 3.7、3.8、3.9 |
+| 7 | `GET /fundSearch` | `FundSearchQuery`（`Depends()`，单参数 `keyword`） | `list[FundSearchOut]` | 5.2、5.6、5.7 |
 
-> **实现边界修订**：当前仓库暂有 `PUT /valuations` 与对应前端估值表单，但它们不属于本需求允许的公开契约，必须在实现阶段移除或迁移到 `valuation_ingest` 内部服务。公开路由最终只能保留上表 6 个接口；采集器通过受控命令/后台任务调用内部 `CollectorOrchestrator`，不得被前端或普通账本 API 调用。
+> **实现边界修订**：当前仓库暂有 `PUT /valuations` 与对应前端估值表单，但它们不属于本需求允许的公开契约，必须在实现阶段移除或迁移到 `valuation_ingest` 内部服务。公开路由最终只能保留上表 7 个接口；采集器通过受控命令/后台任务调用内部 `CollectorOrchestrator`，不得被前端或普通账本 API 调用。`GET /fundSearch` 是只读代理，不写账本数据库、不写估值记录，第三方异常收敛为空结果。
 
 **估值只读语义**：`GET /holdings` 与 `GET /portfolioStatistics` 只能读取已由外部采集流程写入并通过校验的估值；账本路由、前端 `api/ledger.ts`、`TransactionService` 和 `HoldingService` 均不得导出 `ValuationUpsert`、`upsertValuation` 或任何覆盖语义。
 
@@ -2323,6 +2450,91 @@ class Paginator:
 | 总收益 | `Σ 总收益` | 同上 | 3.7 |
 | 总收益率 | `总收益 ÷ Σ累计买入金额` | `Σ累计买入金额 > 0` | 3.8 |
 | 总年化收益率 | `Σ(年化收益率 × 累计买入金额) ÷ Σ累计买入金额` | 集合（有最新估值且累计买入金额 > 0）非空，且集合内每个产品均有年化收益率 | 3.9 |
+
+### 7. 基金搜索代理服务（本次新增，需求 5）
+
+需求 5.2、5.6、5.7 要求本地后端只接收一个参数（用户输入内容），将其转发至第三方基金搜索接口，仅返回基金条目并格式化为标准结果；第三方失败/超时/非法数据时返回空结果并记录日志，不向用户抛出异常。
+
+#### 7.1 接口契约
+
+`GET /fundSearch?keyword=<用户输入内容>`，响应包裹在 `ApiResponse[list[FundSearchOut]]` 中。
+
+```python
+# schemas.py —— 基金搜索的入参与出参契约
+class FundSearchQuery(LedgerSchema):
+    """基金搜索入参：只接受一个参数，即用户输入内容（需求 5.2）。
+
+    keyword 同时承担「产品名称片段」或「产品代码片段」的语义，长度上限与
+    产品名称搜索值一致（MAX_SEARCH_VALUE_LENGTH），空值由 Pydantic 拒绝。
+    """
+
+    keyword: str = Field(min_length=1, max_length=MAX_SEARCH_VALUE_LENGTH)
+
+
+class FundSearchOut(LedgerSchema):
+    """单条基金搜索结果出参：只暴露展示与填充所需的两个字段（需求 5.2）。
+
+    fund_name / fund_code 的长度上限分别与产品名称、产品代码上限对齐，
+    使前端选中后可直接回填交易草稿而不触发二次校验失败。
+    """
+
+    fund_name: str = Field(min_length=1, max_length=MAX_PRODUCT_NAME_LENGTH)
+    fund_code: str = Field(min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH)
+```
+
+> 路由层契约（沿用现有 `Depends()` 写法，不含业务规则）：
+
+```python
+# router.py —— 基金搜索代理路由（接口 7）
+@router.get("/fundSearch", response_model=ApiResponse[list[FundSearchOut]])
+def searchFunds(
+    query: Annotated[FundSearchQuery, Depends()],
+    service: Annotated[FundSearchService, Depends(getFundSearchService)],
+) -> ApiResponse[list[FundSearchOut]]:
+    """转发用户输入至第三方基金搜索接口并返回标准格式结果（需求 5.2、5.6、5.7）。"""
+    return ApiResponse(data=service.searchFunds(query.keyword))
+```
+
+#### 7.2 服务与第三方客户端
+
+```python
+# fund_search.py —— 第三方代理 + 标准化 + 故障收敛（需求 5.2、5.6、5.7）
+class EastmoneyFundSearchClient:
+    """对第三方 FundSearchAPI 的受控 HTTP 客户端（需求 5.2）。
+
+    不带 JSONP callback 参数以直接获得 JSON，避免 JSONP 解析；
+    使用固定有限超时，避免请求挂起阻塞前端搜索。第三方域名、路径与参数
+    在本类内部固化，不暴露给服务层或路由层，便于统一替换数据源。
+    """
+
+    def search(self, keyword: str) -> list[dict]:
+        """转发关键词至第三方，返回原始 ``Datas`` 数组。
+
+        :raises Exception: 第三方网络异常、超时或响应非约定 JSON 时抛出，
+            由服务层捕获并收敛为空结果 + 日志（需求 5.6）。
+        """
+
+
+class FundSearchService:
+    """基金搜索代理用例：调用第三方客户端、过滤非基金条目、标准化为出参（需求 5.7）。
+
+    第三方任一失败均收敛为空列表并记录服务端日志，**绝不向用户抛出异常**（需求 5.6）。
+    本服务无数据库依赖、无状态，可被路由层按请求构造。
+    """
+
+    def __init__(self, client: EastmoneyFundSearchClient | None = None) -> None:
+        """注入第三方客户端；测试可传入 fake client，不访问真实接口。"""
+
+    def searchFunds(self, keyword: str) -> list[FundSearchOut]:
+        """转发关键词并返回标准化的基金结果列表。
+
+        :param keyword: 已通过 Pydantic 校验的非空用户输入
+        :return: 仅含基金条目的标准结果；第三方失败或无匹配时为空列表
+        不变量: 第三方异常不外泄，全部收敛为空结果 + 服务端日志（需求 5.6）
+        """
+```
+
+> 标准化规则：仅保留第三方 ``Datas`` 中 ``FundBaseInfo`` 非空或 ``CATEGORYDESC == "基金"`` 的条目，取其 ``NAME`` 与 ``CODE`` 映射为 ``fund_name`` / ``fund_code``；非基金条目（股票、指数等）一律丢弃（需求 5.7）。第三方响应中缺失 ``Datas`` 或 ``Datas`` 非数组时视为空结果。
 
 ---
 
@@ -2689,6 +2901,49 @@ sequenceDiagram
         PL-->>CO: Timeout/Parse/NetworkError
         CO->>CO: 有限重试；失败隔离，不影响其它插件批次
     end
+```
+
+### 流程 7：基金搜索辅助填写（需求 5.1-5.8，本次新增）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant M as TradeFormModal
+    participant C as FundSearchController
+    participant A as api/ledger.ts
+    participant R as router.py
+    participant SV as FundSearchService
+    participant CL as EastmoneyFundSearchClient
+    participant T as 第三方 FundSearchAPI
+    participant L as app.logger
+
+    U->>M: 选择产品类型=基金，在 productName/productCode 输入
+    M->>C: search(keyword)（500ms 防抖；空 keyword 立即回调空结果）
+    C->>A: searchFunds(keyword)（仅最新 requestId 生效）
+    A->>R: GET /fundSearch?keyword=...
+    R->>SV: searchFunds(keyword)
+    SV->>CL: client.search(keyword)
+    CL->>T: GET .../FundSearchAPI.ashx?m=1&key=<keyword>
+    alt 第三方失败/超时/非 JSON
+        T-->>CL: 异常
+        CL-->>SV: 抛出异常
+        SV->>L: 记录服务端日志（不含敏感值）
+        SV-->>R: []
+    else 返回 Datas 数组
+        T-->>CL: JSON（基金+股票+指数）
+        CL-->>SV: 原始 Datas
+        SV->>SV: 仅保留 FundBaseInfo 非空或 CATEGORYDESC=="基金" 的条目（需求 5.7）
+        SV-->>R: [{fundName, fundCode}, ...]
+    end
+    R-->>A: {code:200, data:[...]}
+    A-->>C: FundSearchOut[]（旧 requestId 结果被丢弃）
+    C->>M: onResults(results)；onLoadingChange(false)
+    M-->>U: 列表展示「基金名称 + 基金代码」；无匹配展示空态
+    U->>M: 选择某条结果
+    M->>M: 标记 justSelected，onChange({productName, productCode})，清空 results
+    Note over M: componentDidUpdate 识别 justSelected，跳过本次搜索（需求 5.5）
+    M-->>U: 两字段回填，结果区域清空
 ```
 
 ## Correctness Properties

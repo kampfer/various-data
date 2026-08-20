@@ -12,8 +12,19 @@
   width: 100%;
 }
 
+// 基金搜索字段行：跨两列；为浮动下拉框提供 position: relative 上下文。
+// 当 productType 不是 FUND 时仍渲染此容器，保持 grid 列数稳定，避免布局抖动。
+.fundFieldsRow {
+  grid-column: 1 / -1;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+}
+
 @media (max-width: 640px) {
-  .grid {
+  .grid,
+  .fundFieldsRow {
     grid-template-columns: 1fr;
   }
 }

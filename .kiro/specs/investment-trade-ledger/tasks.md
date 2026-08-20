@@ -241,6 +241,29 @@
 - [x] 15. 最终检查点 - 确保全部测试与构建通过
   - 确认未修改 `requirements.md`、`design.md` 或本功能之外源代码；确认所有未完成任务仍未被误标为完成，并询问用户是否有后续实现问题。
 
+- [x] 16. 新建交易记录弹窗的基金搜索辅助（需求 5）
+  - [x] 16.1 后端基金搜索代理：契约、第三方客户端与故障收敛
+    - 在 `schemas.py` 新增 `FundSearchQuery`（单参数 `keyword`，1..100 字符）与 `FundSearchOut`（`fund_name` 1..100、`fund_code` 1..32）；在 `fund_search.py` 实现 `EastmoneyFundSearchClient`（不带 callback 直取 JSON，固定超时）与 `FundSearchService`（过滤 `FundBaseInfo` 非空或 `CATEGORYDESC=="基金"` 的条目，第三方异常收敛为空结果并经 `app.logger` 记录，不外泄异常）；在 `router.py` 新增 `GET /fundSearch`。
+    - 完成条件：`keyword` 为空/超长被 Pydantic 拒绝；第三方异常返回 200 + 空列表且不抛异常；非基金条目被过滤；结果 `fund_name`/`fund_code` 长度可直接回填草稿。
+    - _Requirements: 5.2、5.6、5.7_
+  - [x] 16.2 前端基金搜索 DTO、API 出口与防抖控制器
+    - 在 `api/types.ts` 新增 `FundSearchOut`；在 `api/ledger.ts` 新增 `searchFunds(keyword)`；在 `domain/ledger/FundSearchController.ts` 实现 `FundSearchController`（500ms 默认防抖、空 keyword 不发请求且回调空结果、`requestId` 竞态保护仅最新结果回调、`dispose()` 取消定时器）。
+    - 完成条件：连续输入只发起最后一次请求；空输入不发请求；并发请求只回放最新结果；卸载调用 `dispose()` 不在组件卸载后 setState。
+    - _Requirements: 5.3、5.6_
+  - [x] 16.3 `FundSearchResults` 组件与 `TradeFormModal` 集成
+    - 新建 `components/InvestmentLedger/FundSearchResults/{index.tsx,index.module.scss}`（仅展示「基金名称 + 基金代码」+ 空态提示，无自身请求、无 `style` 内联）；在 `TradeFormModal` 构造 `FundSearchController`，`componentDidUpdate` 仅在 `productType==='FUND'` 且 `productName`/`productCode` 变化为非空时触发 `search(最新变化字段值)`；选中结果用 `justSelected` 标记回填两字段并清空结果、跳过本次搜索；非基金类型或关闭弹窗时 `dispose` 并清空结果。
+    - 完成条件：非基金类型不渲染结果区、不发请求；选中后两字段回填且不触发重复搜索；样式全部走 CSS Modules。
+    - _Requirements: 5.1、5.4、5.5、5.8_
+  - [x]* 16.4 基金搜索属性与集成测试
+    - 后端：fake client 覆盖正常基金/混合基金股票/第三方异常/超时/非法 JSON；断言空结果、非基金过滤、日志调用。前端：fake `searchFunds` 覆盖防抖 500ms、空 keyword 不发请求、竞态只回放最新结果、选中回填不触发搜索、非基金类型不发请求。
+    - 落地范围：后端 `test_investmentLedgerFundSearch.py` 覆盖故障收敛/基金过滤/字段长度边界（9 例）；前端 `FundSearchController.test.ts` 覆盖防抖/竞态/异常收敛/销毁（6 例），`FundSearchResults/index.test.tsx` 覆盖加载/空态/结果列表与选中交互（3 例）。
+    - _Requirements: 5.1-5.8_
+  - [x] 16.5 执行类型检查、构建与一次性自动化测试
+    - 运行 `npm run type-check`、`npm run build:web`、`pytest -q`、`vitest --run`；fake client/fake axios，不访问真实第三方接口；修复失败后保留最终证据。
+    - 完成条件：类型检查、构建、后端测试、前端测试全部通过。
+    - 验证证据：`tsc --noEmit` 0 错误；`pytest test_investmentLedger{Schemas,RouteBoundary,FundSearch}.py` 17 passed；`vitest --run FundSearchController.test.ts FundSearchResults/index.test.tsx TradeFormModal/index.test.tsx` 11 passed。仓库既有 `ledger.test.ts` / `ledgerSlice.unit.test.ts` / `navigation.unit.test.ts` / `TradeHistoryPanel/index.test.tsx` 共 5 处失败为 `DEFAULT_PAGE_SIZE` 等预先存在问题，与本次改动无关，已通过 `git stash` 比对验证。
+    - _Requirements: 5.1-5.8_
+
 ## Notes
 
 - 本次将旧的单页 `activeModule`、`switchModule`、`bootstrapLedger`、不变 URL 的 `Radio.Group` 和公开估值写入/直接准备估值记录任务全部改为与设计一致的路由驱动、内部摄取任务；它们不再作为目标实现。
@@ -264,7 +287,11 @@
     { "id": 7, "tasks": ["7.3", "7.4", "7.5", "8.3", "11.4", "12.3"] },
     { "id": 8, "tasks": ["7.6", "12.4", "13.1"] },
     { "id": 9, "tasks": ["13.2"] },
-    { "id": 10, "tasks": ["13.3"] }
+    { "id": 10, "tasks": ["13.3"] },
+    { "id": 11, "tasks": ["16.1", "16.2"] },
+    { "id": 12, "tasks": ["16.3"] },
+    { "id": 13, "tasks": ["16.4"] },
+    { "id": 14, "tasks": ["16.5"] }
   ]
 }
 ```

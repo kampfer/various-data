@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 import app.dependencies as dependencies
 from app.investmentLedger.schemas import (
     ApiResponse,
+    FundSearchOut,
+    FundSearchQuery,
     HoldingOut,
     HoldingQuery,
     InitialModuleOut,
@@ -21,6 +23,7 @@ from app.investmentLedger.schemas import (
     TransactionOut,
     TransactionQuery,
 )
+from app.investmentLedger.fund_search import FundSearchService
 from app.investmentLedger.service import (
     HoldingService,
     OverviewService,
@@ -54,6 +57,11 @@ def getOverviewService(
 ) -> OverviewService:
     """构造绑定请求级数据库会话的初始模块决策服务。"""
     return OverviewService(db)
+
+
+def getFundSearchService() -> FundSearchService:
+    """构造无状态的基金搜索代理服务（不依赖数据库会话，需求 5.2）。"""
+    return FundSearchService()
 
 
 @router.get(
@@ -128,3 +136,20 @@ def getPortfolioStatistics(
 ) -> ApiResponse[PortfolioStatisticsOut]:
     """按完整筛选结果集返回投资组合统计，并忽略分页与排序。"""
     return ApiResponse(data=service.getPortfolioStatistics(query))
+
+
+@router.get(
+    "/fundSearch",
+    response_model=ApiResponse[list[FundSearchOut]],
+)
+def searchFunds(
+    query: Annotated[FundSearchQuery, Depends()],
+    service: Annotated[FundSearchService, Depends(getFundSearchService)],
+) -> ApiResponse[list[FundSearchOut]]:
+    """转发用户输入至第三方基金搜索接口并返回标准格式结果。
+
+    只接受一个参数 ``keyword``（用户输入内容）；第三方失败/超时/非法数据
+    收敛为空列表并记录服务端日志，不向用户抛出异常（需求 5.2、5.6、5.7）。
+    本接口只读，不写账本数据库、不写估值记录，结果不落库。
+    """
+    return ApiResponse(data=service.searchFunds(query.keyword))

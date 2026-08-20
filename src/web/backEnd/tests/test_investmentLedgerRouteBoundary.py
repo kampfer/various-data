@@ -17,6 +17,8 @@ def testPublicLedgerRoutesExposeOnlyTransactionWritesAndLedgerReads() -> None:
         ("/investmentLedger/transactions/{transactionId}", "DELETE"),
         ("/investmentLedger/holdings", "GET"),
         ("/investmentLedger/portfolioStatistics", "GET"),
+        # 基金搜索代理：只读、不落库、不接触估值写入（需求 5.2）
+        ("/investmentLedger/fundSearch", "GET"),
     }
     assert all("valuation" not in path.lower() for path, _method in routes)
     assert ("/investmentLedger/transactions/{transactionId}", "GET") not in routes
