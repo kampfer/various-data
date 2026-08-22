@@ -1246,7 +1246,7 @@ export interface Metric {
   unavailableReason: string | null;
 }
 
-/** 一笔交易记录的出参（历史交易表格的行数据，需求 2.12）。 */
+/** 一笔交易记录的出参（历史交易表格的行数据，需求 2.12、6.5）。 */
 export interface TransactionOut {
   /** 交易主键，仅用于删除定位；界面不渲染、也无按 id 查询接口（需求 2.23） */
   id: number;
@@ -1260,6 +1260,8 @@ export interface TransactionOut {
   transactionPrice: string;
   /** 交易数量：有限正十进制字符串；STOCK 时保证为正整数，其余类型可有任意位小数 */
   transactionQuantity: string;
+  /** 费用：非负十进制字符串；未填写时为 "0"（需求 6.2、6.5） */
+  fee: string;
   /** 交易方向码 BUY/SELL，展示时经 TRADE_DIRECTION_LABELS 转中文 */
   direction: TradeDirection;
   /** 交易日期，YYYY-MM-DD */
@@ -1330,6 +1332,8 @@ export interface TradeDraft {
   transactionPrice?: string | null;
   /** 交易数量原始十进制文本；由产品类型决定正浮点数或正整数规则 */
   transactionQuantity?: string | null;
+  /** 费用原始十进制文本；可选，未填写时为 null，校验通过后落库为 0（需求 6.2、6.3） */
+  fee?: string | null;
   /** 交易方向码；未选择时为 null */
   direction?: TradeDirection | null;
   /** 交易日期，YYYY-MM-DD（由 dayjs 格式化后写入） */
@@ -2105,10 +2109,10 @@ class Metric(BaseModel):
 
 
 class TransactionCreate(BaseModel):
-    """创建交易的入参（需求 1.1、1.2）。
+    """创建交易的入参（需求 1.1、1.2、6.2、6.3、6.4）。
 
-    `alias_generator=to_camel` 将 `transaction_price` / `transaction_quantity`
-    稳定暴露为 `transactionPrice` / `transactionQuantity`。界面标签不参与 API 契约。
+    `alias_generator=to_camel` 将 `transaction_price` / `transaction_quantity` / `fee`
+    稳定暴露为 `transactionPrice` / `transactionQuantity` / `fee`。界面标签不参与 API 契约。
     """
 
     product_type: ProductType   # 英文码枚举，非法值由 Pydantic 拒绝
@@ -2116,16 +2120,18 @@ class TransactionCreate(BaseModel):
     product_code: str           # 1..32 字符
     transaction_price: Decimal  # 有限且 > 0；无小数位、整数位或最大值限制
     transaction_quantity: Decimal  # 有限且 > 0；STOCK 时另校验为整数
+    fee: Decimal | None = None  # 可选费用，未提供或为空时视为 0；有限且 >= 0（需求 6.2、6.3）
     direction: TradeDirection   # 英文码枚举
     trade_date: date            # 有效公历日期，非法日期在解析阶段即失败
 
     # before 校验：只以 Decimal 精确解析并拒绝 float、NaN 与 Infinity；不量化。
     # after 校验：价格对全部产品类型要求 > 0；数量在 WEALTH/FUND 要求 > 0，
-    # 在 STOCK 额外要求 value == value.to_integral_value()。不设置任何位数或数值上界。
+    # 在 STOCK 额外要求 value == value.to_integral_value()；费用为 None 时归一为 Decimal(0)，
+    # 否则要求 >= 0。不设置任何位数或数值上界。
 
 
 class TransactionOut(BaseModel):
-    """交易出参（历史交易表格行数据，需求 2.12）。"""
+    """交易出参（历史交易表格行数据，需求 2.12、6.5）。"""
 
     id: int                     # 仅用于删除定位，前端不渲染、无查询接口（需求 2.23）
     product_type: ProductType   # 英文码，前端经展示映射转中文
@@ -2133,6 +2139,7 @@ class TransactionOut(BaseModel):
     product_code: str           # 产品代码
     transaction_price: str      # 有限正十进制字符串；不补零/量化
     transaction_quantity: str   # 有限正十进制字符串；STOCK 时为整数文本
+    fee: str                    # 非负十进制字符串；未填写时为 "0"（需求 6.2、6.5）
     direction: TradeDirection   # 英文码
     trade_date: date            # 序列化为 YYYY-MM-DD
 
@@ -2206,8 +2213,8 @@ class InitialModuleOut(BaseModel):
 | # | 方法与路径 | 请求模型 | 响应 `data` | 覆盖需求 |
 | --- | --- | --- | --- | --- |
 | 1 | `GET /initialModule` | 无 | `InitialModuleOut` | 2.2、2.3 |
-| 2 | `GET /transactions` | `TransactionQuery`（`Depends()`） | `PageOut[TransactionOut]` | 2.10、2.11、2.12、2.14、2.16、2.17、2.18、2.20、2.21、2.22、2.24、2.25、2.28、2.29、2.30、2.31 |
-| 3 | `POST /transactions` | `TransactionCreate` | `TransactionOut` | 1.1、1.2、1.3 |
+| 2 | `GET /transactions` | `TransactionQuery`（`Depends()`） | `PageOut[TransactionOut]` | 2.10、2.11、2.12、2.14、2.16、2.17、2.18、2.20、2.21、2.22、2.24、2.25、2.28、2.29、2.30、2.31、6.5 |
+| 3 | `POST /transactions` | `TransactionCreate` | `TransactionOut` | 1.1、1.2、1.3、6.2、6.3、6.4 |
 | 4 | `DELETE /transactions/{transactionId}` | 路径参数 `int` | `null` | 1.5 |
 | 5 | `GET /holdings` | `HoldingQuery`（`Depends()`） | `PageOut[HoldingOut]` | 2.4、2.5、2.6、2.7、2.8、2.15、2.19、2.22、2.24、2.28、2.29、2.31、3.1、3.2、3.3、3.4、3.5、3.6 |
 | 6 | `GET /portfolioStatistics` | `HoldingQuery`（复用筛选/搜索，忽略分页与排序） | `PortfolioStatisticsOut` | 3.7、3.8、3.9 |
@@ -2275,10 +2282,10 @@ class TransactionService:
         """
 
     def createTransaction(self, payload: TransactionCreate) -> TransactionOut:
-        """插入一笔交易并提交（需求 1.3）。
+        """插入一笔交易并提交（需求 1.3、6.2、6.4）。
 
-        :param payload: 已通过 Pydantic 校验的入参
-        :return: 落库后的交易；不变量：写入值与入参逐字段相等
+        :param payload: 已通过 Pydantic 校验的入参；fee 为 None 时归一为 Decimal(0) 后落库
+        :return: 落库后的交易；不变量：写入值与入参逐字段相等（fee 经归一后非空）
         :raises InsufficientHolding: 落库前预演该笔交易后，同产品（按 product_type + product_code）
             的持仓数量（Σ 买入数量 − Σ 卖出数量，含本次）小于 0；不写入任何记录，
             返回 `fieldErrors` 指向 `transactionQuantity` 的中文原因（如「卖出数量超过当前持仓」）
@@ -2349,9 +2356,10 @@ def countTransactions(db: Session) -> int:
     """
 
 def addTransaction(db: Session, payload: TransactionCreate) -> models.Transaction:
-    """插入一笔交易并提交。
+    """插入一笔交易并提交（需求 1.3、6.4）。
 
-    :return: 带自增主键的持久化对象；不变量：不修改任何既有行（需求 1.4）
+    :return: 带自增主键的持久化对象；不变量：不修改任何既有行（需求 1.4）；
+             fee 随 payload 一同落库，None 已由服务层归一为 Decimal(0)
     """
 
 def removeTransaction(db: Session, transactionId: int) -> models.Transaction | None:
@@ -2565,6 +2573,7 @@ ORM 定义见「后端设计 2」。业务级约束与需求映射如下：
 | | `product_code` | `String(32)`，非空且 ≤ 32 字符，索引 | 1.2 |
 | | `transaction_price` | `DecimalText`（无长度、无量化文本），有限且 `> 0`；不限制小数位、整数位或最大数值 | 1.2 |
 | | `transaction_quantity` | `DecimalText`（无长度、无量化文本），有限且 `> 0`；理财/基金允许任意小数，股票必须是整数 | 1.2 |
+| | `fee` | `DecimalText`（无长度、无量化文本），非负有限 `Decimal`；可空，未提供时由服务层归一为 `Decimal(0)`（需求 6.2、6.3、6.4） | 6.2、6.3、6.4 |
 | | `direction` | `String(16)`，`∈ {BUY, SELL}`（英文码，展示时前端映射为买入/卖出），索引 | 1.1、1.2 |
 | | `trade_date` | `Date`，有效日历日期，索引（排序与区间筛选） | 1.2、2.16 |
 | | `created_at` | `DateTime`，写入时间；同日交易的稳定次序依据 | 2.15 |
@@ -3219,6 +3228,7 @@ sequenceDiagram
 ### 前端示例测试要点
 
 - 交易表单与历史交易表格：对 WEALTH/FUND 渲染「净值」「份额」，对 STOCK 渲染「单价」「数量」；切换产品类型只改变标签，草稿、请求、字段错误和表格数据键仍为 `transactionPrice` / `transactionQuantity`。历史混合列表在中性列标题下为每行展示正确的产品类型标签；无 id、无编辑入口（需求 1.1、1.2、1.4、2.12、2.23）。
+- 交易费用与交易金额展示（需求 6）：新建交易弹窗的「费用」为可选输入，未填写时落库为 0；「交易金额」字段只读展示，值 = 交易价格 × 交易数量 + 费用，由组件根据当前草稿即时计算，不写入草稿、Redux 状态或请求负载。历史交易表格新增「费用」与「交易金额」两列；交易金额列由组件根据已落库的 `transactionPrice` / `transactionQuantity` / `fee` 计算展示，不作为独立字段从后端返回；断言交易金额不出现于 `TradeDraft`、`TransactionOut` 持久化字段或网络请求体。
 - 持仓表格：7 列只读；无新增/删除/编辑控件；无展开行（需求 2.4、2.6、2.7）。
 - 空结果：0 行但列头保留（需求 2.22）。
 - 分页：页大小选项为 10/20/50；`pageCount === 0` 时显示「当前结果没有可浏览的页」（需求 2.24、2.31）。

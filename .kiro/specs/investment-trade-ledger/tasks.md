@@ -264,6 +264,32 @@
     - 验证证据：`tsc --noEmit` 0 错误；`pytest test_investmentLedger{Schemas,RouteBoundary,FundSearch}.py` 17 passed；`vitest --run FundSearchController.test.ts FundSearchResults/index.test.tsx TradeFormModal/index.test.tsx` 11 passed。仓库既有 `ledger.test.ts` / `ledgerSlice.unit.test.ts` / `navigation.unit.test.ts` / `TradeHistoryPanel/index.test.tsx` 共 5 处失败为 `DEFAULT_PAGE_SIZE` 等预先存在问题，与本次改动无关，已通过 `git stash` 比对验证。
     - _Requirements: 5.1-5.8_
 
+- [ ] 17. 交易费用与交易金额展示（需求 6）
+  - [ ] 17.1 后端交易契约与模型增加 fee 字段
+    - 在 `schemas.py` 的 `TransactionCreate` 增加 `fee: Decimal | None = None`（可选，未提供视为 0；有限且 >= 0，拒绝 float/NaN/Infinity；`before` 校验复用 `_toDecimal`，`after` 校验要求 >= 0），`TransactionOut` 增加 `fee: DecimalString`（非负十进制字符串，未填写时为 "0"）；在 `models.py` 的 `Transaction` 增加 `fee: Mapped[Decimal | None] = mapped_column(DecimalText(), nullable=True)`；在 `service.py` 的 `createTransaction` 把 `payload.fee` 为 None 时归一为 `Decimal(0)` 再传入 `crud.addTransaction`；在 `crud.py` 的 `addTransaction` 把 `fee` 写入新列。
+    - 完成条件：`fee` 缺省时落库为 0；负数或非有限值被拒绝并给出字段级错误指向 `fee`；交易金额不落库、不传输、不出现在任何 schema/模型/响应字段。
+    - _Requirements: 6.2、6.3、6.4_
+  - [ ] 17.2 前端 DTO、校验器与交易金额计算工具
+    - 在 `api/types.ts` 的 `TradeDraft` 增加 `fee?: string | null`，`TransactionOut` 增加 `fee: string`；在 `domain/ledger/TradeDraftValidator.ts` 增加 `fee` 字段校验（可选，空值合法；非空时必须匹配 `DECIMAL_PATTERN` 且 >= 0，否则给出 `NOT_A_NUMBER` / `OUT_OF_RANGE` 错误）；在 `domain/ledger` 新增纯函数 `computeTransactionAmount(price, quantity, fee)`，输入三个十进制字符串，输出交易金额展示文本（`price × quantity + fee`），空值按 0 处理；该函数不引入 `decimal.js`，仅作为展示辅助计算。
+    - 完成条件：`fee` 空值通过校验；负数或非十进制 `fee` 被拒绝并保留原值；交易金额函数纯函数可单测；交易金额不写入 `TradeDraft` 持久化字段或 Redux state。
+    - _Requirements: 6.1、6.2、6.3、6.6_
+  - [ ] 17.3 `TradeFormModal` 增加费用输入与交易金额只读展示
+    - 在 `TradeFormModal/index.tsx` 的表单中「交易数量」之后增加「费用」`Input`（`inputMode="decimal"`，`allowClear`，可选，受控于 `draft.fee`）；在「费用」之后增加「交易金额」只读 `Input`（`readOnly`，`placeholder="自动计算"`），值由 `computeTransactionAmount(draft.transactionPrice, draft.transactionQuantity, draft.fee)` 计算；交易金额不进入 `onChange` / `onSubmit`，不写入草稿。
+    - 完成条件：填写价格/数量/费用时交易金额即时更新；交易金额字段不可编辑；`fee` 为空时交易金额按 0 计算；提交时请求体不含 `transactionAmount`。
+    - _Requirements: 6.1、6.2、6.6_
+  - [ ] 17.4 `TradeHistoryPanel` 增加费用列与交易金额列
+    - 在 `TradeHistoryPanel/index.tsx` 的 `columns()` 中「份额/数量」之后增加「费用」列（`dataIndex: 'fee'`），再增加「交易金额」列（`render` 调用 `computeTransactionAmount(record.transactionPrice, record.transactionQuantity, record.fee)`）；交易金额列不依赖后端返回的独立字段。
+    - 完成条件：历史表格展示费用与交易金额两列；交易金额由已落库字段计算；空结果保留列头。
+    - _Requirements: 6.5_
+  - [ ]* 17.5 费用与交易金额属性与集成测试
+    - 后端：`test_investmentLedgerSchemas.py` 覆盖 `fee` 缺省归一为 0、负数/非有限值被拒绝并指向 `fee`；`test_investmentLedgerTransactionWriteProperty.py` 覆盖 `fee` 随交易落库且未提供时为 0；前端：`TradeDraftValidator.test.ts` 覆盖 `fee` 空值合法、负数/非十进制被拒绝；`TradeFormModal/index.test.tsx` 覆盖交易金额随输入即时更新且不进入提交负载；`TradeHistoryPanel/index.test.tsx` 覆盖费用与交易金额两列渲染。
+    - 完成条件：后端 schema 与写入属性测试通过；前端校验、表单与列表测试通过；交易金额断言不出现于 `TradeDraft` 持久化字段或网络请求体。
+    - _Requirements: 6.1-6.6_
+  - [ ] 17.6 执行类型检查、构建与一次性自动化测试
+    - 运行 `npm run type-check`、`npm run build:web`、`pytest -q`、`vitest --run`；开发环境重建 SQLite 库使 `fee` 列经 `create_all` 创建；修复失败后保留最终证据。
+    - 完成条件：类型检查、构建、后端测试、前端测试全部通过。
+    - _Requirements: 6.1-6.6_
+
 ## Notes
 
 - 本次将旧的单页 `activeModule`、`switchModule`、`bootstrapLedger`、不变 URL 的 `Radio.Group` 和公开估值写入/直接准备估值记录任务全部改为与设计一致的路由驱动、内部摄取任务；它们不再作为目标实现。
@@ -291,7 +317,11 @@
     { "id": 11, "tasks": ["16.1", "16.2"] },
     { "id": 12, "tasks": ["16.3"] },
     { "id": 13, "tasks": ["16.4"] },
-    { "id": 14, "tasks": ["16.5"] }
+    { "id": 14, "tasks": ["16.5"] },
+    { "id": 15, "tasks": ["17.1", "17.2"] },
+    { "id": 16, "tasks": ["17.3", "17.4"] },
+    { "id": 17, "tasks": ["17.5"] },
+    { "id": 18, "tasks": ["17.6"] }
   ]
 }
 ```

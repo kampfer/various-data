@@ -46,19 +46,22 @@ def buildPayload(
     code: str = "F-001",
     direction: str = "BUY",
     quantity: int = 10,
+    fee: Decimal | str | None = None,
 ) -> TransactionCreate:
     """构造已通过契约校验的交易创建参数。
 
     :param code: 产品代码，默认 ``F-001``；不同产品需用不同 code 隔离持仓。
     :param direction: 交易方向英文码，默认 ``BUY``；卖出传 ``SELL``。
     :param quantity: 交易数量，默认 10。
+    :param fee: 交易费用，默认 ``None``；用于验证服务层归一为 ``Decimal(0)``（需求 6.2）。
     """
     return TransactionCreate(
         product_type="FUND",
         product_name="成长基金",
         product_code=code,
-        unit_price="1.25",
-        quantity=quantity,
+        transaction_price="1.25",
+        transaction_quantity=quantity,
+        fee=fee,
         direction=direction,
         trade_date=date(2024, 2, 29),
     )
@@ -212,6 +215,26 @@ class TestTransactionService:
 
         assert ledgerSession.query(Transaction).count() == 3
 
+    def testCreateTransactionNormalizesNoneFeeToZero(self, ledgerSession: Session) -> None:
+        """未提供 fee 时服务层归一为 Decimal(0) 落库，出参为 '0'（需求 6.2、6.4）。"""
+        service = TransactionService(ledgerSession)
+        result = service.createTransaction(buildPayload())
+
+        assert result.fee == "0"
+        persisted = ledgerSession.get(Transaction, result.id)
+        assert persisted is not None and persisted.fee == Decimal("0")
+
+    def testCreateTransactionPersistsProvidedFeeAsCanonicalString(
+        self, ledgerSession: Session
+    ) -> None:
+        """提供 fee 时按原字面量精度落库，出参为十进制字符串（需求 6.4、6.5）。"""
+        service = TransactionService(ledgerSession)
+        result = service.createTransaction(buildPayload(fee="5.00"))
+
+        assert result.fee == "5.00"
+        persisted = ledgerSession.get(Transaction, result.id)
+        assert persisted is not None and persisted.fee == Decimal("5.00")
+
 
 class TestHoldingGroupingAndSorting:
     """覆盖持仓分组、展示名选择和稳定数值排序（任务 6.2）。"""
@@ -230,8 +253,9 @@ class TestHoldingGroupingAndSorting:
             product_type=productType,
             product_name=productName,
             product_code=productCode,
-            unit_price=Decimal("1.00"),
-            quantity=1,
+            transaction_price=Decimal("1.00"),
+            transaction_quantity=1,
+            fee=Decimal("0"),
             direction="BUY",
             trade_date=tradeDate,
         )
@@ -322,8 +346,8 @@ class TestHoldingService:
                 product_type=productType,
                 product_name=productName,
                 product_code=productCode,
-                unit_price=unitPrice,
-                quantity=quantity,
+                transaction_price=unitPrice,
+                transaction_quantity=quantity,
                 direction=direction,
                 trade_date=tradeDate,
             )

@@ -271,7 +271,7 @@ class Metric(LedgerSchema):
 
 
 class TransactionCreate(LedgerSchema):
-    """创建交易的入参（需求 1.1、1.2）。
+    """创建交易的入参（需求 1.1、1.2、6.2、6.3、6.4）。
 
     非法枚举值（中文字面量「理财」、小写码 ``wealth``）由 Pydantic 的枚举校验直接拒绝；
     长度、正数、两位小数等约束由下方字段校验器给出中文原因。
@@ -292,6 +292,10 @@ class TransactionCreate(LedgerSchema):
     #: 交易数量：理财/基金为有限正 Decimal，股票必须为正整数。
     transaction_quantity: Decimal
 
+    #: 交易费用，可选字段；未提供或为空时由服务层归一为 ``Decimal(0)`` 落库（需求 6.2）。
+    #: 非空时必须为有限且 >= 0 的十进制数值（需求 6.3）。
+    fee: Decimal | None = None
+
     #: 交易方向英文码，取值 ∈ {BUY, SELL}（需求 1.1、1.2）
     direction: TradeDirection
 
@@ -309,6 +313,18 @@ class TransactionCreate(LedgerSchema):
     def parseTransactionQuantity(cls, value: object) -> Decimal:
         """精确解析交易数量，保留原有小数位而不量化。"""
         return _toDecimal(value, ERROR_CODE_NOT_A_NUMBER, "交易数量必须是有限十进制数值")
+
+    @field_validator("fee", mode="before")
+    @classmethod
+    def parseFee(cls, value: object) -> Decimal | None:
+        """精确解析交易费用，拒绝 float、NaN、Infinity 与非法文本；空值原样透传。
+
+        ``None`` / 空字符串由服务层归一为 ``Decimal(0)``（需求 6.2）；
+        非空值经 :func:`_toDecimal` 精确解析，保留原字面量精度。
+        """
+        if value is None or value == "":
+            return None
+        return _toDecimal(value, ERROR_CODE_NOT_A_NUMBER, "费用必须是有限十进制数值")
 
     @field_validator("transaction_price")
     @classmethod
@@ -328,9 +344,19 @@ class TransactionCreate(LedgerSchema):
             raise PydanticCustomError(ERROR_CODE_NOT_INTEGER, "股票数量必须为正整数")
         return value
 
+    @field_validator("fee")
+    @classmethod
+    def checkFee(cls, value: Decimal | None) -> Decimal | None:
+        """交易费用为 None 时透传给服务层归一；非空时要求有限且 >= 0（需求 6.3）。"""
+        if value is None:
+            return None
+        if value < 0:
+            raise PydanticCustomError(ERROR_CODE_OUT_OF_RANGE, "费用必须大于或等于 0")
+        return value
+
 
 class TransactionOut(LedgerSchema):
-    """交易出参（历史交易表格的行数据，需求 2.12）。"""
+    """交易出参（历史交易表格的行数据，需求 2.12、6.5）。"""
 
     #: 交易主键，仅用于删除定位；前端不渲染，也不提供按其查询的接口（需求 2.23）
     id: int
@@ -349,6 +375,9 @@ class TransactionOut(LedgerSchema):
 
     #: 交易数量，十进制字符串；股票记录由创建校验保证其为正整数。
     transaction_quantity: DecimalString
+
+    #: 交易费用，非负十进制字符串；未提供时归一为 ``"0"``（需求 6.2、6.5）。
+    fee: DecimalString
 
     #: 交易方向英文码，前端经展示映射转中文
     direction: TradeDirection

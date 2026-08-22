@@ -83,13 +83,17 @@ def countTransactions(db: Session) -> int:
 def addTransaction(
     db: Session, payload: TransactionCreate
 ) -> models.Transaction:
-    """插入并提交一笔交易；异常时回滚当前事务（需求 1.3）。"""
+    """插入并提交一笔交易；异常时回滚当前事务（需求 1.3、6.4）。
+
+    ``fee`` 由服务层归一为非空 ``Decimal``（``None`` 已转为 ``Decimal(0)``）后随交易落库。
+    """
     transaction = models.Transaction(
         product_type=payload.product_type.value,
         product_name=payload.product_name,
         product_code=payload.product_code,
         transaction_price=payload.transaction_price,
         transaction_quantity=payload.transaction_quantity,
+        fee=payload.fee,
         direction=payload.direction.value,
         trade_date=payload.trade_date,
     )

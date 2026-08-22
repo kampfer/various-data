@@ -9,6 +9,8 @@ import {
   TRADE_DIRECTION_LABELS,
   TRADE_VALUE_LABELS,
 } from '../../../domain/ledger/labels';
+import { formatPriceByProductType } from '../../../domain/ledger/formatNumbers';
+import computeTransactionAmount from '../../../domain/ledger/transactionAmount';
 import styles from './index.module.scss';
 
 type TransactionColumns = NonNullable<TableProps<TransactionOut>['columns']>;
@@ -88,7 +90,7 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
     this.props.onSortChange(order);
   };
 
-  /** 7 个数据列与 1 个删除操作列；不定义 id 或编辑列。 */
+  /** 9 个数据列与 1 个删除操作列；不定义 id 或编辑列。 */
   private columns(): TransactionColumns {
     const sortOrder = this.props.tradeDateOrder === 'asc'
       ? 'ascend'
@@ -107,11 +109,21 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
       { title: '产品代码', dataIndex: 'productCode', key: 'productCode' },
       {
         title: '净值/单价', dataIndex: 'transactionPrice', key: 'transactionPrice',
-        // render: (value: string, record: TransactionOut) => `${TRADE_VALUE_LABELS[record.productType].price}：${value}`,
+        // 基金/理财净值固定 4 位小数展示；股票单价保持原样（精度无限制）
+        render: (value: string, record: TransactionOut) => formatPriceByProductType(value, record.productType),
       },
       {
         title: '份额/数量', dataIndex: 'transactionQuantity', key: 'transactionQuantity',
         // render: (value: string, record: TransactionOut) => `${TRADE_VALUE_LABELS[record.productType].quantity}：${value}`,
+      },
+      // 费用：随交易落库，未填写时后端归一为 0（需求 6.2、6.5）
+      { title: '费用', dataIndex: 'fee', key: 'fee' },
+      // 交易金额：由已落库字段计算展示，不作为独立字段从后端返回（需求 6.5、6.6）
+      {
+        title: '交易金额',
+        key: 'transactionAmount',
+        render: (_value: unknown, record: TransactionOut) =>
+          computeTransactionAmount(record.transactionPrice, record.transactionQuantity, record.fee),
       },
       {
         title: '交易方向',

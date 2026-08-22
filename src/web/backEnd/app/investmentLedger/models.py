@@ -75,6 +75,10 @@ class Transaction(Base):
     #: 交易数量，理财/基金为有限正 Decimal，股票为正整数；仍以无标度 TEXT 精确存放。
     transaction_quantity: Mapped[Decimal] = mapped_column(DecimalText())
 
+    #: 交易费用，非负有限 Decimal；可空，未提供时由服务层归一为 ``Decimal(0)`` 落库（需求 6.2、6.3、6.4）。
+    #: 以无标度 TEXT 精确存放，与交易价格/数量同口径，避免浮点误差。
+    fee: Mapped[Decimal | None] = mapped_column(DecimalText(), nullable=True)
+
     #: 交易方向英文码，取值 ∈ {BUY, SELL}（需求 1.1、1.2）；
     #: 单列索引支撑按交易方向筛选（需求 2.16）
     direction: Mapped[str] = mapped_column(String(ENUM_CODE_LENGTH), index=True)

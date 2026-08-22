@@ -247,7 +247,12 @@ class TransactionService:
         立即抛出 :class:`InsufficientHolding`，不写入任何记录、不修改既有行，
         由路由层映射为 422 + ``fieldErrors`` 指向 ``transactionQuantity``（需求 1.3）。
         买入交易天然不会使持仓变负，直接落库。
+
+        费用归一：``payload.fee`` 为 ``None`` 时在落库前归一为 ``Decimal(0)``，
+        使出参的 ``fee`` 始终为非空十进制字符串（需求 6.2、6.4）。
         """
+        if payload.fee is None:
+            payload = payload.model_copy(update={"fee": Decimal(0)})
         if payload.direction == TradeDirection.SELL:
             currentQuantity = crud.getPositionQuantity(
                 self._db,

@@ -53,6 +53,7 @@ export default class TradeDraftValidator {
     push(this.checkText('productCode', draft.productCode, MAX_PRODUCT_CODE_LENGTH, '产品代码'));
     push(this.checkPositiveDecimal('transactionPrice', draft.transactionPrice, '交易价格'));
     push(this.checkQuantity(draft.productType, draft.transactionQuantity));
+    push(this.checkFee(draft.fee));
     push(this.checkEnum('direction', draft.direction, TRADE_DIRECTIONS, `交易方向必须为${TRADE_DIRECTION_HINT}之一`));
     push(this.checkTradeDate(draft.tradeDate));
     return { valid: fieldErrors.length === 0, fieldErrors };
@@ -78,6 +79,18 @@ export default class TradeDraftValidator {
     if (productType === 'STOCK') {
       if (!INTEGER_PATTERN.test(decimalText)) return { field: 'transactionQuantity', code: TRADE_ERROR_CODES.NOT_INTEGER, message: '股票数量必须为正整数' };
     }
+    return null;
+  }
+  /**
+   * 校验交易费用（需求 6.3）：可选字段，空值合法；非空时必须为有限十进制数值且 >= 0。
+   *
+   * 与 :meth:`checkPositiveDecimal` 的差别：空值通过校验，且允许取 0；
+   * 负数或非十进制文本给出 ``NOT_A_NUMBER`` / ``OUT_OF_RANGE`` 错误并保留原值。
+   */
+  private checkFee(value: string | null | undefined): FieldError | null {
+    if (value === null || value === undefined || value === '') return null;
+    if (!DECIMAL_PATTERN.test(value)) return { field: 'fee', code: TRADE_ERROR_CODES.NOT_A_NUMBER, message: '费用必须是大于或等于 0 的有限十进制数值' };
+    if (value.startsWith('-')) return { field: 'fee', code: TRADE_ERROR_CODES.OUT_OF_RANGE, message: '费用必须大于或等于 0' };
     return null;
   }
   private checkTradeDate(value: string | null | undefined): FieldError | null {

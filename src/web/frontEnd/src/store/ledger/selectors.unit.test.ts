@@ -32,6 +32,7 @@ const transaction: TransactionOut = {
   productCode: 'F001',
   transactionPrice: '1.25',
   transactionQuantity: '10',
+  fee: '0',
   direction: 'BUY',
   tradeDate: '2024-01-02',
 };

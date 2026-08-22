@@ -7,6 +7,8 @@ import type { FieldErrorItem, FundSearchOut, TradeDraft } from '../../../api/typ
 import type { ProductType, TradeDirection } from '../../../domain/ledger/constants';
 import FundSearchController from '../../../domain/ledger/FundSearchController';
 import TradeDraftValidator from '../../../domain/ledger/TradeDraftValidator';
+import computeTransactionAmount from '../../../domain/ledger/transactionAmount';
+import { formatPriceByProductType } from '../../../domain/ledger/formatNumbers';
 import { productTypeOptions, tradeDirectionOptions, TRADE_VALUE_LABELS } from '../../../domain/ledger/labels';
 import FundSearchResults from '../FundSearchResults';
 import styles from './index.module.scss';
@@ -130,6 +132,17 @@ export default class TradeFormModal extends React.Component<TradeFormModalProps,
 
   private readonly changeField = <K extends keyof TradeDraft,>(field: K, value: TradeDraft[K]): void => { this.setState((current) => ({ fieldErrors: current.fieldErrors.filter((error) => error.field !== field) })); this.props.onChange({ [field]: value } as Partial<TradeDraft>); };
   private readonly changeText = (field: keyof TradeDraft) => (event: ChangeEvent<HTMLInputElement>): void => this.changeField(field, event.target.value);
+  /**
+   * 净值/单价失焦：基金/理财类型按 4 位小数格式化写回草稿（方便用户确认最终录入值）；
+   * 股票不格式化；空值或非法文本不动。
+   */
+  private readonly blurPrice = (event: React.FocusEvent<HTMLInputElement>): void => {
+    const type = this.props.draft.productType ?? 'FUND';
+    const formatted = formatPriceByProductType(event.target.value, type);
+    if (formatted !== event.target.value) {
+      this.changeField('transactionPrice', formatted);
+    }
+  };
   /** DatePicker 选择后把 Dayjs 规范化为 YYYY-MM-DD 文本，保持草稿仍为可序列化字符串。 */
   private readonly changeTradeDate = (value: Dayjs | null): void => this.changeField('tradeDate', value === null ? null : value.format(TRADE_DATE_FORMAT));
   private errorFor(field: keyof TradeDraft): string | undefined { return this.state.fieldErrors.find((error) => error.field === field)?.message; }
@@ -171,9 +184,14 @@ export default class TradeFormModal extends React.Component<TradeFormModalProps,
             <FundSearchResults loading={this.state.searching} results={this.state.searchResults} onSelect={this.handleSelectFund} />
           )}
         </div>
-        <Form.Item label={labels.price} required validateStatus={this.errorFor('transactionPrice') ? 'error' : undefined} help={this.errorFor('transactionPrice')}><Input aria-label={labels.price} inputMode="decimal" allowClear value={draft.transactionPrice ?? ''} onChange={this.changeText('transactionPrice')} /></Form.Item>
+        <Form.Item label={labels.price} required validateStatus={this.errorFor('transactionPrice') ? 'error' : undefined} help={this.errorFor('transactionPrice')}><Input aria-label={labels.price} inputMode="decimal" allowClear value={draft.transactionPrice ?? ''} onChange={this.changeText('transactionPrice')} onBlur={this.blurPrice} /></Form.Item>
         <Form.Item label={labels.quantity} required validateStatus={this.errorFor('transactionQuantity') ? 'error' : undefined} help={this.errorFor('transactionQuantity')}><Input aria-label={labels.quantity} inputMode="decimal" allowClear value={draft.transactionQuantity ?? ''} onChange={this.changeText('transactionQuantity')} /></Form.Item>
+        {/* 费用：可选字段，未填写时后端归一为 0（需求 6.2）；负数或非十进制由校验器拦截（需求 6.3） */}
+        <Form.Item label="费用" validateStatus={this.errorFor('fee') ? 'error' : undefined} help={this.errorFor('fee')}><Input aria-label="费用" inputMode="decimal" allowClear value={draft.fee ?? ''} onChange={this.changeText('fee')} /></Form.Item>
         <Form.Item label="交易日期" required validateStatus={this.errorFor('tradeDate') ? 'error' : undefined} help={this.errorFor('tradeDate')}><DatePicker aria-label="交易日期" className={styles.fullWidth} format={TRADE_DATE_FORMAT} value={toTradeDateDayjs(draft.tradeDate)} onChange={this.changeTradeDate} /></Form.Item>
-      </div></Form></Modal>;
+      </div></Form>
+      {/* 交易金额：纯前端展示，= 净值/单价 × 份额/数量 + 费用，不落库、不进入草稿或请求体（需求 6.1、6.6）；随价格/数量/费用自动更新 */}
+      <div className={styles.transactionAmount}>交易金额：<span aria-label="交易金额">{computeTransactionAmount(draft.transactionPrice, draft.transactionQuantity, draft.fee)}</span></div>
+    </Modal>;
   }
 }
