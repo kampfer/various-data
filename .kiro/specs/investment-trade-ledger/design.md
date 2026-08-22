@@ -2219,8 +2219,9 @@ class InitialModuleOut(BaseModel):
 | 5 | `GET /holdings` | `HoldingQuery`（`Depends()`） | `PageOut[HoldingOut]` | 2.4、2.5、2.6、2.7、2.8、2.15、2.19、2.22、2.24、2.28、2.29、2.31、3.1、3.2、3.3、3.4、3.5、3.6 |
 | 6 | `GET /portfolioStatistics` | `HoldingQuery`（复用筛选/搜索，忽略分页与排序） | `PortfolioStatisticsOut` | 3.7、3.8、3.9 |
 | 7 | `GET /fundSearch` | `FundSearchQuery`（`Depends()`，单参数 `keyword`） | `list[FundSearchOut]` | 5.2、5.6、5.7 |
+| 8 | `GET /fundQuote/navHistory` | `FundNavHistoryQuery`（`Depends()`，参数 `fundCode` + 可选 `tradeDate`） | `list[FundNavHistoryOut]` | 7.1、7.2、7.4、7.5 |
 
-> **实现边界修订**：当前仓库暂有 `PUT /valuations` 与对应前端估值表单，但它们不属于本需求允许的公开契约，必须在实现阶段移除或迁移到 `valuation_ingest` 内部服务。公开路由最终只能保留上表 7 个接口；采集器通过受控命令/后台任务调用内部 `CollectorOrchestrator`，不得被前端或普通账本 API 调用。`GET /fundSearch` 是只读代理，不写账本数据库、不写估值记录，第三方异常收敛为空结果。
+> **实现边界修订**：当前仓库暂有 `PUT /valuations` 与对应前端估值表单，但它们不属于本需求允许的公开契约，必须在实现阶段移除或迁移到 `valuation_ingest` 内部服务。公开路由最终只能保留上表 8 个接口；采集器通过受控命令/后台任务调用内部 `CollectorOrchestrator`，不得被前端或普通账本 API 调用。`GET /fundSearch` 与 `GET /fundQuote/navHistory` 均为只读代理，不写账本数据库、不写估值记录，第三方或 akshare 异常收敛为空结果。
 
 **估值只读语义**：`GET /holdings` 与 `GET /portfolioStatistics` 只能读取已由外部采集流程写入并通过校验的估值；账本路由、前端 `api/ledger.ts`、`TransactionService` 和 `HoldingService` 均不得导出 `ValuationUpsert`、`upsertValuation` 或任何覆盖语义。
 
@@ -2543,6 +2544,108 @@ class FundSearchService:
 ```
 
 > 标准化规则：仅保留第三方 ``Datas`` 中 ``FundBaseInfo`` 非空或 ``CATEGORYDESC == "基金"`` 的条目，取其 ``NAME`` 与 ``CODE`` 映射为 ``fund_name`` / ``fund_code``；非基金条目（股票、指数等）一律丢弃（需求 5.7）。第三方响应中缺失 ``Datas`` 或 ``Datas`` 非数组时视为空结果。
+
+### 8. 基金历史净值代理服务（本次新增，需求 7）
+
+需求 7.1、7.2、7.4、7.5 要求本地后端只接收基金代码（历史净值查询可额外提供净值日期），将其转发至 akshare `fund_open_fund_info_em`（单只基金历史净值），把 akshare 返回的 DataFrame 转换为键名稳定的标准结果；akshare 失败/超时/非法数据时历史净值返回空列表并记录日志，不向用户抛出异常。
+
+#### 8.1 接口契约
+
+`GET /fundQuote/navHistory?fundCode=<基金代码>&tradeDate=<YYYY-MM-DD>`（`tradeDate` 可选），响应包裹在 `ApiResponse[list[FundNavHistoryOut]]` 中。
+
+```python
+# schemas.py —— 基金历史净值的入参与出参契约
+class FundNavHistoryQuery(LedgerSchema):
+    """基金历史净值查询入参：基金代码必填，净值日期可选（需求 7.2、7.3）。
+
+    - 提供 ``trade_date`` 时只返回该日期的单条净值；
+    - 不提供 ``trade_date`` 时返回全部历史净值条目，按日期升序返回。
+    """
+
+    fund_code: str = Field(min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH)
+    trade_date: date | None = None
+
+
+class FundNavHistoryOut(LedgerSchema):
+    """单只基金某一交易日的历史净值出参（需求 7.1、7.5）。
+
+    来源：akshare ``fund_open_fund_info_em`` 单只基金历史净值结果按日期过滤后
+    的单条或全部条目。仅暴露用户关注的「单位净值」与「累计净值」两个字段，
+    以及定位该净值所需的「净值日期」；日增长率等 akshare 原始字段不外泄。
+    """
+
+    trade_date: date
+    unit_nav: DecimalString
+    accumulated_nav: DecimalString
+```
+
+> 路由层契约（沿用现有 `Depends()` 写法，不含业务规则）：
+
+```python
+# router.py —— 基金历史净值代理路由（接口 8）
+@router.get("/fundQuote/navHistory", response_model=ApiResponse[list[FundNavHistoryOut]])
+def getFundNavHistory(
+    query: Annotated[FundNavHistoryQuery, Depends()],
+    service: Annotated[FundQuoteService, Depends(getFundQuoteService)],
+) -> ApiResponse[list[FundNavHistoryOut]]:
+    """返回指定基金的历史净值（需求 7.1、7.2、7.4）。"""
+    return ApiResponse(data=service.getNavHistory(query.fund_code, query.trade_date))
+```
+
+#### 8.2 服务与 akshare 客户端
+
+```python
+# fund_quote.py —— akshare 代理 + 键名归一 + 故障收敛（需求 7.1-7.5）
+class AkshareFundQuoteClient:
+    """对 akshare 基金历史净值接口的受控客户端（需求 7.1、7.5）。
+
+    封装 ``ak.fund_open_fund_info_em`` 调用，把返回的 DataFrame 转换为键名
+    稳定的 ``list[dict]``：历史净值的中文列名被映射为英文键。本类只负责
+    「取数 + 键名归一」，不做业务过滤；过滤职责在 FundQuoteService。任何
+    异常（网络、缺列、非 DataFrame）均向上抛出，由服务层捕获并收敛为空
+    结果 + 日志。
+
+    akshare 与 pandas 均在方法内延迟导入，避免在模块加载期触发 akshare 的
+    重型初始化，也使单元测试在不安装 akshare/pandas 的环境下能通过 fake
+    client 隔离运行。
+    """
+
+    def fetchNavHistory(self, fundCode: str) -> list[dict]:
+        """调用 ``ak.fund_open_fund_info_em`` 并返回键名稳定的历史净值列表。
+
+        :raises Exception: akshare 调用失败、返回非 DataFrame 或缺关键列时
+            向上抛出，由服务层收敛。
+        """
+
+
+class FundQuoteService:
+    """基金历史净值代理用例：调用 akshare 客户端、过滤、标准化为出参（需求 7.1-7.5）。
+
+    akshare 失败均收敛为空列表并记录服务端日志，**绝不向用户抛出异常**
+    （需求 7.4）。本服务无数据库依赖、无状态，可被路由层按请求构造；akshare
+    客户端可在构造期注入，便于单元测试以 fake client 隔离真实外网与 akshare
+    依赖。
+    """
+
+    def __init__(self, client: AkshareFundQuoteClient | None = None) -> None:
+        """注入 akshare 客户端；测试可传入 fake client，不访问真实接口。"""
+
+    def getNavHistory(
+        self, fundCode: str, tradeDate: date | None = None
+    ) -> list[FundNavHistoryOut]:
+        """返回指定基金的历史净值条目列表。
+
+        - ``tradeDate`` 为 ``None`` 时返回全部历史净值，按日期升序排列（需求 7.2）；
+        - ``tradeDate`` 非 ``None`` 时返回匹配该日期的 0 或 1 条记录。
+
+        日期或净值无法解析的条目被静默丢弃，不阻断后续条目（需求 7.5）。
+        """
+```
+
+> 标准化规则（需求 7.5）：
+> - **数值经十进制字符串中转**：akshare 净值通常为 `float64`，若原样传给出参层会被项目「金额以十进制精确表达、禁止 `float`」的校验拒绝。客户端层 `_coerceScalar` 把数值（`int` / `float` / `numpy` 数值）先转十进制字符串后再交由出参层 `_coerceDecimalString` 精确解析为 `Decimal`。`float→str` 会受 IEEE 754 精度限制，但 akshare 返回的净值本身已是 `float`，此处只做最佳努力转换。`numpy.nan` 与自身不等，被收敛为 `None`，避免 `NaN` 进入响应体后被序列化为非法 JSON 值。
+> - **历史净值日期解析**：akshare `fund_open_fund_info_em` 的净值日期通常为字符串（如 `"2020-12-28"`）或 `pandas.Timestamp`。客户端层 `_coerceDate` 统一解析为 `date`：`datetime.datetime` / `pandas.Timestamp` 通过 `.date()` 方法剥离时间部分，纯 `date` 对象原样保留，字符串经 `date.fromisoformat` 解析，非法日期返回 `None` 由服务层丢弃。
+> - **akshare 返回 DataFrame 为空或非 DataFrame 时**：客户端层返回空列表，由服务层继续按空结果处理，不抛异常。
 
 ---
 
@@ -2953,6 +3056,41 @@ sequenceDiagram
     M->>M: 标记 justSelected，onChange({productName, productCode})，清空 results
     Note over M: componentDidUpdate 识别 justSelected，跳过本次搜索（需求 5.5）
     M-->>U: 两字段回填，结果区域清空
+```
+
+### 流程 8：基金历史净值查询（需求 7.1-7.6，本次新增）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant A as api/ledger.ts
+    participant R as router.py
+    participant SV as FundQuoteService
+    participant CL as AkshareFundQuoteClient
+    participant AK as akshare
+    participant L as app.logger
+
+    U->>A: 查询基金历史净值（fundCode，tradeDate 可选）
+    A->>R: GET /fundQuote/navHistory?fundCode=...&tradeDate=YYYY-MM-DD
+    R->>SV: getNavHistory(fundCode, tradeDate)
+    SV->>CL: fetchNavHistory(fundCode)
+    CL->>AK: ak.fund_open_fund_info_em(symbol=fundCode)
+    alt akshare 失败/超时/非 DataFrame/缺关键列
+        AK-->>CL: 异常
+        CL-->>SV: 抛出异常
+        SV->>L: 记录服务端日志（不含敏感值）
+        SV-->>R: []
+    else 返回单只基金历史 DataFrame
+        AK-->>CL: DataFrame
+        CL->>CL: 中文列名映射英文键 + 数值经十进制字符串中转（需求 7.5）
+        CL-->>SV: list[dict]
+        SV->>SV: 解析净值日期；tradeDate 非空时仅保留同日记录；非法日期/净值丢弃（需求 7.5）
+        SV->>SV: 按 trade_date 升序排列（需求 7.2）
+        SV-->>R: list[FundNavHistoryOut]
+    end
+    R-->>A: {code:200, data: [...]}
+    A-->>U: 历史净值列表（可空，按日期升序）
 ```
 
 ## Correctness Properties

@@ -290,6 +290,25 @@
     - 完成条件：类型检查、构建、后端测试、前端测试全部通过。
     - _Requirements: 6.1-6.6_
 
+- [x] 18. 基金历史净值查询辅助（需求 7）
+  - [x] 18.1 后端基金历史净值契约与 akshare 列名常量
+    - 在 `schemas.py` 新增 `FundNavHistoryQuery`（`fund_code` 1..`MAX_PRODUCT_CODE_LENGTH` + 可选 `trade_date`）与 `FundNavHistoryOut`（仅暴露 `trade_date`、`unit_nav`、`accumulated_nav`，不外泄日增长率等 akshare 原始字段；数值字段使用 `DecimalString` 避免浮点直入出参层）；在 `constants.py` 增加 akshare 历史净值中文列名英文映射常量。
+    - 完成条件：`fund_code` 为空或超过 32 字符被 Pydantic 拒绝并指出字段无效原因；`trade_date` 为非法日期被拒绝；历史净值只暴露三个字段。
+    - _Requirements: 7.1、7.2、7.3、7.5_
+  - [x] 18.2 Akshare 客户端、服务层故障收敛与路由装配
+    - 在 `fund_quote.py` 实现 `AkshareFundQuoteClient`（历史净值中文列名映射英文键、数值字段经十进制字符串中转避免 float 精度丢失；调用 `ak.fund_open_fund_info_em(symbol=fund_code)` 取单只基金历史净值；固定超时，不接收 callback）与 `FundQuoteService`（历史净值解析净值日期，`trade_date` 非空时仅保留同日记录，非法日期或净值丢弃，按 `trade_date` 升序排列；akshare 失败/超时/非 DataFrame/缺关键列时历史净值返回 `[]` 并经 `app.logger` 记录服务端日志不含敏感值，不向用户抛出异常）；在 `router.py` 新增 `GET /fundQuote/navHistory`（入参 `FundNavHistoryQuery` 经 `Depends()` 注入，响应 `ApiResponse[list[FundNavHistoryOut]]`）。
+    - 完成条件：akshare 异常返回 200 + 历史净值 `[]` 且不抛异常；历史净值按 `trade_date` 升序；路由表包含一个 GET 接口且经 `ApiResponse` 信封。
+    - _Requirements: 7.1、7.2、7.4、7.5、7.6_
+  - [x] 18.3 路由边界测试与基金历史净值服务属性测试
+    - 在 `test_investmentLedgerRouteBoundary.py` 新增 `/fundQuote/navHistory` 路由断言（验证路径、GET 方法、`ApiResponse` 信封包裹）；在 `test_investmentLedgerFundQuote.py` 覆盖：历史净值指定日期返回单条/未指定日期返回全部并按 `trade_date` 升序/akshare 异常收敛为 `[]`/非法日期或净值丢弃/仅暴露三个字段/数值经十进制字符串中转保留精度；服务层日志调用不含敏感值。
+    - 完成条件：路由边界测试断言新接口存在且为 GET 方法；服务层测试覆盖 akshare 异常收敛、字段标准化、日期过滤与升序排列；数值断言使用 `Decimal` 精确比较不使用浮点近似。
+    - _Requirements: 7.1-7.6_
+  - [x] 18.4 执行类型检查、构建与一次性自动化测试
+    - 运行 `npm run type-check`、`npm run build:web`、`pytest -q`、`vitest --run`；fake akshare client，不访问真实金融接口；修复失败后保留最终证据。
+    - 完成条件：类型检查、构建、后端测试、前端测试全部通过；基金历史净值查询结果不写入交易草稿、Redux 状态或数据库。
+    - 验证证据：`pytest test_investmentLedger{Schemas,RouteBoundary,FundQuote}.py` 全部通过；新增接口与测试不引入回归。
+    - _Requirements: 7.1-7.6_
+
 ## Notes
 
 - 本次将旧的单页 `activeModule`、`switchModule`、`bootstrapLedger`、不变 URL 的 `Radio.Group` 和公开估值写入/直接准备估值记录任务全部改为与设计一致的路由驱动、内部摄取任务；它们不再作为目标实现。
@@ -321,7 +340,10 @@
     { "id": 15, "tasks": ["17.1", "17.2"] },
     { "id": 16, "tasks": ["17.3", "17.4"] },
     { "id": 17, "tasks": ["17.5"] },
-    { "id": 18, "tasks": ["17.6"] }
+    { "id": 18, "tasks": ["17.6"] },
+    { "id": 19, "tasks": ["18.1", "18.2"] },
+    { "id": 20, "tasks": ["18.3"] },
+    { "id": 21, "tasks": ["18.4"] }
   ]
 }
 ```

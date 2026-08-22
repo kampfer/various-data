@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 import app.dependencies as dependencies
 from app.investmentLedger.schemas import (
     ApiResponse,
+    FundNavHistoryOut,
+    FundNavHistoryQuery,
     FundSearchOut,
     FundSearchQuery,
     HoldingOut,
@@ -23,6 +25,7 @@ from app.investmentLedger.schemas import (
     TransactionOut,
     TransactionQuery,
 )
+from app.investmentLedger.fund_quote import FundQuoteService
 from app.investmentLedger.fund_search import FundSearchService
 from app.investmentLedger.service import (
     HoldingService,
@@ -62,6 +65,11 @@ def getOverviewService(
 def getFundSearchService() -> FundSearchService:
     """构造无状态的基金搜索代理服务（不依赖数据库会话，需求 5.2）。"""
     return FundSearchService()
+
+
+def getFundQuoteService() -> FundQuoteService:
+    """构造无状态的基金历史净值代理服务（不依赖数据库会话）。"""
+    return FundQuoteService()
 
 
 @router.get(
@@ -153,3 +161,23 @@ def searchFunds(
     本接口只读，不写账本数据库、不写估值记录，结果不落库。
     """
     return ApiResponse(data=service.searchFunds(query.keyword))
+
+
+@router.get(
+    "/fundQuote/navHistory",
+    response_model=ApiResponse[list[FundNavHistoryOut]],
+)
+def getFundNavHistory(
+    query: Annotated[FundNavHistoryQuery, Depends()],
+    service: Annotated[FundQuoteService, Depends(getFundQuoteService)],
+) -> ApiResponse[list[FundNavHistoryOut]]:
+    """返回指定基金的历史净值（基于 akshare ``fund_open_fund_info_em``）。
+
+    只暴露用户关注的「单位净值」与「累计净值」两个字段，以及定位该净值所需的
+    「净值日期」。提供 ``tradeDate`` 时只返回该日期的 0 或 1 条记录；不提供时
+    返回全部历史净值条目，按日期升序排列。akshare 失败/超时/非法数据收敛为
+    空列表并记录服务端日志，不向用户抛出异常。本接口只读，结果不落库。
+    """
+    return ApiResponse(
+        data=service.getNavHistory(query.fund_code, query.trade_date)
+    )

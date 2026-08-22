@@ -640,3 +640,40 @@ class FundSearchOut(LedgerSchema):
 
     #: 基金代码，1..32 字符，可直接填入交易草稿的 productCode
     fund_code: str = Field(min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH)
+
+
+# ---------------------------------------------------------------------------
+# 基金历史净值辅助（基于 akshare 单只基金历史净值）
+# ---------------------------------------------------------------------------
+
+
+class FundNavHistoryOut(LedgerSchema):
+    """单只基金某一交易日的历史净值出参。
+
+    来源：akshare ``fund_open_fund_info_em`` 单只基金历史净值结果按日期过滤后
+    的单条或全部条目。仅暴露用户关注的「单位净值」与「累计净值」两个字段，
+    以及定位该净值所需的「净值日期」；日增长率等 akshare 原始字段不外泄。
+    """
+
+    #: 净值日期，序列化为 YYYY-MM-DD
+    trade_date: date
+
+    #: 单位净值，十进制字符串；保留 akshare 给出的原始精度
+    unit_nav: DecimalString
+
+    #: 累计净值，十进制字符串；保留 akshare 给出的原始精度
+    accumulated_nav: DecimalString
+
+
+class FundNavHistoryQuery(LedgerSchema):
+    """基金历史净值查询入参：基金代码必填，净值日期可选。
+
+    - 提供 ``trade_date`` 时只返回该日期的单条净值；
+    - 不提供 ``trade_date`` 时返回全部历史净值条目，按日期升序返回。
+    """
+
+    #: 基金代码，1..32 字符；空值或超长由 Pydantic 校验拒绝
+    fund_code: str = Field(min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH)
+
+    #: 净值日期，可选；为 None 时表示返回全部历史净值
+    trade_date: date | None = None
