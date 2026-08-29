@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from decimal import Decimal
 
-from sqlalchemy import ColumnElement, and_, case, func, select, tuple_
+from sqlalchemy import ColumnElement, and_, case, func, select, tuple_, text
 from sqlalchemy.orm import Session
 
 from app.investmentLedger import models
@@ -232,3 +232,87 @@ def getLatestValuations(
         ) < _valuationSelectionKey(current, priorities):
             selected[key] = valuation
     return selected
+
+"""
+查询当前持仓，支持可选的分页和代码/名称筛选。
+
+- 不传 limit：返回全部持仓（忽略 offset）。
+- 传 limit 不传 offset：返回前 N 条。
+- 同时传 limit 和 offset：返回分页片段。
+
+利用窗口函数一次查询同时返回数据和总数，避免 SQLite 深度分页的双重扫描损耗。
+"""
+def get_current_holdings(
+    db: Session,
+    product_type: str | None = None,
+    productName: str | None = None,
+    productCode: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> tuple[list[any], int]:
+    # 净数量聚合表达式（BUY 加，SELL 减）
+    net_quantity_expr = func.sum(
+        case(
+            (models.Transaction.direction == "BUY", models.Transaction.transaction_quantity),
+            else_=-models.Transaction.transaction_quantity,
+        )
+    ).label("net_quantity")
+
+    # 窗口函数：计算全量分组后的总行数（不随 LIMIT 变化）
+    total_count_expr = func.count().over().label("total_count")
+
+    # 构建基础查询：SELECT 列 + 窗口函数（用于算总数）
+    stmt = select(
+        models.Transaction.product_type,
+        models.Transaction.product_name,
+        models.Transaction.product_code,
+        net_quantity_expr,
+        total_count_expr
+    )
+
+    # 筛选条件（放在 GROUP BY 之前）
+    if product_type is not None:
+        stmt = stmt.where(
+            models.Transaction.product_type == product_type
+        )
+    if productName is not None:
+        stmt = stmt.where(
+            models.Transaction.product_name.contains(productName, case_sensitive=True)
+        )
+    if productCode is not None:
+        stmt = stmt.where(
+            models.Transaction.product_code.contains(productCode, case_sensitive=True)
+        )
+
+    # 分组 → 过滤净持仓 > 0 → 排序
+    stmt = (
+        stmt.group_by(
+            models.Transaction.product_type,
+            models.Transaction.product_name,
+            models.Transaction.product_code,
+        )
+        .having(
+            text("net_quantity > 0")
+        )
+        .order_by(
+            models.Transaction.product_name.asc(),
+            models.Transaction.product_code.asc(),
+        )
+    )
+
+    # 分页参数只有在 limit 不为 None 时才生效
+    if limit is not None:
+        stmt = stmt.limit(limit)
+        # 注意：offset 只在 limit 存在时才有意义，SQLite 不允许只写 OFFSET
+        if offset is not None:
+            stmt = stmt.offset(offset)
+    # 如果 limit 是 None，即使传了 offset，我们也忽略它（全量返回）
+
+    rows = db.execute(stmt).all()
+
+    if not rows:
+        return [], 0
+
+    # 每行都带有 total_count，取第一个即可
+    total = rows[0].total_count
+    return rows, total

@@ -330,3 +330,35 @@ class Paginator:
 
         start = (page - 1) * pageSize
         return items[start : start + pageSize], pageCount
+
+class Paginator2:
+    """分页参数工具（无状态，纯静态方法）"""
+
+    @staticmethod
+    def get_limit_offset(page: int, page_size: int) -> tuple[int, int]:
+        """
+        将页码和页大小转换为数据库分页参数。
+
+        :param page: 页码（从 1 开始），若 <1 则自动修正为 1。
+        :param page_size: 每页条数，若 <1 则自动修正为 20（默认值）。
+        :return: (limit, offset)
+        """
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        offset = (page - 1) * page_size
+        return page_size, offset
+
+    @staticmethod
+    def get_page_count(total: int, page_size: int) -> int:
+        """
+        根据总记录数和每页条数计算总页数。
+
+        :param total: 总记录数（>=0）
+        :param page_size: 每页条数（>0）
+        :return: 总页数（若 total<=0 则返回 0）
+        """
+        if total <= 0 or page_size <= 0:
+            return 0
+        return (total + page_size - 1) // page_size

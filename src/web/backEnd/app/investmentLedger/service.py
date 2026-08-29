@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.investmentLedger import crud
 from app.investmentLedger.calculators import (
     Paginator,
+    Paginator2,
     PortfolioCalculator,
     ProductPerformance,
     ProductPerformanceCalculator,
@@ -279,7 +280,7 @@ class HoldingService:
         self._db = db
         self._productCalculator = ProductPerformanceCalculator()
         self._portfolioCalculator = PortfolioCalculator()
-        self._paginator = Paginator()
+        # self._paginator = Paginator2()
 
     @staticmethod
     def _metricOut(metric: object) -> Metric:
@@ -327,21 +328,43 @@ class HoldingService:
         return holdings, performances
 
     def listHoldings(self, query: HoldingQuery) -> PageOut[HoldingOut]:
-        """查询结果经分组、批量估值、计算、排序后分页返回。"""
-        holdings, _performances = self._calculateProducts(query)
-        orderedHoldings = sortHoldings(
-            holdings,
-            query.holding_sort_field,
-            query.holding_sort_order,
+        """分页查询持仓。"""
+
+        ServiceQueryValidator.validate(query)
+
+        limit, offset = Paginator2.get_limit_offset(
+            query.page, query.page_size
         )
-        pageItems, pageCount = self._paginator.slice(
-            orderedHoldings,
-            page=query.page,
-            pageSize=query.page_size,
+
+        holdings, total = crud.get_current_holdings(
+            self._db,
+            product_type=query.product_type,
+            productName=query.product_name,
+            productCode=query.product_code,
+            limit=limit,
+            offset=offset,
         )
+
+        pageCount = Paginator2.get_page_count(total, query.page_size)
+
+        # 映射为 HoldingOut（若 HoldingOut 缺少 product_type，需添加该字段）    
+        items = [
+            HoldingOut(
+                product_type=row.product_type,
+                product_name=row.product_name,
+                product_code=row.product_code,
+                position=Metric.of(value=0),
+                position_quantity=Metric.of(value=row.net_quantity),
+                total_profit=Metric.of(value=0),
+                total_profit_rate=Metric.of(value=0),
+                annualized_rate=Metric.of(value=0),
+            )
+            for row in holdings
+        ]
+
         return PageOut[HoldingOut](
-            items=pageItems,
-            total=len(orderedHoldings),
+            items=items,
+            total=total,
             page=query.page,
             page_size=query.page_size,
             page_count=pageCount,

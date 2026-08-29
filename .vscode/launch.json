@@ -5,14 +5,21 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "dev",
+      "name": "dev server",
       "type": "debugpy",
       "request": "launch",
-      "program": "${file}",
-      "console": "integratedTerminal",
+      "module": "uvicorn",
+      "cwd": "${workspaceFolder}",    // 指向项目根目录
+      "args": [
+          "main:app",                             // 模块名:实例名
+          "--app-dir", "./src/web/backEnd",      // 关键！与命令行一致
+          "--reload",                             // 热重载
+          "--port", "8000"
+      ],
       "env": {
-        "mode": "dev"
-      }
+          "PYTHONPATH": "${workspaceFolder}"     // 确保根目录在Python路径中
+      },
+      "console": "integratedTerminal"
     },
     {
       "name": "pro",
