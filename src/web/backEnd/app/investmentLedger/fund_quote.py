@@ -18,6 +18,7 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING, Any
 
+from app.investmentLedger.cache_proxy import CacheProxy, CacheManager
 from app.investmentLedger.constants import (
     AKSHARE_FUND_NAV_ACCUMULATED_COLUMN,
     AKSHARE_FUND_NAV_DATE_COLUMN,
@@ -90,6 +91,82 @@ class AkshareFundQuoteClient:
             )
         return rows
 
+    def fetchFundInfo(self):
+        import pandas as pd
+        import akshare as ak
+
+        df = ak.fund_open_fund_daily_em()
+
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            return []
+
+        def rename_fund_columns(df: pd.DataFrame) -> pd.DataFrame:
+            """
+            将基金DataFrame的列名统一转换为英文，并添加 update_date 列（最新净值日期）。
+            - 动态日期列（如 '2026-08-28-单位净值'）根据日期排序映射为 nav/pre_nav 等。
+            - 静态列按给定字典映射。
+            - 新增 'update_date' 列，值为最新日期（格式 'YYYY-MM-DD'），若无日期列则为 None。
+            """
+            import re
+
+            # 1. 静态列映射
+            static_map = {
+                "基金代码": "fund_code",
+                "基金简称": "fund_name",
+                "日增长值": "daily_change",
+                "日增长率": "daily_change_rate",
+                "申购状态": "purchase_status",
+                "赎回状态": "redemption_status",
+                "手续费": "fee_rate"
+            }
+
+            # 2. 提取所有日期型净值列，并记录所有日期
+            pattern = re.compile(r'^(\d{4}-\d{2}-\d{2})-(单位净值|累计净值)$')
+            nav_list = []      # (日期, 列名)
+            acc_nav_list = []
+            all_dates = []     # 所有出现过的日期
+
+            for col in df.columns:
+                m = pattern.match(col)
+                if m:
+                    date_str, nav_type = m.groups()
+                    date_obj = pd.to_datetime(date_str)
+                    all_dates.append(date_obj)
+                    if nav_type == "单位净值":
+                        nav_list.append((date_obj, col))
+                    else:  # 累计净值
+                        acc_nav_list.append((date_obj, col))
+
+            # 3. 按日期降序排序（最新在前）
+            nav_list.sort(key=lambda x: x[0], reverse=True)
+            acc_nav_list.sort(key=lambda x: x[0], reverse=True)
+
+            # 4. 构建动态映射
+            dynamic_map = {}
+            if len(nav_list) >= 1:
+                dynamic_map[nav_list[0][1]] = "nav"          # 最新单位净值
+            if len(nav_list) >= 2:
+                dynamic_map[nav_list[1][1]] = "pre_nav"      # 前一日单位净值
+            if len(acc_nav_list) >= 1:
+                dynamic_map[acc_nav_list[0][1]] = "acc_nav"  # 最新累计净值
+            if len(acc_nav_list) >= 2:
+                dynamic_map[acc_nav_list[1][1]] = "pre_acc_nav"  # 前一日累计净值
+
+            # 5. 合并映射并重命名
+            all_map = {**static_map, **dynamic_map}
+            existing_map = {k: v for k, v in all_map.items() if k in df.columns}
+            renamed_df = df.rename(columns=existing_map)
+
+            # 6. 提取最新日期并添加为列
+            if all_dates:
+                latest_date = max(all_dates).strftime('%Y-%m-%d')  # 格式：2026-08-28
+            else:
+                latest_date = None
+            renamed_df['update_date'] = latest_date
+
+            return renamed_df
+        
+        return rename_fund_columns(df).to_dict(orient="records")
 
 def _coerceScalar(value: Any) -> Any:
     """把 akshare 字段值收敛为可由出参层解析的标量。
@@ -139,7 +216,14 @@ class FundQuoteService:
         :param client: akshare 客户端实例；为 ``None`` 时使用默认实例，
             正式请求按配置访问真实 akshare 接口；测试应注入 fake client。
         """
-        self._client = client or AkshareFundQuoteClient()
+        self._client = CacheProxy(
+            client or AkshareFundQuoteClient(),
+            CacheManager(),
+            {
+                "fetchNavHistory": 24 * 60 * 60,
+                "fetchFundInfo": 24 * 60 * 60,
+            }
+        )
 
     def getNavHistory(
         self, fundCode: str, tradeDate: date | None = None
@@ -170,6 +254,21 @@ class FundQuoteService:
                 normalized.append(item)
         # 升序排列：使前端从最早到最新逐日渲染
         normalized.sort(key=lambda item: item.trade_date)
+        return normalized
+
+    def getLatestNav(self, fundCodes):
+        rows = self._client.fetchFundInfo()
+        
+        normalized: list[dict] = []
+        for row in rows:
+            if row.get("fund_code") in fundCodes:
+                normalized.append({
+                    "fund_code": row.get("fund_code"),
+                    "unit_nav": row.get("nav"),
+                    "accumulated_nav": row.get("acc_nav"),
+                    "update_date": row.get("update_date"),
+                })
+
         return normalized
 
     @staticmethod

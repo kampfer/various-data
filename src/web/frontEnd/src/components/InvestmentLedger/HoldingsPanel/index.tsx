@@ -132,7 +132,7 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
       },
       { title: '产品代码', dataIndex: 'productCode', key: 'productCode' },
       {
-        title: '持仓',
+        title: '持仓额',
         dataIndex: 'position',
         key: 'position',
         sorter: true,

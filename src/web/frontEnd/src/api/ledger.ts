@@ -78,7 +78,7 @@ export const deleteTransaction = (transactionId: number): Promise<null> =>
  * @throws LedgerApiError 查询参数非法或网络异常
  */
 export const fetchHoldings = (params: HoldingQueryInput): Promise<PageOut<HoldingOut>> =>
-  unwrap(http.get<ApiEnvelope<PageOut<HoldingOut>>>('/holdings', { params }));
+  unwrap(http.get<ApiEnvelope<PageOut<HoldingOut>>>('/holdings', { params, timeout: 30000 }));
 
 /**
  * 查询投资组合统计（接口 6：GET /portfolioStatistics，需求 3.10-3.12）。

@@ -50,9 +50,10 @@ def getTransactionService(
 
 def getHoldingService(
     db: Annotated[Session, Depends(get_db)],
+    fundQuoteService: Annotated[FundQuoteService, Depends(getFundQuoteService)],
 ) -> HoldingService:
     """构造绑定请求级数据库会话的只读持仓服务。"""
-    return HoldingService(db)
+    return HoldingService(db, fundQuoteService)
 
 
 def getOverviewService(
@@ -67,9 +68,10 @@ def getFundSearchService() -> FundSearchService:
     return FundSearchService()
 
 
+fund_quote_service = FundQuoteService()
 def getFundQuoteService() -> FundQuoteService:
     """构造无状态的基金历史净值代理服务（不依赖数据库会话）。"""
-    return FundQuoteService()
+    return fund_quote_service
 
 
 @router.get(
@@ -133,7 +135,7 @@ def getHoldings(
     """按查询条件返回只读持仓汇总，不暴露逐笔交易或写操作。"""
     return ApiResponse(data=service.listHoldings(query))
 
-
+# TODO 删除
 @router.get(
     "/portfolioStatistics",
     response_model=ApiResponse[PortfolioStatisticsOut],
@@ -145,7 +147,7 @@ def getPortfolioStatistics(
     """按完整筛选结果集返回投资组合统计，并忽略分页与排序。"""
     return ApiResponse(data=service.getPortfolioStatistics(query))
 
-
+# TODO 删除
 @router.get(
     "/fundSearch",
     response_model=ApiResponse[list[FundSearchOut]],
@@ -162,7 +164,7 @@ def searchFunds(
     """
     return ApiResponse(data=service.searchFunds(query.keyword))
 
-
+# TODO 删除
 @router.get(
     "/fundQuote/navHistory",
     response_model=ApiResponse[list[FundNavHistoryOut]],

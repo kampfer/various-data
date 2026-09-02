@@ -275,12 +275,13 @@ class TransactionService:
 class HoldingService:
     """持仓只读聚合用例；刻意不提供任何创建、修改或删除方法。"""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, fundQuoteService) -> None:
         """绑定请求级会话并装配无状态计算组件。"""
         self._db = db
         self._productCalculator = ProductPerformanceCalculator()
         self._portfolioCalculator = PortfolioCalculator()
         # self._paginator = Paginator2()
+        self._fundQuoteService = fundQuoteService
 
     @staticmethod
     def _metricOut(metric: object) -> Metric:
@@ -347,13 +348,17 @@ class HoldingService:
 
         pageCount = Paginator2.get_page_count(total, query.page_size)
 
+        latestNav = self._fundQuoteService.getLatestNav(
+            [row.product_code for row in holdings]
+        )
+
         # 映射为 HoldingOut（若 HoldingOut 缺少 product_type，需添加该字段）    
         items = [
             HoldingOut(
                 product_type=row.product_type,
                 product_name=row.product_name,
                 product_code=row.product_code,
-                position=Metric.of(value=0),
+                position=Metric.of(value=row.net_quantity * rowNav.get("unit_nav", 0)),
                 position_quantity=Metric.of(value=row.net_quantity),
                 total_profit=Metric.of(value=0),
                 total_profit_rate=Metric.of(value=0),
