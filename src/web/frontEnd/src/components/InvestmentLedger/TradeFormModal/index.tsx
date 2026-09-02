@@ -1,33 +1,65 @@
-import React from 'react';
-import { DatePicker, Form, Input, Modal, Select } from 'antd';
-import dayjs from 'dayjs';
-import type { Dayjs } from 'dayjs';
-import type { ChangeEvent } from 'react';
-import type { FieldErrorItem, FundSearchOut, TradeDraft } from '../../../api/types';
-import type { ProductType, TradeDirection } from '../../../domain/ledger/constants';
-import FundSearchController from '../../../domain/ledger/FundSearchController';
-import TradeDraftValidator from '../../../domain/ledger/TradeDraftValidator';
-import computeTransactionAmount from '../../../domain/ledger/transactionAmount';
-import { formatPriceByProductType } from '../../../domain/ledger/formatNumbers';
-import { productTypeOptions, tradeDirectionOptions, TRADE_VALUE_LABELS } from '../../../domain/ledger/labels';
-import FundSearchResults from '../FundSearchResults';
-import styles from './index.module.scss';
+import React from "react";
+import { DatePicker, Form, Input, Modal, Select } from "antd";
+import dayjs from "dayjs";
+import type { Dayjs } from "dayjs";
+import type { ChangeEvent } from "react";
+import type {
+  FieldErrorItem,
+  FundSearchOut,
+  TradeDraft,
+} from "../../../api/types";
+import type {
+  ProductType,
+  TradeDirection,
+} from "../../../domain/ledger/constants";
+import FundSearchController from "../../../domain/ledger/FundSearchController";
+import TradeDraftValidator from "../../../domain/ledger/TradeDraftValidator";
+import computeTransactionAmount from "../../../domain/ledger/transactionAmount";
+import { formatPriceByProductType } from "../../../domain/ledger/formatNumbers";
+import {
+  productTypeOptions,
+  tradeDirectionOptions,
+  TRADE_VALUE_LABELS,
+} from "../../../domain/ledger/labels";
+import FundSearchResults from "../FundSearchResults";
+import styles from "./index.module.scss";
 
 /** 交易日期展示与提交格式；与后端及校验器保持一致的 YYYY-MM-DD。 */
-const TRADE_DATE_FORMAT = 'YYYY-MM-DD';
+const TRADE_DATE_FORMAT = "YYYY-MM-DD";
 
 /** 把 YYYY-MM-DD 字符串转换为 DatePicker 所需的 Dayjs；空或非法时返回 null。 */
 const toTradeDateDayjs = (value: string | null | undefined): Dayjs | null => {
-  if (typeof value !== 'string' || value.length === 0) return null;
+  if (typeof value !== "string" || value.length === 0) return null;
   const day = dayjs(value, TRADE_DATE_FORMAT, true);
   return day.isValid() ? day : null;
 };
 
-export interface TradeFormModalProps { readonly visible: boolean; readonly draft: TradeDraft; readonly fieldErrors: readonly FieldErrorItem[]; readonly submitting: boolean; readonly onChange: (patch: Partial<TradeDraft>) => void; readonly onSubmit: (draft: TradeDraft) => void; readonly onCancel: () => void; }
-interface TradeFormModalState { readonly fieldErrors: readonly FieldErrorItem[]; readonly searchResults: readonly FundSearchOut[]; readonly searching: boolean; /** 是否已对当前输入发起过搜索请求；用于搜索后无结果时仍展示空态浮动框（需求 5.4） */ readonly hasSearched: boolean; }
+export interface TradeFormModalProps {
+  readonly visible: boolean;
+  readonly draft: TradeDraft;
+  readonly fieldErrors: readonly FieldErrorItem[];
+  readonly submitting: boolean;
+  readonly onChange: (patch: Partial<TradeDraft>) => void;
+  readonly onSubmit: (draft: TradeDraft) => void;
+  readonly onCancel: () => void;
+}
+interface TradeFormModalState {
+  readonly fieldErrors: readonly FieldErrorItem[];
+  readonly searchResults: readonly FundSearchOut[];
+  readonly searching: boolean;
+  /** 是否已对当前输入发起过搜索请求；用于搜索后无结果时仍展示空态浮动框（需求 5.4） */ readonly hasSearched: boolean;
+}
 /** 新建交易表单：字段状态使用 canonical 名称，标签仅随产品类型渲染。产品类型为基金时挂载基金搜索辅助（需求 5）。 */
-export default class TradeFormModal extends React.Component<TradeFormModalProps, TradeFormModalState> {
-  public override state: TradeFormModalState = { fieldErrors: this.props.fieldErrors, searchResults: [], searching: false, hasSearched: false };
+export default class TradeFormModal extends React.Component<
+  TradeFormModalProps,
+  TradeFormModalState
+> {
+  public override state: TradeFormModalState = {
+    fieldErrors: this.props.fieldErrors,
+    searchResults: [],
+    searching: false,
+    hasSearched: false,
+  };
 
   /**
    * 基金搜索控制器：封装 500ms 防抖与请求竞态保护（需求 5.3、5.6）。
@@ -75,12 +107,15 @@ export default class TradeFormModal extends React.Component<TradeFormModalProps,
    */
   private readonly resetSearch = (): void => {
     this.setState({ hasSearched: false });
-    this.fundSearchController.search('');
+    this.fundSearchController.search("");
   };
 
   public override componentDidUpdate(previousProps: TradeFormModalProps): void {
     // 1) 同步字段级错误（既有逻辑）：错误引用变化或弹窗刚打开时刷新
-    if (previousProps.fieldErrors !== this.props.fieldErrors || (!previousProps.visible && this.props.visible)) {
+    if (
+      previousProps.fieldErrors !== this.props.fieldErrors ||
+      (!previousProps.visible && this.props.visible)
+    ) {
       this.setState({ fieldErrors: this.props.fieldErrors });
     }
 
@@ -102,8 +137,8 @@ export default class TradeFormModal extends React.Component<TradeFormModalProps,
       return;
     }
 
-    const isFund = draft.productType === 'FUND';
-    const wasFund = prevDraft.productType === 'FUND';
+    const isFund = draft.productType === "FUND";
+    const wasFund = prevDraft.productType === "FUND";
 
     // 切换到非基金类型：清空搜索态并不再发起请求（需求 5.1）
     if (wasFund && !isFund) {
@@ -113,10 +148,10 @@ export default class TradeFormModal extends React.Component<TradeFormModalProps,
     if (!isFund) return;
 
     // 产品类型为基金：根据产品名称或产品代码的最新变化触发防抖搜索
-    const prevName = prevDraft.productName ?? '';
-    const currName = draft.productName ?? '';
-    const prevCode = prevDraft.productCode ?? '';
-    const currCode = draft.productCode ?? '';
+    const prevName = prevDraft.productName ?? "";
+    const currName = draft.productName ?? "";
+    const prevCode = prevDraft.productCode ?? "";
+    const currCode = draft.productCode ?? "";
 
     if (currName !== prevName && currName.length > 0) {
       // 产品名称变化且非空：以名称为关键词搜索
@@ -130,38 +165,66 @@ export default class TradeFormModal extends React.Component<TradeFormModalProps,
     }
   }
 
-  private readonly changeField = <K extends keyof TradeDraft,>(field: K, value: TradeDraft[K]): void => { this.setState((current) => ({ fieldErrors: current.fieldErrors.filter((error) => error.field !== field) })); this.props.onChange({ [field]: value } as Partial<TradeDraft>); };
-  private readonly changeText = (field: keyof TradeDraft) => (event: ChangeEvent<HTMLInputElement>): void => this.changeField(field, event.target.value);
+  private readonly changeField = <K extends keyof TradeDraft>(
+    field: K,
+    value: TradeDraft[K],
+  ): void => {
+    this.setState((current) => ({
+      fieldErrors: current.fieldErrors.filter((error) => error.field !== field),
+    }));
+    this.props.onChange({ [field]: value } as Partial<TradeDraft>);
+  };
+  private readonly changeText =
+    (field: keyof TradeDraft) =>
+      (event: ChangeEvent<HTMLInputElement>): void =>
+        this.changeField(field, event.target.value);
   /**
    * 净值/单价失焦：基金/理财类型按 4 位小数格式化写回草稿（方便用户确认最终录入值）；
    * 股票不格式化；空值或非法文本不动。
    */
-  private readonly blurPrice = (event: React.FocusEvent<HTMLInputElement>): void => {
-    const type = this.props.draft.productType ?? 'FUND';
+  private readonly blurPrice = (
+    event: React.FocusEvent<HTMLInputElement>,
+  ): void => {
+    const type = this.props.draft.productType ?? "FUND";
     const formatted = formatPriceByProductType(event.target.value, type);
     if (formatted !== event.target.value) {
-      this.changeField('transactionPrice', formatted);
+      this.changeField("transactionPrice", formatted);
     }
   };
   /** DatePicker 选择后把 Dayjs 规范化为 YYYY-MM-DD 文本，保持草稿仍为可序列化字符串。 */
-  private readonly changeTradeDate = (value: Dayjs | null): void => this.changeField('tradeDate', value === null ? null : value.format(TRADE_DATE_FORMAT));
-  private errorFor(field: keyof TradeDraft): string | undefined { return this.state.fieldErrors.find((error) => error.field === field)?.message; }
+  private readonly changeTradeDate = (value: Dayjs | null): void =>
+    this.changeField(
+      "tradeDate",
+      value === null ? null : value.format(TRADE_DATE_FORMAT),
+    );
+  private errorFor(field: keyof TradeDraft): string | undefined {
+    return this.state.fieldErrors.find((error) => error.field === field)
+      ?.message;
+  }
 
   /**
    * 选中某条基金搜索结果：回填产品名称与产品代码并清空结果区域（需求 5.5）。
    * 通过 justSelected 标记使本次回填触发的输入变化不再发起搜索。
    */
-  private readonly handleSelectFund = (fundName: string, fundCode: string): void => {
+  private readonly handleSelectFund = (
+    fundName: string,
+    fundCode: string,
+  ): void => {
     this.justSelected = true;
     // 取消挂起请求、清空结果与 hasSearched，避免回填后再触发搜索或回放旧结果
     this.resetSearch();
     this.props.onChange({ productName: fundName, productCode: fundCode });
   };
 
-  private readonly submit = (): void => { const result = this.validator.validate(this.props.draft); this.setState({ fieldErrors: result.fieldErrors }); if (result.valid) this.props.onSubmit(this.props.draft); };
+  private readonly submit = (): void => {
+    const result = this.validator.validate(this.props.draft);
+    this.setState({ fieldErrors: result.fieldErrors });
+    if (result.valid) this.props.onSubmit(this.props.draft);
+  };
   public override render(): React.ReactNode {
     const { visible, draft, submitting, onCancel } = this.props;
-    const type = draft.productType ?? 'FUND'; const labels = TRADE_VALUE_LABELS[type];
+    const type = draft.productType ?? "FUND";
+    const labels = TRADE_VALUE_LABELS[type];
     // 浮动下拉框显示条件（需求 5.1、5.4）：
     //   - productType 必须为 FUND；非 FUND 一律不显示；
     //   - searching=true（正在防抖/请求）→ 显示加载态浮动框；
@@ -169,29 +232,170 @@ export default class TradeFormModal extends React.Component<TradeFormModalProps,
     //   - hasSearched=true 且无加载、无结果 → 搜索后无匹配，显示空态浮动框。
     //   未输入（hasSearched=false）不显示，避免空白浮动框遮挡其他表单项。
     const showFundSearch =
-      draft.productType === 'FUND' &&
+      draft.productType === "FUND" &&
       (this.state.searching ||
         this.state.searchResults.length > 0 ||
         this.state.hasSearched);
-    return <Modal open={visible} title="新建交易记录" okText="创建交易" cancelText="取消" confirmLoading={submitting} onOk={this.submit} onCancel={onCancel}>
-      <Form className={styles.form} layout="vertical" autoComplete="off"><div className={styles.grid}>
-        <Form.Item label="产品类型" required validateStatus={this.errorFor('productType') ? 'error' : undefined} help={this.errorFor('productType')}><Select<ProductType> aria-label="产品类型" className={styles.fullWidth} virtual={false} placeholder="请选择产品类型" value={draft.productType ?? undefined} options={[...productTypeOptions()]} onChange={(value) => this.changeField('productType', value)} /></Form.Item>
-        <Form.Item label="交易方向" required validateStatus={this.errorFor('direction') ? 'error' : undefined} help={this.errorFor('direction')}><Select<TradeDirection> aria-label="交易方向" className={styles.fullWidth} virtual={false} placeholder="请选择交易方向" value={draft.direction ?? undefined} options={[...tradeDirectionOptions()]} onChange={(value) => this.changeField('direction', value)} /></Form.Item>
-        <div className={styles.fundFieldsRow}>
-          <Form.Item label="产品名称" required validateStatus={this.errorFor('productName') ? 'error' : undefined} help={this.errorFor('productName')}><Input aria-label="产品名称" allowClear value={draft.productName ?? ''} onChange={this.changeText('productName')} /></Form.Item>
-          <Form.Item label="产品代码" required validateStatus={this.errorFor('productCode') ? 'error' : undefined} help={this.errorFor('productCode')}><Input aria-label="产品代码" allowClear value={draft.productCode ?? ''} onChange={this.changeText('productCode')} /></Form.Item>
-          {showFundSearch && (
-            <FundSearchResults loading={this.state.searching} results={this.state.searchResults} onSelect={this.handleSelectFund} />
-          )}
+    return (
+      <Modal
+        open={visible}
+        title="新建交易记录"
+        okText="创建交易"
+        cancelText="取消"
+        confirmLoading={submitting}
+        onOk={this.submit}
+        onCancel={onCancel}
+      >
+        <Form className={styles.form} layout="vertical" autoComplete="off">
+          <div className={styles.grid}>
+            <Form.Item
+              label="产品类型"
+              required
+              validateStatus={
+                this.errorFor("productType") ? "error" : undefined
+              }
+              help={this.errorFor("productType")}
+            >
+              <Select<ProductType>
+                aria-label="产品类型"
+                className={styles.fullWidth}
+                virtual={false}
+                placeholder="请选择产品类型"
+                value={draft.productType ?? undefined}
+                options={[...productTypeOptions()]}
+                onChange={(value) => this.changeField("productType", value)}
+              />
+            </Form.Item>
+            <Form.Item
+              label="交易方向"
+              required
+              validateStatus={this.errorFor("direction") ? "error" : undefined}
+              help={this.errorFor("direction")}
+            >
+              <Select<TradeDirection>
+                aria-label="交易方向"
+                className={styles.fullWidth}
+                virtual={false}
+                placeholder="请选择交易方向"
+                value={draft.direction ?? undefined}
+                options={[...tradeDirectionOptions()]}
+                onChange={(value) => this.changeField("direction", value)}
+              />
+            </Form.Item>
+            <div className={styles.fundFieldsRow}>
+              <Form.Item
+                label="产品名称"
+                required
+                validateStatus={
+                  this.errorFor("productName") ? "error" : undefined
+                }
+                help={this.errorFor("productName")}
+              >
+                <Input
+                  aria-label="产品名称"
+                  allowClear
+                  value={draft.productName ?? ""}
+                  onChange={this.changeText("productName")}
+                />
+              </Form.Item>
+              <Form.Item
+                label="产品代码"
+                required
+                validateStatus={
+                  this.errorFor("productCode") ? "error" : undefined
+                }
+                help={this.errorFor("productCode")}
+              >
+                <Input
+                  aria-label="产品代码"
+                  allowClear
+                  value={draft.productCode ?? ""}
+                  onChange={this.changeText("productCode")}
+                />
+              </Form.Item>
+              {showFundSearch && (
+                <FundSearchResults
+                  loading={this.state.searching}
+                  results={this.state.searchResults}
+                  onSelect={this.handleSelectFund}
+                />
+              )}
+            </div>
+            <Form.Item
+              label={labels.price}
+              required
+              validateStatus={
+                this.errorFor("transactionPrice") ? "error" : undefined
+              }
+              help={this.errorFor("transactionPrice")}
+            >
+              <Input
+                aria-label={labels.price}
+                inputMode="decimal"
+                allowClear
+                value={draft.transactionPrice ?? ""}
+                onChange={this.changeText("transactionPrice")}
+                onBlur={this.blurPrice}
+              />
+            </Form.Item>
+            <Form.Item
+              label={labels.quantity}
+              required
+              validateStatus={
+                this.errorFor("transactionQuantity") ? "error" : undefined
+              }
+              help={this.errorFor("transactionQuantity")}
+            >
+              <Input
+                aria-label={labels.quantity}
+                inputMode="decimal"
+                allowClear
+                value={draft.transactionQuantity ?? ""}
+                onChange={this.changeText("transactionQuantity")}
+              />
+            </Form.Item>
+            {/* 费用：可选字段，未填写时后端归一为 0（需求 6.2）；负数或非十进制由校验器拦截（需求 6.3） */}
+            <Form.Item
+              label="费用"
+              validateStatus={this.errorFor("fee") ? "error" : undefined}
+              help={this.errorFor("fee")}
+            >
+              <Input
+                aria-label="费用"
+                inputMode="decimal"
+                allowClear
+                value={draft.fee ?? ""}
+                onChange={this.changeText("fee")}
+              />
+            </Form.Item>
+            <Form.Item
+              label="交易日期"
+              required
+              validateStatus={this.errorFor("tradeDate") ? "error" : undefined}
+              help={this.errorFor("tradeDate")}
+            >
+              <DatePicker
+                aria-label="交易日期"
+                className={styles.fullWidth}
+                format={TRADE_DATE_FORMAT}
+                value={toTradeDateDayjs(draft.tradeDate)}
+                onChange={this.changeTradeDate}
+              />
+            </Form.Item>
+          </div>
+        </Form>
+        {/* 交易金额：纯前端展示，= 净值/单价 × 份额/数量 + 费用，不落库、不进入草稿或请求体（需求 6.1、6.6）；随价格/数量/费用自动更新 */}
+        <div className={styles.transactionAmount}>
+          交易金额：
+          <span aria-label="交易金额">
+            {computeTransactionAmount(
+              draft.transactionPrice,
+              draft.transactionQuantity,
+              draft.fee,
+            )}
+          </span>
         </div>
-        <Form.Item label={labels.price} required validateStatus={this.errorFor('transactionPrice') ? 'error' : undefined} help={this.errorFor('transactionPrice')}><Input aria-label={labels.price} inputMode="decimal" allowClear value={draft.transactionPrice ?? ''} onChange={this.changeText('transactionPrice')} onBlur={this.blurPrice} /></Form.Item>
-        <Form.Item label={labels.quantity} required validateStatus={this.errorFor('transactionQuantity') ? 'error' : undefined} help={this.errorFor('transactionQuantity')}><Input aria-label={labels.quantity} inputMode="decimal" allowClear value={draft.transactionQuantity ?? ''} onChange={this.changeText('transactionQuantity')} /></Form.Item>
-        {/* 费用：可选字段，未填写时后端归一为 0（需求 6.2）；负数或非十进制由校验器拦截（需求 6.3） */}
-        <Form.Item label="费用" validateStatus={this.errorFor('fee') ? 'error' : undefined} help={this.errorFor('fee')}><Input aria-label="费用" inputMode="decimal" allowClear value={draft.fee ?? ''} onChange={this.changeText('fee')} /></Form.Item>
-        <Form.Item label="交易日期" required validateStatus={this.errorFor('tradeDate') ? 'error' : undefined} help={this.errorFor('tradeDate')}><DatePicker aria-label="交易日期" className={styles.fullWidth} format={TRADE_DATE_FORMAT} value={toTradeDateDayjs(draft.tradeDate)} onChange={this.changeTradeDate} /></Form.Item>
-      </div></Form>
-      {/* 交易金额：纯前端展示，= 净值/单价 × 份额/数量 + 费用，不落库、不进入草稿或请求体（需求 6.1、6.6）；随价格/数量/费用自动更新 */}
-      <div className={styles.transactionAmount}>交易金额：<span aria-label="交易金额">{computeTransactionAmount(draft.transactionPrice, draft.transactionQuantity, draft.fee)}</span></div>
-    </Modal>;
+      </Modal>
+    );
   }
 }

@@ -352,20 +352,24 @@ class HoldingService:
             [row.product_code for row in holdings]
         )
 
-        # 映射为 HoldingOut（若 HoldingOut 缺少 product_type，需添加该字段）    
-        items = [
-            HoldingOut(
-                product_type=row.product_type,
-                product_name=row.product_name,
-                product_code=row.product_code,
-                position=Metric.of(value=row.net_quantity * rowNav.get("unit_nav", 0)),
-                position_quantity=Metric.of(value=row.net_quantity),
-                total_profit=Metric.of(value=0),
-                total_profit_rate=Metric.of(value=0),
-                annualized_rate=Metric.of(value=0),
+        items = []
+        for row in holdings:
+            latestNavRow = next(
+                (item for item in latestNav if item["fund_code"] == row.product_code), None,
             )
-            for row in holdings
-        ]
+
+            items.append(
+                HoldingOut(
+                    product_type=row.product_type,
+                    product_name=row.product_name,
+                    product_code=row.product_code,
+                    position=Metric.of(value=row.net_quantity * Decimal(latestNavRow.get("unit_nav", 0))),
+                    position_quantity=Metric.of(value=0),
+                    total_profit=Metric.of(value=0),
+                    total_profit_rate=Metric.of(value=0),
+                    annualized_rate=Metric.of(value=0),
+                )
+            )
 
         return PageOut[HoldingOut](
             items=items,

@@ -15,9 +15,9 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Optional
 
-from sqlalchemy import Date, DateTime, Index, String, UniqueConstraint
+from sqlalchemy import Date, DateTime, Index, String, UniqueConstraint, ForeignKey, Integer
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.investmentLedger.types import DecimalText
@@ -152,3 +152,24 @@ class Valuation(Base):
             "valuation_date",
         ),
     )
+
+
+class Dividend(Base):
+
+    __tablename__ = "il_dividend"
+
+    id: Mapped[primaryKey]
+
+    product_code: Mapped[str] = mapped_column(String(PRODUCT_CODE_LENGTH))
+
+    ex_date: Mapped[date] = mapped_column(Date)  # 除息日
+
+    pay_date: Mapped[date] = mapped_column(Date)  # 分红日
+
+    div_per_share: Mapped[Decimal] = mapped_column(DecimalText())  # 每股分红金额
+
+    event_type: Mapped[str] = mapped_column(String(16))  # 事件类型
+
+    linked_trade_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("il_transaction.id"))  # 关联交易 ID
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
