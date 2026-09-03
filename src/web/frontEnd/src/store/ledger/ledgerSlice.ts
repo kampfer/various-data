@@ -51,7 +51,6 @@ const initialState: LedgerState = {
     pageCount: 0,
     loading: false,
     error: null,
-    portfolio: null,
   },
   tradeForm: {
     visible: false,
@@ -173,19 +172,6 @@ const ledgerSlice = createSlice({
         state.holdings.pageCount = action.payload.pageCount;
       })
       .addCase(thunks.fetchHoldings.rejected, (state, action) => {
-        state.holdings.loading = false;
-        state.holdings.error = rejectMessage(action.payload);
-      })
-      .addCase(thunks.fetchPortfolioStatistics.pending, (state) => {
-        state.holdings.loading = true;
-        state.holdings.error = null;
-      })
-      .addCase(thunks.fetchPortfolioStatistics.fulfilled, (state, action) => {
-        state.holdings.loading = false;
-        state.holdings.error = null;
-        state.holdings.portfolio = action.payload;
-      })
-      .addCase(thunks.fetchPortfolioStatistics.rejected, (state, action) => {
         state.holdings.loading = false;
         state.holdings.error = rejectMessage(action.payload);
       })

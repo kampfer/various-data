@@ -4,7 +4,6 @@ import type { LedgerQuerySnapshot } from '../../domain/ledger/LedgerQueryState';
 import type { FieldError } from '../../domain/ledger/TradeDraftValidator';
 import type {
   HoldingOut,
-  PortfolioStatisticsOut,
   TradeDraft,
   TransactionOut,
 } from '../../api/types';
@@ -44,11 +43,8 @@ export interface FormSliceState<D> {
 export interface LedgerState {
   /** 历史交易记录模块的列表状态。 */
   history: ListSliceState<TransactionOut>;
-  /** 持仓模块列表及其组合统计；null 表示统计尚未取得。 */
-  holdings: ListSliceState<HoldingOut> & {
-    /** 当前已应用持仓查询对应的投资组合统计。 */
-    portfolio: PortfolioStatisticsOut | null;
-  };
+  /** 持仓模块列表状态。 */
+  holdings: ListSliceState<HoldingOut>;
   /** 新建交易表单状态。 */
   tradeForm: FormSliceState<TradeDraft>;
 }

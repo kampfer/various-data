@@ -7,7 +7,6 @@ import type { RootState, AppDispatch } from '../../../store';
 import type { LedgerQuerySnapshot } from '../../../domain/ledger/LedgerQueryState';
 import type { HoldingSortField, SortOrder } from '../../../domain/ledger/constants';
 import HoldingsPanel from '../../../components/InvestmentLedger/HoldingsPanel';
-import PortfolioSummary from '../../../components/InvestmentLedger/PortfolioSummary';
 import TradeFilterBar from '../../../components/InvestmentLedger/TradeFilterBar';
 import { applyQuery, changePage, changePageSize } from '../../../store/ledger/ledgerSlice';
 import { fetchHoldings } from '../../../store/ledger/thunks';
@@ -89,7 +88,6 @@ export class HoldingsPageContainer extends React.Component<HoldingsPageProps> {
           scoped={false}
           onApply={this.handleApplyQuery}
         />
-        <PortfolioSummary portfolio={holdings.portfolio} loading={holdings.loading} />
         <HoldingsPanel
           items={holdings.items}
           loading={holdings.loading}

@@ -10,12 +10,9 @@
 import http, { unwrap } from './request';
 import type {
   ApiEnvelope,
-  FundSearchOut,
-  InitialModuleOut,
   PageOut,
   TransactionOut,
   HoldingOut,
-  PortfolioStatisticsOut,
   TradeDraft,
   TransactionQueryParams,
   HoldingQueryParams,
@@ -30,14 +27,6 @@ export type TransactionQueryInput = TransactionQueryParams | LedgerQueryParams;
 
 /** 持仓查询入参：在历史交易条件之上追加持仓数值排序（需求 2.19） */
 export type HoldingQueryInput = HoldingQueryParams | LedgerQueryParams;
-
-/**
- * 查询应默认打开的模块（接口 1：GET /initialModule）。
- * @returns `{ module }` —— 无任何交易时为 'history'，否则为 'holdings'（需求 2.2、2.3）
- * @throws LedgerApiError 网络异常或服务端错误
- */
-export const fetchInitialModule = (): Promise<InitialModuleOut> =>
-  unwrap(http.get<ApiEnvelope<InitialModuleOut>>('/initialModule'));
 
 /**
  * 分页查询历史交易（接口 2：GET /transactions）。
@@ -72,30 +61,10 @@ export const deleteTransaction = (transactionId: number): Promise<null> =>
   unwrap(http.delete<ApiEnvelope<null>>(`/transactions/${transactionId}`));
 
 /**
- * 分页查询持仓条目及其汇总指标（接口 5：GET /holdings，只读，需求 2.4-2.8）。
+ * 分页查询持仓条目（接口 5：GET /holdings，只读，需求 2.4-2.8）。
  * @param params 交易筛选/搜索条件 + 持仓排序 + 分页
  * @returns 当前页持仓条目；不可用指标以 Metric.available=false 表达，不以 0 替代（需求 3.9）
  * @throws LedgerApiError 查询参数非法或网络异常
  */
 export const fetchHoldings = (params: HoldingQueryInput): Promise<PageOut<HoldingOut>> =>
   unwrap(http.get<ApiEnvelope<PageOut<HoldingOut>>>('/holdings', { params, timeout: 30000 }));
-
-/**
- * 查询投资组合统计（接口 6：GET /portfolioStatistics，需求 3.10-3.12）。
- * @param params 与持仓列表共用筛选/搜索条件；后端忽略其中的分页与排序，保证统计口径覆盖整个结果集
- * @returns 总持仓 / 总收益 / 总收益率 / 总年化收益率
- * @throws LedgerApiError 查询参数非法或网络异常
- */
-export const fetchPortfolioStatistics = (
-  params: HoldingQueryInput
-): Promise<PortfolioStatisticsOut> =>
-  unwrap(http.get<ApiEnvelope<PortfolioStatisticsOut>>('/portfolioStatistics', { params }));
-
-/**
- * 搜索匹配的基金（接口 7：GET /fundSearch，需求 5.2）。
- * @param keyword 用户输入内容；由后端转发至第三方接口并格式化为标准结果
- * @returns 基金条目列表；第三方失败/超时/无匹配时由后端收敛为空数组（需求 5.6、5.4）
- * @throws LedgerApiError 仅在网络异常或服务端非预期错误时抛出；业务上空结果不抛异常
- */
-export const searchFunds = (keyword: string): Promise<FundSearchOut[]> =>
-  unwrap(http.get<ApiEnvelope<FundSearchOut[]>>('/fundSearch', { params: { keyword } }));

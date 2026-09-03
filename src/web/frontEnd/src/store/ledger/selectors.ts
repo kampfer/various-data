@@ -114,12 +114,6 @@ export const selectHasScope = createSelector(
   (query) => query.toSnapshot().scopeProductCode !== null,
 );
 
-/** 当前持仓查询对应的组合统计；尚未取得时为 null。 */
-export const selectPortfolioStatistics = createSelector(
-  [selectLedger],
-  (ledger) => ledger.holdings.portfolio,
-);
-
 /** 把错误数组转换为字段映射；同字段重复时保留首条，确保展示稳定。 */
 const toFieldErrorMap = (errors: readonly FieldError[]): FieldErrorMap => {
   const result: Record<string, string> = {};

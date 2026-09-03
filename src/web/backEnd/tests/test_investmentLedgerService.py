@@ -10,10 +10,6 @@ import pytest
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from app.investmentLedger.calculators import (
-    Metric as CalculationMetric,
-    ProductPerformance,
-)
 from app.investmentLedger.exceptions import (
     InsufficientHolding,
     PageOutOfRange,
@@ -25,12 +21,7 @@ from app.investmentLedger.schemas import (
     TransactionCreate,
     TransactionQuery,
 )
-from app.investmentLedger.service import (
-    OverviewService,
-    TransactionService,
-    groupByProductKey,
-    sortHoldings,
-)
+from app.investmentLedger.service import TransactionService
 from app.investmentLedger.valuation_ingest.protocol import StandardValuation
 from app.investmentLedger.valuation_ingest.repository import ValuationRepository
 
@@ -236,96 +227,6 @@ class TestTransactionService:
         assert persisted is not None and persisted.fee == Decimal("5.00")
 
 
-class TestHoldingGroupingAndSorting:
-    """覆盖持仓分组、展示名选择和稳定数值排序（任务 6.2）。"""
-
-    @staticmethod
-    def transaction(
-        transactionId: int,
-        productType: str,
-        productCode: str,
-        productName: str,
-        tradeDate: date,
-    ) -> Transaction:
-        """构造无需落库的完整交易模型，供纯分组逻辑使用。"""
-        return Transaction(
-            id=transactionId,
-            product_type=productType,
-            product_name=productName,
-            product_code=productCode,
-            transaction_price=Decimal("1.00"),
-            transaction_quantity=1,
-            fee=Decimal("0"),
-            direction="BUY",
-            trade_date=tradeDate,
-        )
-
-    @staticmethod
-    def performance(position: str | None, totalProfit: str | None) -> ProductPerformance:
-        """复用计算层值对象构造可排序持仓，None 表示指标不可用。"""
-        unavailable = CalculationMetric.unavailable("缺少最新估值")
-        return ProductPerformance(
-            position_quantity=CalculationMetric.of(1),
-            position=(CalculationMetric.of(Decimal(position)) if position is not None else unavailable),
-            cumulative_buy_amount=Decimal("1.00"),
-            cumulative_sell_amount=Decimal("0.00"),
-            total_profit=(CalculationMetric.of(Decimal(totalProfit)) if totalProfit is not None else unavailable),
-            total_profit_rate=CalculationMetric.of(0),
-            annualized_rate=CalculationMetric.of(0),
-        )
-
-    def testGroupPreservesFirstAppearanceAndSelectsLatestDisplayName(self) -> None:
-        """产品顺序取首次出现，名称取日期最大且同日 id 最大的交易。"""
-        rows = [
-            self.transaction(3, "FUND", "A", "A旧名", date(2024, 1, 2)),
-            self.transaction(4, "STOCK", "B", "B名称", date(2024, 1, 3)),
-            self.transaction(8, "FUND", "A", "A最新名", date(2024, 1, 5)),
-            self.transaction(9, "FUND", "A", "A较早同名", date(2024, 1, 4)),
-            self.transaction(7, "FUND", "A", "A同日较小id", date(2024, 1, 5)),
-        ]
-
-        groups = groupByProductKey(rows)
-
-        assert [group.key for group in groups] == [("FUND", "A"), ("STOCK", "B")]
-        assert groups[0].product_name == "A最新名"
-        assert [row.id for row in groups[0].transactions] == [3, 8, 9, 7]
-        assert groups[1].product_name == "B名称"
-
-    @pytest.mark.parametrize(
-        ("sortField", "sortOrder", "expectedIndexes"),
-        [
-            ("position", "asc", [1, 0, 2, 3]),
-            ("position", "desc", [0, 2, 1, 3]),
-            ("totalProfit", "asc", [1, 0, 2, 3]),
-            ("totalProfit", "desc", [0, 2, 1, 3]),
-        ],
-    )
-    def testSortIsNumericStableAndAlwaysPlacesUnavailableLast(
-        self,
-        sortField: str,
-        sortOrder: str,
-        expectedIndexes: list[int],
-    ) -> None:
-        """升降序均按 Decimal 数值排列，等值稳定且不可用项恒在末尾。"""
-        holdings = [
-            self.performance("10", "100"),
-            self.performance("2", "20"),
-            self.performance("10.0", "100.00"),
-            self.performance(None, None),
-        ]
-
-        actual = sortHoldings(holdings, sortField, sortOrder)
-
-        assert actual == [holdings[index] for index in expectedIndexes]
-
-    def testMissingSortSelectionKeepsSourceOrder(self) -> None:
-        """未完整选择数值排序时保持分组产生的来源顺序。"""
-        holdings = [self.performance("3", "30"), self.performance("1", "10")]
-
-        assert sortHoldings(holdings, None, "asc") == holdings
-        assert sortHoldings(holdings, "position", None) == holdings
-
-
 class TestHoldingService:
     """覆盖 HoldingService 的只读六步流水线与全结果集组合统计。"""
 
@@ -431,51 +332,6 @@ class TestHoldingService:
         assert lastPage.items[0].position.value is None
         assert lastPage.items[0].position.unavailable_reason == "缺少最新估值"
 
-    def testPortfolioStatisticsIgnorePaginationAndSorting(
-        self, ledgerSession: Session
-    ) -> None:
-        """组合统计覆盖筛选后的全部产品，不受列表页和排序参数影响。"""
-        from app.investmentLedger.schemas import HoldingQuery
-        from app.investmentLedger.service import HoldingService
-
-        self.seedPortfolio(ledgerSession)
-        query = HoldingQuery(
-            trade_date_order="desc",
-            holding_sort_field="position",
-            holding_sort_order="asc",
-            page=3,
-            page_size=1,
-        )
-
-        statistics = HoldingService(ledgerSession).getPortfolioStatistics(query)
-
-        assert statistics.total_position.value == "360.00"
-        assert statistics.total_profit.value == "140.00"
-        assert statistics.total_profit_rate.value == "0.56"
-        assert statistics.total_annualized_rate.available is True
-
-    def testEmptyFilteredResultReturnsEmptyPageAndZeroPortfolioSums(
-        self, ledgerSession: Session
-    ) -> None:
-        """无匹配记录时列表为零项，组合求和为零且比率显式不可用。"""
-        from app.investmentLedger.schemas import HoldingQuery
-        from app.investmentLedger.service import HoldingService
-
-        self.seedPortfolio(ledgerSession)
-        query = HoldingQuery(product_code="NOT-FOUND", page=7, page_size=10)
-        service = HoldingService(ledgerSession)
-
-        page = service.listHoldings(query)
-        statistics = service.getPortfolioStatistics(query)
-
-        assert page.items == []
-        assert page.total == 0
-        assert page.page_count == 0
-        assert statistics.total_position.value == "0"
-        assert statistics.total_profit.value == "0"
-        assert statistics.total_profit_rate.available is False
-        assert statistics.total_annualized_rate.available is False
-
     def testServiceExposesNoWriteMethods(self, ledgerSession: Session) -> None:
         """持仓服务仅提供列表和组合统计，不暴露写操作。"""
         from app.investmentLedger.service import HoldingService
@@ -491,17 +347,3 @@ class TestHoldingService:
             "deleteTransaction",
         ):
             assert not hasattr(service, methodName)
-
-
-class TestOverviewService:
-    """覆盖交易存在性到默认模块的唯一决策规则（任务 6.6）。"""
-
-    def testEmptyLedgerResolvesHistory(self, ledgerSession: Session) -> None:
-        """没有任何已保存交易时默认进入历史交易记录模块。"""
-        assert OverviewService(ledgerSession).resolveInitialModule() == "history"
-
-    def testNonEmptyLedgerResolvesHoldings(self, ledgerSession: Session) -> None:
-        """存在至少一笔已保存交易时默认进入持仓模块。"""
-        TransactionService(ledgerSession).createTransaction(buildPayload())
-
-        assert OverviewService(ledgerSession).resolveInitialModule() == "holdings"

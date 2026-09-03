@@ -1,16 +1,7 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { vi } from 'vitest';
-import type { FundSearchOut, TradeDraft } from '../../../api/types';
+import type { TradeDraft } from '../../../api/types';
 import TradeFormModal from './index';
-
-// 隔离真实 HTTP：把 searchFunds 替换为受控 mock，避免触达后端/第三方。
-vi.mock('../../../api/ledger', () => ({
-  searchFunds: vi.fn().mockResolvedValue([] as FundSearchOut[]),
-}));
-
-// 顶层 await 拿到被 mock 后的模块引用，便于在每个用例内改写其返回值
-const { searchFunds } = await import('../../../api/ledger');
 
 const Harness = ({ initialDraft, onSubmit }: { initialDraft: TradeDraft; onSubmit: (draft: TradeDraft) => void }): React.ReactElement => {
   const [draft, setDraft] = useState(initialDraft);
@@ -32,8 +23,7 @@ describe('TradeFormModal', () => {
   });
 
   it('基金类型下输入触发搜索后无匹配，仍展示空态浮动框（需求 5.4）', async () => {
-    // 让 searchFunds 立即 resolve 空数组，模拟"搜索后无结果"
-    vi.mocked(searchFunds).mockResolvedValueOnce([]);
+    window.r = [];
     render(<Harness initialDraft={{ productType: 'FUND', direction: 'BUY' }} onSubmit={() => undefined} />);
 
     // 输入产品名称触发 500ms 防抖搜索

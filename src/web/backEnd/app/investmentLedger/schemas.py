@@ -80,9 +80,6 @@ SortOrderLiteral = Literal["asc", "desc"]
 #: 持仓条目可排序的数值字段：position=持仓（市值），totalProfit=总收益（需求 2.19）
 HoldingSortFieldLiteral = Literal["position", "totalProfit"]
 
-#: 界面模块标识：history=历史交易记录模块，holdings=持仓模块（需求 2.1、2.2、2.3）
-LedgerModuleLiteral = Literal["history", "holdings"]
-
 #: 泛型负载类型变量：用于 ApiResponse[T] 与 PageOut[T]
 T = TypeVar("T")
 
@@ -494,6 +491,12 @@ class HoldingOut(LedgerSchema):
     #: 年化收益率 = (1 + 总收益率)^(365 / 持有天数) − 1（需求 2.6、3.8）
     annualized_rate: Metric
 
+    #: 最新估值日期（需求 3.4）
+    latest_valuation_date: date | None = None
+
+    #: 最新估值单价
+    latest_valuation_unit_price: Metric
+
 
 class PageOut(LedgerSchema, Generic[T]):
     """通用分页出参；T 为行数据类型（需求 2.24、2.28、2.29、2.31）。"""
@@ -514,24 +517,9 @@ class PageOut(LedgerSchema, Generic[T]):
     page_count: int = Field(ge=0)
 
 
-class PortfolioStatisticsOut(LedgerSchema):
-    """投资组合统计出参：只聚合具有最新估值的产品（需求 3.10-3.12）。"""
-
-    #: 总持仓 = Σ 各产品持仓市值（需求 3.10）
-    total_position: Metric
-
-    #: 总收益 = Σ 各产品收益（需求 3.10）
-    total_profit: Metric
-
-    #: 总收益率 = 总收益 ÷ Σ 累计买入金额（需求 3.11）
-    total_profit_rate: Metric
-
-    #: 总年化收益率 = Σ(年化收益率 × 累计买入金额) ÷ Σ 累计买入金额（需求 3.12）
-    total_annualized_rate: Metric
-
 
 # ---------------------------------------------------------------------------
-# 估值记录与初始模块
+# 估值记录
 # ---------------------------------------------------------------------------
 
 
@@ -601,79 +589,3 @@ class ValuationOut(LedgerSchema):
 
     #: 估值单价，十进制字符串，两位小数（需求 3.2）
     unit_price: AmountString
-
-
-class InitialModuleOut(LedgerSchema):
-    """初始模块决策出参（需求 2.2、2.3）。"""
-
-    #: 应默认打开的模块：无任何已保存交易时为 history，否则为 holdings
-    module: LedgerModuleLiteral
-
-
-# ---------------------------------------------------------------------------
-# 基金搜索辅助（需求 5）
-# ---------------------------------------------------------------------------
-
-
-class FundSearchQuery(LedgerSchema):
-    """基金搜索入参：只接受一个参数，即用户输入内容（需求 5.2）。
-
-    ``keyword`` 同时承担「产品名称片段」或「产品代码片段」的语义，长度上限与
-    产品名称搜索值一致（``MAX_SEARCH_VALUE_LENGTH``），空值由 Pydantic 拒绝。
-    本入参不区分用途是名称还是代码，由后端原样转发至第三方接口。
-    """
-
-    #: 用户输入内容，1..100 字符；空值或超长由 Pydantic 校验拒绝
-    keyword: str = Field(min_length=1, max_length=MAX_SEARCH_VALUE_LENGTH)
-
-
-class FundSearchOut(LedgerSchema):
-    """单条基金搜索结果出参：只暴露展示与填充所需的两个字段（需求 5.2）。
-
-    ``fund_name`` / ``fund_code`` 的长度上限分别与产品名称、产品代码上限对齐，
-    使前端选中后可直接回填交易草稿而不触发二次校验失败。本出参不携带第三方
-    原始富文本（``HIGHTLIGHT``）、内部标识或基金详情，避免把无关字段外泄给前端。
-    """
-
-    #: 基金名称，1..100 字符，可直接填入交易草稿的 productName
-    fund_name: str = Field(min_length=1, max_length=MAX_PRODUCT_NAME_LENGTH)
-
-    #: 基金代码，1..32 字符，可直接填入交易草稿的 productCode
-    fund_code: str = Field(min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH)
-
-
-# ---------------------------------------------------------------------------
-# 基金历史净值辅助（基于 akshare 单只基金历史净值）
-# ---------------------------------------------------------------------------
-
-
-class FundNavHistoryOut(LedgerSchema):
-    """单只基金某一交易日的历史净值出参。
-
-    来源：akshare ``fund_open_fund_info_em`` 单只基金历史净值结果按日期过滤后
-    的单条或全部条目。仅暴露用户关注的「单位净值」与「累计净值」两个字段，
-    以及定位该净值所需的「净值日期」；日增长率等 akshare 原始字段不外泄。
-    """
-
-    #: 净值日期，序列化为 YYYY-MM-DD
-    trade_date: date
-
-    #: 单位净值，十进制字符串；保留 akshare 给出的原始精度
-    unit_nav: DecimalString
-
-    #: 累计净值，十进制字符串；保留 akshare 给出的原始精度
-    accumulated_nav: DecimalString
-
-
-class FundNavHistoryQuery(LedgerSchema):
-    """基金历史净值查询入参：基金代码必填，净值日期可选。
-
-    - 提供 ``trade_date`` 时只返回该日期的单条净值；
-    - 不提供 ``trade_date`` 时返回全部历史净值条目，按日期升序返回。
-    """
-
-    #: 基金代码，1..32 字符；空值或超长由 Pydantic 校验拒绝
-    fund_code: str = Field(min_length=1, max_length=MAX_PRODUCT_CODE_LENGTH)
-
-    #: 净值日期，可选；为 None 时表示返回全部历史净值
-    trade_date: date | None = None

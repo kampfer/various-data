@@ -15,18 +15,11 @@ from typing import Generic, Iterable, Protocol, TypeVar
 from sqlalchemy.orm import Session
 
 from app.investmentLedger import crud
-from app.investmentLedger.calculators import (
-    Paginator,
-    Paginator2,
-    PortfolioCalculator,
-    ProductPerformance,
-    ProductPerformanceCalculator,
-)
+from app.investmentLedger.calculators import Paginator, Paginator2
 from app.investmentLedger.constants import (
     MAX_PAGE_SIZE,
     MAX_SEARCH_VALUE_LENGTH,
     MIN_PAGE_SIZE,
-    SOURCE_PRIORITY,
     TradeDirection,
 )
 from app.investmentLedger.exceptions import (
@@ -42,7 +35,6 @@ from app.investmentLedger.schemas import (
     HoldingSortFieldLiteral,
     Metric,
     PageOut,
-    PortfolioStatisticsOut,
     SortOrderLiteral,
     TransactionCreate,
     TransactionOut,
@@ -142,11 +134,7 @@ class ServiceQueryValidator:
 def groupByProductKey(
     rows: Iterable[TransactionRowT],
 ) -> list[HoldingGroup[TransactionRowT]]:
-    """按产品类型与代码分组，并保持产品及组内交易的来源顺序。
-
-    展示名称独立按交易日期最大、同日交易标识最大的记录选取，因而不受
-    当前结果集采用升序还是降序排列影响（需求 2.5、2.15）。
-    """
+    """按产品类型与代码分组，并保持产品及组内交易的来源顺序。"""
     groupedRows: dict[tuple[str, str], list[TransactionRowT]] = {}
     latestRows: dict[tuple[str, str], TransactionRowT] = {}
 
@@ -176,12 +164,7 @@ def sortHoldings(
     sortField: HoldingSortFieldLiteral | None,
     sortOrder: SortOrderLiteral | None,
 ) -> list[HoldingT]:
-    """按计算指标稳定排序，不可用指标始终置于所有可用指标之后。
-
-    未完整指定字段和方向时不启用数值排序，直接保留来源顺序。可用指标
-    单独使用 Python 的稳定排序，保证数值相等的条目保持来源顺序；不可用
-    指标不参与正反序比较，避免降序时被移到列表开头（需求 2.15、2.19）。
-    """
+    """按计算指标稳定排序，不可用指标始终置于所有可用指标之后。"""
     source = list(holdings)
     if sortField is None or sortOrder is None:
         return source
@@ -200,7 +183,6 @@ def sortHoldings(
             unavailableItems.append(item)
 
     def numericValue(entry: tuple[HoldingT, SortableMetric]) -> Decimal:
-        """把计算层 Decimal 或响应层十进制字符串统一为精确数值。"""
         value = entry[1].value
         if value is None:
             raise ValueError("可用指标必须包含数值")
@@ -278,55 +260,7 @@ class HoldingService:
     def __init__(self, db: Session, fundQuoteService) -> None:
         """绑定请求级会话并装配无状态计算组件。"""
         self._db = db
-        self._productCalculator = ProductPerformanceCalculator()
-        self._portfolioCalculator = PortfolioCalculator()
-        # self._paginator = Paginator2()
         self._fundQuoteService = fundQuoteService
-
-    @staticmethod
-    def _metricOut(metric: object) -> Metric:
-        """把计算层指标转换为响应契约，同时保留不可用原因。"""
-        return Metric.model_validate(metric, from_attributes=True)
-
-    def _calculateProducts(
-        self, query: HoldingQuery
-    ) -> tuple[list[HoldingOut], list[ProductPerformance]]:
-        """复用查询、分组、批量估值和逐产品计算的公共流水线。"""
-        ServiceQueryValidator.validate(query)
-        rows = crud.queryTransactions(self._db, query)
-        groups = groupByProductKey(rows)
-        latestValuations = crud.getLatestValuations(
-            self._db,
-            [group.key for group in groups],
-            SOURCE_PRIORITY,
-        )
-
-        holdings: list[HoldingOut] = []
-        performances: list[ProductPerformance] = []
-        for group in groups:
-            performance = self._productCalculator.calculate(
-                list(group.transactions), latestValuations.get(group.key)
-            )
-            performances.append(performance)
-            holdings.append(
-                HoldingOut(
-                    product_type=group.product_type,
-                    product_name=group.product_name,
-                    product_code=group.product_code,
-                    position=self._metricOut(performance.position),
-                    position_quantity=self._metricOut(
-                        performance.position_quantity
-                    ),
-                    total_profit=self._metricOut(performance.total_profit),
-                    total_profit_rate=self._metricOut(
-                        performance.total_profit_rate
-                    ),
-                    annualized_rate=self._metricOut(
-                        performance.annualized_rate
-                    ),
-                )
-            )
-        return holdings, performances
 
     def listHoldings(self, query: HoldingQuery) -> PageOut[HoldingOut]:
         """分页查询持仓。"""
@@ -364,10 +298,12 @@ class HoldingService:
                     product_name=row.product_name,
                     product_code=row.product_code,
                     position=Metric.of(value=row.net_quantity * Decimal(latestNavRow.get("unit_nav", 0))),
-                    position_quantity=Metric.of(value=0),
+                    position_quantity=Metric.of(value=row.net_quantity),
                     total_profit=Metric.of(value=0),
                     total_profit_rate=Metric.of(value=0),
                     annualized_rate=Metric.of(value=0),
+                    latest_valuation_date=date.fromisoformat(latestNavRow.get("update_date")),
+                    latest_valuation_unit_price=Metric.of(value=latestNavRow.get("unit_nav")),
                 )
             )
 
@@ -378,33 +314,3 @@ class HoldingService:
             page_size=query.page_size,
             page_count=pageCount,
         )
-
-    def getPortfolioStatistics(
-        self, query: HoldingQuery
-    ) -> PortfolioStatisticsOut:
-        """复用筛选与搜索，但忽略全部排序和分页并聚合完整结果集。"""
-        aggregateQuery = query.model_copy(
-            update={
-                "trade_date_order": None,
-                "holding_sort_field": None,
-                "holding_sort_order": None,
-                "page": 1,
-            }
-        )
-        _holdings, performances = self._calculateProducts(aggregateQuery)
-        statistics = self._portfolioCalculator.aggregate(performances)
-        return PortfolioStatisticsOut.model_validate(
-            statistics, from_attributes=True
-        )
-
-
-class OverviewService:
-    """根据已保存交易决定账本首次进入时默认展示的模块。"""
-
-    def __init__(self, db: Session) -> None:
-        """绑定请求级数据库会话；服务仅执行只读计数。"""
-        self._db = db
-
-    def resolveInitialModule(self) -> str:
-        """存在交易时返回持仓模块，否则返回历史交易模块。"""
-        return "holdings" if crud.countTransactions(self._db) > 0 else "history"

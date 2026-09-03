@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import LedgerQueryState from '../../domain/ledger/LedgerQueryState';
-import type { HoldingOut, Metric, PortfolioStatisticsOut, TransactionOut } from '../../api/types';
+import type { HoldingOut, Metric, TransactionOut } from '../../api/types';
 import ledgerReducer from './ledgerSlice';
 import {
   selectModulePagination,
@@ -14,7 +14,6 @@ import {
   selectHoldingsQuery,
   selectHoldingsRows,
   selectLedger,
-  selectPortfolioStatistics,
   selectTradeFieldErrorMap,
 } from './selectors';
 import type { LedgerRootState, LedgerState } from './types';
@@ -109,27 +108,4 @@ describe('ledger selectors', () => {
     expect(selectHasScope(state)).toBe(true);
   });
 
-  it('派生组合统计并将字段错误按字段映射', () => {
-    const portfolio: PortfolioStatisticsOut = {
-      totalPosition: availableMetric('100.00'),
-      totalProfit: availableMetric('5.00'),
-      totalProfitRate: availableMetric('0.05'),
-      totalAnnualizedRate: availableMetric('0.08'),
-    };
-    const state = rootState({
-      ...initialLedger,
-      holdings: { ...initialLedger.holdings, portfolio },
-      tradeForm: {
-        ...initialLedger.tradeForm,
-        fieldErrors: [
-          { field: 'transactionPrice', code: 'INVALID_SCALE', message: '单价格式错误' },
-          { field: 'transactionPrice', code: 'OUT_OF_RANGE', message: '后续重复错误' },
-        ],
-      },
-    });
-
-    expect(selectPortfolioStatistics(state)).toBe(portfolio);
-    expect(selectTradeFieldErrorMap(state)).toEqual({ transactionPrice: '单价格式错误' });
-    expect(selectTradeFieldErrorMap(state)).toBe(selectTradeFieldErrorMap(state));
-  });
 });

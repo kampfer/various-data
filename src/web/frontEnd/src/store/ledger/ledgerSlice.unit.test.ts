@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   HoldingOut,
   Metric,
-  PortfolioStatisticsOut,
   TransactionOut,
 } from '../../api/types';
 import LedgerQueryState from '../../domain/ledger/LedgerQueryState';
@@ -45,13 +44,6 @@ const holding: HoldingOut = {
   totalProfit: availableMetric('0.00'),
   totalProfitRate: availableMetric('0'),
   annualizedRate: availableMetric('0'),
-};
-
-const portfolio: PortfolioStatisticsOut = {
-  totalPosition: availableMetric('12.50'),
-  totalProfit: availableMetric('0.00'),
-  totalProfitRate: availableMetric('0'),
-  totalAnnualizedRate: availableMetric('0'),
 };
 
 const initialLedger = () => ledgerReducer(undefined, { type: 'test/init' });
@@ -162,7 +154,7 @@ describe('ledger slice 查询状态不变量', () => {
 
 
 describe('ledger slice 失败态', () => {
-  it('列表与组合统计请求失败时保留既有数据和已应用查询', () => {
+  it('列表请求失败时保留既有数据和已应用查询', () => {
     let state = ledgerReducer(
       initialLedger(),
       applyQuery({ module: 'history', patch: { productCode: 'F001' } }),
@@ -175,14 +167,6 @@ describe('ledger slice 失败态', () => {
       state,
       applyQuery({ module: 'holdings', patch: { productType: 'FUND' } }),
     );
-    state = ledgerReducer(
-      state,
-      thunks.fetchHoldings.fulfilled(holdingsPage, 'holdings-success', undefined),
-    );
-    state = ledgerReducer(
-      state,
-      thunks.fetchPortfolioStatistics.fulfilled(portfolio, 'portfolio-success', undefined),
-    );
     const historyBefore = state.history;
     const holdingsBefore = state.holdings;
 
@@ -194,23 +178,13 @@ describe('ledger slice 失败态', () => {
       state,
       thunks.fetchHoldings.rejected(null, 'holdings-failure', undefined, { message: '持仓加载失败' }),
     );
-    state = ledgerReducer(
-      state,
-      thunks.fetchPortfolioStatistics.rejected(
-        null,
-        'portfolio-failure',
-        undefined,
-        { message: '统计加载失败' },
-      ),
-    );
 
     expect(state.history.items).toBe(historyBefore.items);
     expect(state.history.query).toBe(historyBefore.query);
     expect(state.history.error).toBe('历史加载失败');
     expect(state.holdings.items).toBe(holdingsBefore.items);
     expect(state.holdings.query).toBe(holdingsBefore.query);
-    expect(state.holdings.portfolio).toBe(holdingsBefore.portfolio);
-    expect(state.holdings.error).toBe('统计加载失败');
+    expect(state.holdings.error).toBe('持仓加载失败');
   });
 });
 

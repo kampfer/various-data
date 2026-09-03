@@ -6,7 +6,6 @@ import { LedgerApiError } from '../../api/request';
 import type {
   HoldingOut,
   PageOut,
-  PortfolioStatisticsOut,
   TradeDraft,
   TransactionOut,
 } from '../../api/types';
@@ -56,32 +55,15 @@ export const fetchHistory = createAsyncThunk<PageOut<TransactionOut>, void, Thun
     }
   },
 );
-/** 依据已应用持仓查询快照拉取投资组合统计。 */
-export const fetchPortfolioStatistics = createAsyncThunk<
-  PortfolioStatisticsOut,
-  void,
-  ThunkConfig
->(
-  'ledger/fetchPortfolioStatistics',
+
+
+/** 依据已应用持仓查询快照拉取当前页。 */
+export const fetchHoldings = createAsyncThunk<PageOut<HoldingOut>, void, ThunkConfig>(
+  'ledger/fetchHoldings',
   async (_, { getState, rejectWithValue }) => {
     const params = LedgerQueryState.from(getState().ledger.holdings.query).toParams();
     try {
-      return await ledgerApi.fetchPortfolioStatistics(params);
-    } catch (error) {
-      return rejectWithValue(toRejectValue(error));
-    }
-  },
-);
-
-/** 依据已应用持仓查询快照拉取当前页，并在成功后刷新同口径组合统计。 */
-export const fetchHoldings = createAsyncThunk<PageOut<HoldingOut>, void, ThunkConfig>(
-  'ledger/fetchHoldings',
-  async (_, { dispatch, getState, rejectWithValue }) => {
-    const params = LedgerQueryState.from(getState().ledger.holdings.query).toParams();
-    try {
-      const page = await ledgerApi.fetchHoldings(params);
-      void dispatch(fetchPortfolioStatistics());
-      return page;
+      return await ledgerApi.fetchHoldings(params);
     } catch (error) {
       return rejectWithValue(toRejectValue(error));
     }
