@@ -9,6 +9,7 @@ import Home from './pages/Home.js';
 import LedgerLayout from './pages/InvestmentLedger/index';
 import HoldingsPage from './pages/InvestmentLedger/HoldingsPage';
 import HistoryPage from './pages/InvestmentLedger/HistoryPage';
+import AccountsPage from './pages/InvestmentLedger/AccountsPage';
 
 const router = createHashRouter([
   {
@@ -26,6 +27,7 @@ const router = createHashRouter([
       { index: true, element: <Navigate to="/investmentLedger/history" replace /> },
       { path: 'holdings', element: <HoldingsPage /> },
       { path: 'history', element: <HistoryPage /> },
+      { path: 'accounts', element: <AccountsPage /> },
     ],
   },
   {

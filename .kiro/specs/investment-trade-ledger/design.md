@@ -4,14 +4,14 @@
 
 （概述）
 
-投资交易账本在现有 `various-data` 应用中新增一个独立功能模块：以「历史交易记录模块」作为交易数据的唯一用户写入入口（创建、删除、查询），以「持仓模块」作为只读的产品汇总视图。估值由受核心系统编排的外部采集器从天天基金网等数据源采集并写入估值表，账本业务只读最新估值并用于产品收益与投资组合统计；用户不能通过界面或账本公开 API 手动新增、校验或覆盖估值记录。
+投资交易账本在现有 `various-data` 应用中提供三个互斥用户模块：账户管理模块负责账户创建、查询、编辑和删除；历史交易记录模块是交易数据的唯一用户写入入口（创建、删除、查询）；持仓模块是按账户隔离的只读产品汇总视图。每笔交易必须关联一个由系统生成且不可编辑的账户标识。估值由受核心系统编排的外部采集器从天天基金网等数据源采集并写入估值表，账本业务只读最新估值并用于账户级持仓、收益与投资组合统计；用户不能通过界面或账本公开 API 手动新增、校验或覆盖估值记录。
 
 本设计严格以 [requirements.md](./requirements.md) 为唯一功能来源，分为**前端**与**后端**两大部分，遵循以下原则：
 
 | 原则 | 落地方式 |
 | --- | --- |
 | 分层清晰 | 前端：领域层 / 状态层 / 容器层 / 展示层 / 通信层；后端：路由层 / 服务层 / 计算层 / 数据访问层 / 模型层 |
-| 边界清晰 | 用户写操作只存在于历史交易入口；持仓模块无任何写接口；估值写入只允许内部采集任务通过采集服务进入，账本统计与公开 API 只读估值；不提供交易编辑接口（需求 1.4）；不提供按交易标识查询的接口（需求 2.23） |
+| 边界清晰 | 用户交易写操作只存在于历史交易入口；账户名称写操作只存在于账户管理入口；持仓模块无任何写接口；估值写入只允许内部采集任务通过采集服务进入，账本统计与公开 API 只读估值；不提供交易编辑接口（需求 1.4）；不提供按交易标识查询的接口（需求 2.23） |
 | 低耦合 | 计算层与数据访问层零依赖（纯函数/纯对象）；前端领域层不依赖 React 与 antd；复用现有账本装配，目标只在路由、状态和估值摄取边界上做必要迁移 |
 | 复用优先 | 后端沿用现有 FastAPI/SQLAlchemy/Pydantic 与模块装配；前端沿用现有 React、antd、axios、dayjs、Sass、RTK 和测试工具，不重复引入同类依赖 |
 | OOP + 模块化 | 后端以 `Service` / `Calculator` / `Repository(crud)` 类与纯值对象组织；前端以 TypeScript class 组件 + 领域类（`LedgerQueryState`、`TradeDraftValidator`）组织，类型契约显式声明 |
@@ -55,17 +55,83 @@
 本次审查同时核对了仓库当前实现与 `requirements.md`。以下事实会影响设计落地：
 
 - 当前仓库已经存在 `app/investmentLedger` 后端包、`pages/InvestmentLedger/index.tsx` 前端入口、RTK store 装配、账本组件以及测试依赖；因此文档中“新增”表示目标差距，不表示这些文件在仓库中尚不存在。
-- 当前前端仍以单个 `/investmentLedger` 页面和 `activeModule` 状态承载两个模块，且 `switchModule` 会重置目标模块；这不满足需求 2.13。目标设计保留两个独立模块，但改由嵌套路由和导航意图承载：模块内切换必须保留目标状态，持仓入口和无导航上下文的历史深链接才执行重置/默认策略。
-- 当前实现仍存在 `PUT /valuations`、`ValuationService`、`ValuationFormModal` 和估值维护按钮；这与引言及需求 3.18 的“无前端手动估值维护入口”冲突。它们属于待移除的过时实现，不是本设计允许继续暴露的接口。目标公开 API 仍只有交易写入与账本只读查询，估值写入必须迁移到下文的 `valuation_ingest` 受控边界。
+- 当前前端仍以单个 `/investmentLedger` 页面和 `activeModule` 状态承载三个模块，且 `switchModule` 会重置目标模块；这不满足需求 2.12。目标设计保留账户管理、持仓和历史交易三个独立模块，改由嵌套路由和导航意图承载：模块内切换必须保留目标状态，持仓条目进入历史时重置并附加账户与产品范围，无导航上下文的直接入口才执行默认策略。
+- 当前实现仍存在 `PUT /valuations`、`ValuationService`、`ValuationFormModal` 和估值维护按钮；这与引言及需求 3.22 的“无前端手动估值维护入口”冲突。它们属于待移除的过时实现，不是本设计允许继续暴露的接口。目标公开 API 包含账户管理、交易写入与账本只读查询，估值写入必须迁移到下文的 `valuation_ingest` 受控边界。
 - 当前 `il_valuation` 只有产品、日期和单价等基础字段，缺少来源标识、采集元数据和同日跨来源唯一键；需求 3.1、3.11-3.17 要求的来源优先级、采集器审计、故障隔离和幂等写入必须由目标模型与内部仓储补齐。
-- 当前仓库已有产品历史范围字段的后端查询校验，但前端查询 DTO、`LedgerQueryState.toParams()`、路由导航和测试必须保持 `scopeProductType` 与 `scopeProductCode` 成对传递；范围只用于历史模块，不能被误并入普通搜索条件。
-- 当前交易链路仍使用前端 `unitPrice` / `quantity`、后端 `unit_price` / `quantity`、`Integer` 数量列和交易价格恰两位小数校验；交易表单与历史表格也使用“交易单价/交易数量”静态标签。这与需求 1.1-1.3、2.12 不一致。目标实现应一次性迁移为 `transactionPrice` / `transactionQuantity` ↔ `transaction_price` / `transaction_quantity`，以无标度 `DecimalText` 保存并按产品类型校验；迁移期间不得保留一套语义重复的旧字段或以 UI 标签作为传输字段。
+- 当前仓库已有产品历史范围字段的后端查询校验，但前端查询 DTO、`LedgerQueryState.toParams()`、路由导航和测试必须保持 `scopeAccountId`、`scopeProductType` 与 `scopeProductCode` 三者成组传递；范围只用于历史模块，不能被误并入普通搜索条件。
+- 当前交易链路仍使用前端 `unitPrice` / `quantity`、后端 `unit_price` / `quantity`、`Integer` 数量列和交易价格恰两位小数校验；交易表单与历史表格也使用“交易单价/交易数量”静态标签。这与需求 1.1-1.3、2.17 不一致。目标实现应一次性迁移为 `accountId` + `transactionPrice` / `transactionQuantity` ↔ `account_id` + `transaction_price` / `transaction_quantity`，以无标度 `DecimalText` 保存并按产品类型校验；迁移期间不得保留一套语义重复的旧字段或以 UI 标签作为传输字段。
 - **本次运行错误属于迁移缺失而非业务数据校验错误**：ORM 已查询 canonical 列 `il_transaction.transaction_price`，既有 SQLite 表仍可能只有旧列 `unit_price` / `quantity`；`SQLAlchemy metadata.create_all()` 只创建不存在的表，不会修改已存在表，因此不能作为 schema 升级机制。实现前必须按本文“schema 版本与迁移策略”完成备份、迁移和自检；开发环境发现不匹配时必须明确失败，禁止静默继续或直接删除生产列/表。
 - 本次仅更新设计文档；不据此修改源代码、`requirements.md` 或 `tasks.md`。实现阶段必须先处理上述差距，再按本设计执行回归测试。
 
-## Architecture
+## 账户管理增量设计（Requirements 8 的整体修订）
 
-（架构）
+本节是对原交易/持仓设计的强制增量修订，优先级与 `requirements.md` 中 Requirement 8 相同。账户不是展示附属字段，而是交易、持仓范围和统计的一级领域对象；所有相关层必须使用同一账户标识语义。以下约束覆盖旧设计中模块数量、账户关联、产品分组和历史迁移相关的过时描述。
+
+### 账户领域模型与不变量
+
+- `Account` 由系统生成唯一正整数 `id`，用户只能维护 `name`；`id` 创建后不可编辑，也不作为可编辑表单字段或名称列展示。
+- 账户名称保存前执行 `trim`，trim 后长度必须为 1..100 个字符；唯一性按 trim 后的完整字符序列精确比较，不做大小写折叠、模糊比较或 Unicode 正规化。
+- 创建账户由数据库自增主键和服务层共同保证唯一正整数；客户端不得提交或覆盖 `id`。编辑只更新名称，必须保持 `id` 和所有关联交易、持仓及统计归属不变。
+- 账户删除只有在不存在关联交易时才允许；数据库外键/服务层检查、事务约束和路由错误映射共同保证已使用账户不可删除。
+- 系统迁移账户是普通 `Account` 的受控实例：拥有唯一正整数标识和符合 1..100 规则的固定名称，允许展示但不提供用户删除/编辑入口；迁移必须幂等。
+
+### 账户后端分层与公开契约
+
+账户功能复用 `investmentLedger` 包的 `models.py`、`crud.py`、`service.py`、`schemas.py`、`exceptions.py` 和既有 `get_db`/统一响应信封，不创建平行账户应用。新增职责如下：
+
+| 层 | 新增职责 | 关键不变量 |
+| --- | --- | --- |
+| `models.py` | `Account` 模型；`Transaction.account_id` 外键关联 | `Account.id` 正整数且不可由用户编辑；交易必须有账户 |
+| `crud.py` | `listAccounts`、`getAccount`、`addAccount`、`updateAccountName`、`removeAccount`、`countTransactionsWithoutAccount`、迁移账户查找/创建 | CRUD 不吞异常；删除前在同一事务内检查关联交易 |
+| `service.py` | `AccountService`、`LegacyAccountMigrationService`；名称 trim/唯一性、事务边界与错误转换 | 创建/编辑/删除原子提交；重复名和已使用删除返回领域异常 |
+| `schemas.py` | `AccountCreate`、`AccountUpdate`、`AccountOut`、账户列表分页/集合响应 | `AccountOut` 可返回 `accountId/accountName`，不提供 id 输入字段 |
+| `router.py` | 账户列表、创建、编辑、删除四个公开 HTTP 接口 | 只暴露账户维护，不暴露估值写入；HTTP 409/404 语义固定 |
+| `schema.py` / `migrations/` | 账户表、外键列、迁移状态与单一迁移账户门禁 | 迁移前不提供交易/持仓/账户查询 |
+
+公开接口前缀仍为 `/api/investmentLedger`，统一返回 `{ code, msg, data }`：
+
+| 方法与路径 | 请求/路径参数 | 响应 `data` | 失败语义 |
+| --- | --- | --- | --- |
+| `GET /accounts` | 无 | `AccountOut[]`，按 `id` 升序 | 查询失败按统一服务端异常处理 |
+| `POST /accounts` | `{ accountName: string }` | 新建 `AccountOut` | 缺失/trim 后空/超长为 422；重复名为 409 + `ACCOUNT_NAME_DUPLICATE` |
+| `PUT /accounts/{accountId}` | 路径正整数 + `{ accountName: string }` | 更新后的 `AccountOut` | 不存在为 404 + `ACCOUNT_NOT_FOUND`；重复名为 409；字段无效为 422 |
+| `DELETE /accounts/{accountId}` | 路径正整数 | `null` | 不存在为 404；已被交易使用为 409 + `ACCOUNT_IN_USE` |
+
+账户接口沿用已有异常日志边界：已处理 404/409/422 记录业务失败但不记录完整堆栈；未预期异常记录完整堆栈并返回不含内部细节的统一错误响应。所有账户写操作在唯一性冲突、外键冲突或日志失败时不得部分提交。
+
+### 旧交易账户迁移与启动门禁
+
+账户功能启用前，`il_transaction` 中可能存在 `account_id IS NULL` 的历史记录。系统不得把这些记录丢弃、跨账户猜测或在查询时临时拆分；必须在向任何用户提供账户列表、交易查询、持仓查询或统计前完成一次**单一系统迁移账户**关联：
+
+1. `LegacyAccountMigrationService` 在 schema 检查后、公开路由可服务前，以固定名称查找迁移账户；不存在则在同一事务内创建一个合法名称和唯一正整数标识的账户。
+2. 将所有 `account_id IS NULL` 的交易更新为该账户标识；已有非空账户关联保持不变。
+3. 事务提交后写入迁移版本/审计记录；重复执行只读取同一迁移账户并更新零条旧交易，结果与首次执行等效。
+4. 任一账户创建、外键回填、唯一约束、版本或备份失败都回滚本次迁移，并保持原数据库可恢复；迁移未完成时服务 fail closed，不允许查询看到无账户交易。
+5. 应用启动、受控 schema 命令和查询服务入口都检查迁移门禁。启动路径使用 `SchemaManager.checkOrMigrate()`；查询前仅允许执行幂等的状态确认，不允许绕过启动门禁的隐式写入。
+
+目标 schema 版本同时包含：`il_account`、`il_transaction.account_id NOT NULL`、外键 `il_transaction.account_id -> il_account.id`、账户名称精确唯一约束，以及迁移账户审计/版本状态。正式环境先备份再迁移；迁移失败恢复备份或事务回滚，禁止 `drop_all`、静默创建第二数据库或删除未批准的业务表。开发环境也必须验证迁移结果，不能用“表重建”替代历史交易账户回填。
+
+### 账户隔离的统一业务口径
+
+- 交易查询 DTO 必须带 `accountId` 可选筛选；未启用时查询所有账户，结果行始终返回 `accountId` 与当前 `accountName`。
+- 持仓唯一键从 `(productType, productCode)` 修订为 `(accountId, productType, productCode)`；同产品跨账户必须形成独立持仓、收益率和年化收益率，估值读取仍只按 `(productType, productCode)` 取最新估值。
+- 产品历史交易范围必须携带 `scopeAccountId`、`scopeProductType`、`scopeProductCode` 三字段，三者成组出现；从持仓进入历史时只展示同一账户同一产品的记录。
+- 组合统计以账户持仓条目为独立汇总边界；可以在查询结果中跨账户求总持仓/总收益，但不得用跨账户净额替代任何账户条目，也不得在分组或统计计算前合并同产品交易。
+- 账户名称不复制进交易表作为真源。交易/持仓查询通过 `Account` 关联读取最新名称；改名后所有相关结果立即使用新名称，历史交易的账户归属只由 `accountId` 决定。
+
+### 前端三模块与账户交互
+
+`ModuleSwitch` 扩展为三个互斥入口：`accounts`、`holdings`、`history`，对应 `/investmentLedger/accounts`、`/investmentLedger/holdings`、`/investmentLedger/history`。页面仍复用既有 antd `Table`、`Form`、错误提示和 CSS Modules：
+
+- `AccountManagementPage` 连接账户 slice，组合 `AccountTable` 与 `AccountForm`；账户表只展示账户名称和编辑/删除操作，不渲染账户标识。
+- `AccountTable` 复用既有表格列、`Popconfirm` 与 loading/empty 处理；删除 404/409 映射统一 `message.error`，不清空列表或其它模块状态。
+- `AccountForm` 只维护账户名称字段，提交前 trim，错误回填 `accountName`；编辑时不把账户 id 放入表单字段，id 仅作为操作关联值传给 thunk/路径。
+- `TradeFormModal` 增加必选账户 `Select`；所选账户的 `accountId` 进入交易草稿和创建请求，基金搜索回填产品字段时账户选择、账户标识和交易账户关联值不变。
+- `TradeHistoryPanel` 独立展示账户名称列；`HoldingsPanel` 独立展示账户名称列，并将 `{ accountId, productType, productCode }` 传给“查看交易”入口。组件只读持仓数据，不提供编辑持仓或修改历史交易的入口。
+- 所有账户、交易和持仓展示样式继续通过现有 `index.module.scss`/样式模块提供，不使用 `style={{...}}`；账户字段使用已有中文错误提示机制，API/state 内部使用 `accountId` 等稳定字段名。
+
+
+## Architecture
 
 ### 总体架构
 
@@ -74,7 +140,7 @@ flowchart TB
   subgraph FE["前端 React SPA + TypeScript（dist/web，Hash Router）"]
     direction TB
     FE1["展示层<br/>components/InvestmentLedger/*.tsx<br/>antd 表格·表单·分页·提示（typed props）"]
-    FE2["容器层<br/>pages/InvestmentLedger/*（父路由布局 + 两个子路由页面）<br/>connect(store) · Outlet 编排"]
+    FE2["容器层<br/>pages/InvestmentLedger/*（父路由布局 + 三个子路由页面）<br/>connect(store) · Outlet 编排"]
     FE3["状态层（Redux Toolkit）<br/>store/ledger/*<br/>createSlice · createAsyncThunk · createSelector"]
     FE4["领域层（纯 TS，无 React）<br/>domain/ledger/*.ts<br/>LedgerQueryState · Validator · constants"]
     FE5["通信层<br/>api/request.ts · api/ledger.ts（typed axios）"]
@@ -85,7 +151,7 @@ flowchart TB
 
   subgraph BE["后端 FastAPI（src/web/backEnd）"]
     direction TB
-    BE1["公开路由层<br/>investmentLedger/router.py<br/>交易写入 + 账本只读查询"]
+    BE1["公开路由层<br/>investmentLedger/router.py<br/>账户 CRUD + 交易写入 + 账本只读查询"]
     BE2["账本服务层<br/>investmentLedger/service.py<br/>TransactionService · HoldingService · OverviewService"]
     BE3["计算层（纯对象，无 I/O）<br/>investmentLedger/calculators.py<br/>ProductPerformanceCalculator · PortfolioCalculator · Paginator"]
     BE4["账本数据访问层<br/>investmentLedger/crud.py<br/>交易读写 + 估值只读"]
@@ -122,12 +188,12 @@ flowchart TB
 | 前端 状态层 | 保存「已应用查询状态」「列表数据」「表单草稿与字段错误」；`createAsyncThunk` 中调用 api | RTK、领域层、通信层 | React、antd（`message` 提示由容器/组件负责） |
 | 前端 领域层 | 查询状态转换规则、输入校验规则、枚举常量（纯 TS 类/纯函数，可单测与属性测试） | 无（仅 TS 类型） | 一切框架（含 RTK） |
 | 前端 通信层 | axios 实例、统一响应解包与错误归一 | 无 | store |
-| 后端 路由层 | 公开 HTTP 语义、参数绑定与依赖注入、响应模型；只暴露交易写入和账本/统计读取 | 服务层、schemas | crud、models、采集器实现、估值写入服务 |
-| 后端 账本服务层 | 交易用例、只读持仓/组合编排、事务边界 | 计算层、数据访问层、schemas | HTTP 对象、采集脚本 |
+| 后端 路由层 | 公开 HTTP 语义、参数绑定与依赖注入、响应模型；只暴露账户 CRUD、交易写入和账本/统计读取 | 服务层、schemas | crud、models、采集器实现、估值写入服务 |
+| 后端 账本服务层 | 账户 CRUD、旧交易迁移、交易用例、只读持仓/组合编排、事务边界 | 计算层、数据访问层、schemas | HTTP 对象、采集脚本 |
 | 后端 采集编排层 | 发现白名单插件、能力匹配、并发/顺序执行、超时、重试、失败隔离与日志 | collector protocol、registry、valuation ingest | 前端、采集脚本数据库连接 |
 | 后端 估值摄取层 | 标准结果校验、来源优先级、同日幂等冲突处理、单事务落库 | ValuationRepository、标准值对象 | 公开路由、外部 HTTP、前端 |
 | 后端 计算层 | 统计公式与分页切片，纯 `Decimal` 运算 | 值对象 | Session、schemas |
-| 后端 数据访问层 | 交易读写与估值读取；估值写入仅由 `ValuationRepository` 内部调用 | 模型层 | 路由、采集脚本 |
+| 后端 数据访问层 | 账户与交易读写、估值读取；估值写入仅由 `ValuationRepository` 内部调用 | 模型层 | 路由、采集脚本 |
 | 后端 模型层 | 表结构、约束、`DecimalText` 类型 | 无 | 其它层 |
 | 后端 Schema 管理层 | 读取 schema 版本、检查 `il_transaction` 实际列、执行受控迁移与启动门禁 | `database.py`、SQLAlchemy Inspector、迁移脚本 | 路由业务、自动删除生产数据 |
 | 后端 可观测性与异常边界 | 统一 logging、request/trace id、异常分类、脱敏和统一 JSON 响应 | FastAPI middleware/exception handlers、Python logging | `print`、返回 SQL/堆栈/敏感请求内容 |
@@ -142,7 +208,7 @@ flowchart TB
 | [app/models.py](../../../src/web/backEnd/app/models.py) | 当前仅负责导入模型并执行 `create_all` 以创建缺失的新表；目标实现必须在其前后调用独立 `SchemaManager` 做版本读取、实际列自检和迁移门禁，`create_all` 不得承担已有表升级，也不得新增第二个静默初始化路径 |
 | [app/database.py](../../../src/web/backEnd/app/database.py) | `Engine` / `SessionLocal` 创建后提供给 `SchemaManager` 和 `get_db`；暴露数据库路径的服务端诊断标签，不向响应/生产日志泄露连接字符串 |
 | [main.py](../../../src/web/backEnd/main.py) | lifespan 顺序为 `configureLogging` → `SchemaManager.checkOrMigrate()` → `initAppModels()` → 注册 middleware/`registerLedgerExceptionHandlers(app)`；schema 门禁失败时不启动 HTTP 服务 |
-| [frontEnd/src/router.js](../../../src/web/frontEnd/src/router.js) | 当前仅有单一 `/investmentLedger` 入口；目标改为父路由 + `holdings` / `history` 子路由和 index 重定向，补充导航意图（需求 2.1、2.13、2.14） |
+| [frontEnd/src/router.js](../../../src/web/frontEnd/src/router.js) | 当前仅有单一 `/investmentLedger` 入口；目标改为父路由 + `accounts` / `holdings` / `history` 三个子路由和 index 重定向，补充导航意图（需求 2.1、2.13、2.14、8.1） |
 | [frontEnd/src/main.js](../../../src/web/frontEnd/src/main.js) | 当前已复用 TypeScript store 入口；保持现有 import 解析，不再把该文件描述为必然改动 |
 | [frontEnd/src/store/index.ts](../../../src/web/frontEnd/src/store/index.ts) | 当前已使用 `configureStore({ reducer: { news, stock, crawlers, ledger } })` 并导出 `RootState` / `AppDispatch`；保持现有装配 |
 | [frontEnd/src/store/reducers/index.js](../../../src/web/frontEnd/src/store/reducers/index.js) | 当前根 store 已不再依赖该合并层；既有 `news.js` / `stock.js` / `crawlers.js` 保持零改动 |
@@ -160,18 +226,18 @@ flowchart TB
 
 | 侧 | 模块 | 主要类型 / 接口 | 对外契约 |
 | --- | --- | --- | --- |
-| 前端 | `pages/InvestmentLedger` | `LedgerLayout`（`index.tsx`，父路由布局）、`IndexRedirect`（默认重定向）、`HoldingsPage`、`HistoryPage`（两个子路由容器） | 两个子路由承载两个独立模块，`LedgerLayout` 渲染 `ModuleSwitch` + `<Outlet />` |
-| 前端 | `components/InvestmentLedger` | `TradeHistoryPanel`、`HoldingsPanel`、`TradeFilterBar`、`TradeFormModal`、`PortfolioSummary`、`MetricValue`（均为 `.tsx`，props 接口显式声明） | props 入、回调出；两张 Table 使用自身受控 pagination，无独立分页组件，无自有请求 |
+| 前端 | `pages/InvestmentLedger` | `LedgerLayout`（`index.tsx`，父路由布局）、`IndexRedirect`（默认重定向）、`AccountManagementPage`、`HoldingsPage`、`HistoryPage`（三个子路由容器） | 三个子路由承载账户管理、持仓和历史交易模块，`LedgerLayout` 渲染 `ModuleSwitch` + `<Outlet />` |
+| 前端 | `components/InvestmentLedger` | `AccountTable`、`AccountForm`、`TradeHistoryPanel`、`HoldingsPanel`、`TradeFilterBar`、`TradeFormModal`、`PortfolioSummary`、`MetricValue`（均为 `.tsx`，props 接口显式声明） | props 入、回调出；账户/交易/持仓表格使用自身受控 pagination，无独立分页组件，无自有请求 |
 | 前端 | `store/ledger` | `ledgerSlice`（`createSlice`）、`createAsyncThunk` 集合、`createSelector` 选择器 | `state.ledger` 形状见「前端设计 4」 |
 | 前端 | `domain/ledger` | `LedgerQueryState`、`TradeDraftValidator`、`QueryInputValidator`、`constants`（英文枚举码）、`labels`（码→中文展示映射） | 纯函数/纯类，可独立测试 |
-| 前端 | `api` | `request.ts`（axios 实例 + 泛型解包）、`ledger.ts`（6 个函数）、`types.ts`（DTO 接口） | 唯一 HTTP 出口 |
-| 后端 | `investmentLedger/router.py` | `APIRouter(prefix="/investmentLedger")` | 6 个公开接口，全部为交易写入或账本只读查询；无估值写接口，见「后端设计 4」 |
-| 后端 | `investmentLedger/service.py` | `TransactionService`、`HoldingService`、`OverviewService` | 账本用例方法，估值仅读取 |
+| 前端 | `api` | `request.ts`（axios 实例 + 泛型解包）、`ledger.ts`（交易/持仓/统计/基金辅助函数）、`account.ts`（账户 CRUD）、`types.ts`（DTO 接口） | 唯一 HTTP 出口；不包含估值公开写入 |
+| 后端 | `investmentLedger/router.py` | `APIRouter(prefix="/investmentLedger")` | 12 个公开接口：账户 4 个、账本/交易/统计 6 个、基金辅助 2 个；全部为账户/交易写入或只读查询，无估值写接口，见「后端设计 4」 |
+| 后端 | `investmentLedger/service.py` | `AccountService`、`LegacyAccountMigrationService`、`TransactionService`、`HoldingService`、`OverviewService` | 账户 CRUD、旧交易迁移、账本用例方法；估值仅读取 |
 | 后端 | `investmentLedger/valuation_ingest/` | `ValuationCollector`、`CollectorManifest`、`CollectorRegistry`、`CollectorOrchestrator`、`ValuationNormalizer`、`ValuationRepository` | 内部命令/后台任务入口；不注册到前端 API |
-| 后端 | `investmentLedger/calculators.py` | `ProductPerformanceCalculator`、`PortfolioCalculator`、`Paginator` | 纯 `Decimal` 计算，无 I/O |
-| 后端 | `investmentLedger/crud.py` | `queryTransactions`、`countTransactions`、`addTransaction`、`removeTransaction`、`getLatestValuations` | 账本数据动作；估值读取，不向公开服务暴露写动作 |
-| 后端 | `investmentLedger/models.py` · `types.py` | `Transaction`、`Valuation`、`DecimalText` | 表结构见「Data Models」 |
-| 后端 | `investmentLedger/schemas.py` | `ApiResponse`、`Metric`、`TransactionCreate/Out/Query`、`HoldingQuery/Out`、`PageOut`、`PortfolioStatisticsOut`、`InitialModuleOut` | 请求/响应契约 |
+| 后端 | `investmentLedger/calculators.py` | `ProductPerformanceCalculator`、`PortfolioCalculator`、`Paginator` | 以账户产品键为边界的纯 `Decimal` 计算，无 I/O |
+| 后端 | `investmentLedger/crud.py` | `listAccounts`、`addAccount`、`updateAccountName`、`removeAccount`、`queryTransactions`、`countTransactions`、`addTransaction`、`removeTransaction`、`getLatestValuations` | 账户/交易数据动作；估值读取，不向公开服务暴露估值写动作 |
+| 后端 | `investmentLedger/models.py` · `types.py` | `Account`、`Transaction`、`Valuation`、`DecimalText` | 表结构见「Data Models」 |
+| 后端 | `investmentLedger/schemas.py` | `ApiResponse`、`AccountCreate/Update/Out`、`Metric`、`TransactionCreate/Out/Query`、`HoldingQuery/Out`、`PageOut`、`PortfolioStatisticsOut`、`InitialModuleOut` | 请求/响应契约 |
 | 后端 | `investmentLedger/exceptions.py` | `LedgerError` 体系 + `registerLedgerExceptionHandlers(app)` | 统一错误响应、OperationalError/schema 异常分类、敏感信息不外泄 |
 | 后端 | `investmentLedger/schema.py` · `migrations/` | `SchemaManager`、`SchemaStatus`、版本迁移脚本 | 启动自检、受控 check/migrate、备份、事务/回滚；不依赖 `create_all` 升级 |
 | 后端 | `investmentLedger/logging.py` | `configureLogging`、`RequestContextMiddleware`、`SensitiveDataFilter` | `log/various_data.log` + 可选控制台；开发 DEBUG/生产 INFO-WARNING；统一字段 |
@@ -336,7 +402,7 @@ declare module '*.scss';
 
 ### 2. 目录结构（目标结构与现状差距）
 
-当前仓库已经有账本页面、组件、store、API 和领域目录；下列结构是完成需求 2.1、2.13、2.14 及需求 3.10-3.18 后的目标拆分。实现时应优先移动/复用现有组件，而不是复制一套并行实现。
+当前仓库已经有账本页面、组件、store、API 和领域目录；下列结构是完成账户管理、需求 2.1/2.12/2.13/2.14 及需求 3.10-3.22 后的目标拆分。实现时应优先移动/复用现有组件，而不是复制一套并行实现。
 
 ```
 tsconfig.json                            # 新增：TS 增量接入配置（仓库根）
@@ -345,9 +411,10 @@ src/web/frontEnd/src/
 │   └── global.d.ts                     # 新增：*.module.scss 等模块声明
 ├── api/
 │   ├── index.js                        # 既有，不改动（legacy JS）
-│   ├── types.ts                        # 新增：后端 DTO 接口（camelCase，与 Pydantic 输出对齐）
-│   ├── request.ts                      # 新增：axios 实例 + 泛型解包拦截器 + LedgerApiError
-│   └── ledger.ts                       # 新增：账本 API 客户端（唯一 HTTP 出口）
+│   ├── types.ts                        # DTO 接口（camelCase，与 Pydantic 输出对齐）
+│   ├── request.ts                      # axios 实例 + 泛型解包拦截器 + LedgerApiError
+│   ├── ledger.ts                       # 账本 API 客户端（交易/持仓/统计/基金辅助）
+│   └── account.ts                      # 账户列表、创建、编辑、删除 API 客户端
 ├── domain/ledger/                      # 新增：纯 TS 领域层（无 React / antd / axios / RTK）
 │   ├── constants.ts                    # 英文枚举码（WEALTH/FUND/STOCK、BUY/SELL）、页大小边界（as const + 联合类型）
 │   ├── labels.ts                       # 展示标签映射：码 → 中文文案 + antd 选项生成器（仅展示用）
@@ -364,42 +431,46 @@ src/web/frontEnd/src/
 │   │   └── crawlers.js                 # 既有，零改动
 │   │   # reducers/index.js 删除：combineReducers 由 configureStore 的 reducer 映射替代
 │   └── ledger/                         # 新增：RTK 切片
-│       ├── types.ts                    # LedgerState / LedgerQuerySnapshot / 表单状态类型
-│       ├── thunks.ts                   # createAsyncThunk 定义
-│       ├── ledgerSlice.ts              # createSlice（reducers + extraReducers）
-│       └── selectors.ts                # createSelector 派生选择器
-├── pages/InvestmentLedger/              # 新增：容器（父路由布局 + 两个子路由页面）
-│   ├── index.tsx                       # LedgerLayout：父路由 element，渲染 ModuleSwitch + <Outlet />
+│   ├── types.ts                        # LedgerState / AccountState / LedgerQuerySnapshot / 表单状态类型
+│   ├── thunks.ts                        # 交易、持仓、账户 CRUD 的 createAsyncThunk 定义
+│   ├── ledgerSlice.ts                   # createSlice（reducers + extraReducers）
+│   └── selectors.ts                     # createSelector 派生选择器
+├── pages/InvestmentLedger/              # 新增：容器（父路由布局 + 三个子路由页面）
+│   ├── index.tsx                       # LedgerLayout：渲染三入口 ModuleSwitch + <Outlet />
 │   ├── index.module.scss
-│   ├── IndexRedirect.tsx               # 父路由 index 子路由：根据是否存在历史交易决定默认重定向目标（需求 2.2、2.3）
-│   ├── HoldingsPage/index.tsx          # /investmentLedger/holdings 子路由 element：渲染 HoldingsPanel
-│   └── HistoryPage/index.tsx           # /investmentLedger/history 子路由 element：渲染 TradeFilterBar + 带受控分页的 TradeHistoryPanel
+│   ├── IndexRedirect.tsx               # 父路由 index：按是否存在历史交易重定向至 holdings/history（账户管理通过独立子路由直接访问）
+│   ├── AccountManagementPage/index.tsx # /investmentLedger/accounts：账户管理
+│   ├── HoldingsPage/index.tsx          # /investmentLedger/holdings：只读持仓
+│   └── HistoryPage/index.tsx           # /investmentLedger/history：历史交易与新建/删除
 ├── components/InvestmentLedger/         # 新增：展示组件（每个组件显式声明 Props 接口）
 │   ├── ModuleSwitch/{index.tsx,index.module.scss}
+│   ├── AccountTable/{index.tsx,index.module.scss}
+│   ├── AccountForm/{index.tsx,index.module.scss}
 │   ├── TradeHistoryPanel/{index.tsx,index.module.scss}
 │   ├── HoldingsPanel/{index.tsx,index.module.scss}
 │   ├── TradeFilterBar/{index.tsx,index.module.scss}
 │   ├── TradeFormModal/index.tsx
 │   ├── PortfolioSummary/{index.tsx,index.module.scss}
 │   └── MetricValue/{index.tsx,index.module.scss}
-└── router.js                            # 既有，追加 /investmentLedger 父路由与 holdings/history 两个子路由（import 无扩展名）
+└── router.js                            # 既有：追加 accounts/holdings/history 三个子路由
 ```
 
 #### 2.1 页面整体布局与导航映射
 
-本节是需求 2.1「THE 投资交易账本 SHALL 将持仓模块和历史交易记录模块提供为两个独立的用户界面模块」在视觉与导航层面的设计落地方案；不新增验收标准，仅描述现有目录结构中各组件如何组合成最终页面。与之相关的还有需求 2.2/2.3（默认打开哪个模块）、2.13（直接切换保留目标模块状态）、2.16-2.19（筛选/搜索/排序）与 2.24（分页），这些行为已在「前端设计 4」「前端设计 7」中定义，本节只补充它们在页面上的**布局位置**与**导航方式**，不改变其行为契约。
+本节是需求 2.1/8.1「THE 投资交易账本 SHALL 将账户管理、持仓和历史交易提供为三个互斥的用户界面模块」在视觉与导航层面的设计落地方案；不新增验收标准，仅描述现有目录结构中各组件如何组合成最终页面。与之相关的还有需求 2.2/2.3、2.12/2.13、8.1-8.4、8.30（默认模块、状态保留、账户复用与无行内样式），这些行为已在「前端设计 4」「前端设计 7」和本节账户增量设计中定义。
 
-**导航方式：两个子路由，而非内部状态切换**。持仓模块与历史交易记录模块分别对应 `#/investmentLedger/holdings` 与 `#/investmentLedger/history` 两个子路由（命名沿用 `router.js` 现有的 camelCase 路径风格，如 `/chartWithNews`、`/crawlersAdmin`）；当前显示哪个模块由 **URL 决定**，不再由 redux 中的 `activeModule` 字段决定。`router.js` 使用 `createHashRouter` 的嵌套路由能力：父路由 `/investmentLedger` 的 `element` 为 `pages/InvestmentLedger/index.tsx`（`LedgerLayout`，布局容器），其内部渲染左侧导航 + `<Outlet />`；两个子路由的 `element` 分别是 `HoldingsPage`（渲染带自身受控分页的 `HoldingsPanel`）与 `HistoryPage`（渲染 `TradeFilterBar` + 带自身受控分页的 `TradeHistoryPanel`）：
+**导航方式：三个子路由，而非内部状态切换**。账户管理、持仓和历史交易分别对应 `#/investmentLedger/accounts`、`#/investmentLedger/holdings` 与 `#/investmentLedger/history`；当前显示模块由 URL 决定，Redux 不再保存 `activeModule`。三个入口互斥显示，模块内直接切换使用 `ledgerNavigation: 'module-switch'`，目标模块原有筛选、搜索、排序、页大小、有效页码和结果均保留。由持仓条目进入历史时使用 `ledgerNavigation: 'holding-scope'`，先把历史 query 重置为默认状态，再附加 `scopeAccountId`、`scopeProductType`、`scopeProductCode` 三元范围；无导航上下文直接访问历史仍展示全部交易的默认浏览状态；`router.js` 使用 `createHashRouter` 的嵌套路由能力：父路由 `/investmentLedger` 的 `element` 为 `pages/InvestmentLedger/index.tsx`（`LedgerLayout`，布局容器），其内部渲染左侧导航 + `<Outlet />`；三个子路由的 `element` 分别是 `AccountManagementPage`、`HoldingsPage` 与 `HistoryPage`。
 
 ```mermaid
 flowchart LR
   subgraph Layout["pages/InvestmentLedger/index.tsx = LedgerLayout（父路由 element，Flex 两栏布局，class 来自 index.module.scss）"]
     direction LR
-    Nav["左侧导航（吸顶）<br/>components/InvestmentLedger/ModuleSwitch<br/>antd Menu（mode='inline'）+ useNavigate/NavLink<br/>· 持仓汇总 → /investmentLedger/holdings<br/>· 历史交易 → /investmentLedger/history<br/>选中项由当前 URL（useLocation）派生"]
+    Nav["左侧导航（吸顶）<br/>components/InvestmentLedger/ModuleSwitch<br/>antd Menu（mode='inline'）+ useNavigate/NavLink<br/>· 账户管理 → /investmentLedger/accounts<br/>· 持仓汇总 → /investmentLedger/holdings<br/>· 历史交易 → /investmentLedger/history<br/>选中项由当前 URL（useLocation）派生"]
     Outlet["右侧内容区域 .content<br/>&lt;Outlet /&gt;（渲染当前匹配的子路由 element）"]
   end
   Nav -- "Link/NavLink 或 onClick → navigate(path)" --> Outlet
-  Outlet --> HoldingsRoute["子路由 path='holdings'<br/>HoldingsPage → HoldingsPanel<br/>持仓汇总（只读 antd Table，自身受控分页）"]
+  Outlet --> AccountRoute["子路由 path='accounts'<br/>AccountManagementPage → AccountTable + AccountForm<br/>账户管理（账户名称、编辑、删除）"]
+  Outlet --> HoldingsRoute["子路由 path='holdings'<br/>HoldingsPage → HoldingsPanel<br/>按账户隔离的持仓汇总（只读 Table，自身受控分页）"]
   Outlet --> HistoryRoute["子路由 path='history'<br/>HistoryPage → TradeFilterBar（搜索 + 筛选）<br/>↓<br/>TradeHistoryPanel（antd Table，交易日期列可排序，自身受控分页）"]
   IndexRoute["子路由 index（无 path）<br/>IndexRedirect：按是否存在历史交易 Navigate 到 holdings 或 history（需求 2.2、2.3）"] -.->|"仅在访问 /investmentLedger 且未指定子路径时命中"| Outlet
 ```
@@ -414,7 +485,8 @@ flowchart LR
 │ │ .sider    │ .content：<Outlet />                        ││
 │ │ 吸顶导航   │                                              ││
 │ │           │ URL = /investmentLedger/holdings：            ││
-│ │ ▸ 持仓汇总 │   HoldingsPage → HoldingsPanel（只读汇总表） ││
+│ │ ▸ 账户管理 │   AccountManagementPage → AccountTable（账户名称、编辑、删除）││
+│ │   持仓汇总 │                                              ││
 │ │   历史交易 │                                              ││
 │ │           │ URL = /investmentLedger/history：              ││
 │ │           │   HistoryPage →                                ││
@@ -435,12 +507,13 @@ flowchart LR
 
 | 导航入口 | 子路由路径 | 对应模块码（`domain/ledger/constants.ts` 的 `LedgerModule`） | 子路由渲染的组件 | 对应需求 |
 | --- | --- | --- | --- | --- |
-| 持仓汇总 | `/investmentLedger/holdings` | `holdings` | `HoldingsPage` → `HoldingsPanel`（持仓模块，只读） | 2.1、2.4-2.8 |
-| 历史交易 | `/investmentLedger/history` | `history` | `HistoryPage` → `TradeFilterBar` + 带受控分页的 `TradeHistoryPanel`（历史交易记录模块） | 2.1、2.11、2.12、2.16-2.20、2.26-2.33 |
+| 账户管理 | `/investmentLedger/accounts` | `accounts` | `AccountManagementPage` → `AccountTable` + `AccountForm`（账户管理） | 8.1-8.17、8.30 |
+| 持仓汇总 | `/investmentLedger/holdings` | `holdings` | `HoldingsPage` → `HoldingsPanel`（按账户隔离、只读） | 2.1、2.4-2.8、8.23-8.29 |
+| 历史交易 | `/investmentLedger/history` | `history` | `HistoryPage` → `TradeFilterBar` + 带受控分页的 `TradeHistoryPanel`（交易账户关联） | 2.1、2.11、2.12、2.16-2.20、2.26-2.33、8.18-8.27 |
 
-**`ModuleSwitch` 的职责调整为「路由高亮 + 路由导航」**：`ModuleSwitch` 仍由展示层的 antd `Menu`（`mode="inline"`）渲染两个 `Menu.Item`（对应 `holdings` / `history`），但职责从「派发 redux action 切换内部状态」调整为：
+**`ModuleSwitch` 的职责调整为「路由高亮 + 路由导航」**：`ModuleSwitch` 使用 antd `Menu`（`mode="inline"`）渲染三个 `Menu.Item`（`accounts` / `holdings` / `history`），点击后通过 `useNavigate` 导航，不派发切换模块 action。
 
-1. **高亮**：菜单的 `selectedKeys` 由当前路由派生，而不是由 redux 的模块字段派生。容器用 `react-router-dom` 的 `useLocation()`（或 `useMatch`）取当前路径，映射出应高亮的 `key`（`holdings` 或 `history`），作为 `ModuleSwitchProps.activeModule` 传入——**该 prop 的取值来源变了（路由而非 redux），但字段本身语义不变**，`ModuleSwitch` 组件内部实现不需要感知这一变化。
+1. **高亮**：菜单的 `selectedKeys` 由当前路由派生，映射出 `accounts`、`holdings` 或 `history`，作为 `ModuleSwitchProps.activeModule` 传入；它不来自 Redux。
 2. **导航**：`Menu.Item` 点击后不再 `dispatch(switchModule(...))`，而是导航到对应子路由。实现可二选一（本设计采用第一种，理由见下）：
    - **antd `Menu` 的 `items` + `onClick` 结合 `useNavigate`**：`onClick={({ key }) => navigate(`/investmentLedger/${key}`, { state: { ledgerNavigation: 'module-switch' } })}`；
    - 或 `Menu.Item` 内嵌 `react-router-dom` 的 `Link`/`NavLink`。
@@ -450,7 +523,7 @@ flowchart LR
    `ModuleSwitchProps` 从「向容器上抛模块码，由容器 dispatch action」调整为「向容器上抛模块码，由容器调用 `navigate`」：
 
    ```ts
-   /** 模块切换器：两个独立子路由之间的唯一切换入口（需求 2.1、2.13） */
+   /** 账户管理、持仓、历史交易三个独立子路由之间的唯一切换入口（需求 2.1、2.12、8.1） */
    export interface ModuleSwitchProps {
      /** 当前应高亮的模块码；由容器根据当前路由（useLocation）派生，不再来自 redux */
      activeModule: LedgerModule;
@@ -464,7 +537,11 @@ flowchart LR
    ```tsx
    const navigate = useNavigate();
    const location = useLocation();
-   const activeModule: LedgerModule = location.pathname.endsWith('/history') ? 'history' : 'holdings';
+   const activeModule: LedgerModule = location.pathname.endsWith('/accounts')
+    ? 'accounts'
+    : location.pathname.endsWith('/history')
+      ? 'history'
+      : 'holdings';
    const handleSwitch = (module: LedgerModule) => navigate(
      `/investmentLedger/${module}`,
      { state: { ledgerNavigation: 'module-switch' } },
@@ -479,13 +556,13 @@ flowchart LR
 - **搜索 + 筛选**：`TradeFilterBar` 将 `DatePicker.RangePicker`、产品名称普通 `Input` 和产品代码普通 `Input` 设为紧凑宽度并置于表格上方。两个 `Input` 使用 `allowClear`，按 Enter 才应用非空搜索值；清空图标在字段已应用时提交对应字段 `null`，移除该搜索条件并刷新。日期范围提交前在 UI 边界从 `[Dayjs, Dayjs]` 转为 `YYYY-MM-DD` 字符串，Redux/API 不存 Dayjs；所有输入提交前经 `QueryInputValidator` 校验（需求 2.18-2.23、2.26）。
 - **排序 + 分页**：`TradeHistoryPanel` 和 `HoldingsPanel` 均使用 antd `Table` 自身的受控 `pagination`，`current`、`pageSize`、`total` 来自 Redux，`pageSizeOptions` 固定为 `['10', '20', '50']`，不存在独立分页组件或任意页大小输入。页面容器在 Table `onChange` 中读取 `extra.action`：`paginate` 只处理翻页/改页大小，`sort` 只处理排序；改页大小和排序均回第 1 页，每次用户动作只 dispatch 一次状态变更并 fetch 一次，避免重复请求（需求 2.27-2.33）。
 
-`HistoryPage`（`history` 子路由的 element）垂直堆叠 `TradeFilterBar` 与 `TradeHistoryPanel`；`HoldingsPage`（`holdings` 子路由的 element）渲染 `HoldingsPanel`。两个子路由页面各自 `connect` 到 `store/ledger` 中对应模块的切片（`state.ledger.history` / `state.ledger.holdings`），表格面板自身不发请求，受控排序与分页事件统一上抛给页面容器，再由容器 dispatch Redux + fetch。
+`HistoryPage`（`history` 子路由的 element）垂直堆叠 `TradeFilterBar` 与 `TradeHistoryPanel`；`HoldingsPage`（`holdings` 子路由的 element）渲染 `HoldingsPanel`。三个子路由页面各自 `connect` 到 `store/ledger` 中对应模块的切片（`state.ledger.history` / `state.ledger.holdings`），表格面板自身不发请求，受控排序与分页事件统一上抛给页面容器，再由容器 dispatch Redux + fetch。
 
-**默认重定向规则（需求 2.2、2.3）与父路由装配**：`router.js` 的父路由不再直接渲染唯一的账本页面，而是承载一个 `index` 子路由（无 `path`，仅在访问 `/investmentLedger` 且未指定 `holdings`/`history` 子路径时命中），其 `element` 为 `pages/InvestmentLedger/IndexRedirect.tsx`——一个轻量的重定向组件：挂载时直接调用 `api/ledger.ts` 的 `fetchInitialModule()`（不经过 redux）判定是否存在已保存的历史交易，再用 `react-router-dom` 的 `<Navigate to={...} replace />` 跳转到 `holdings` 或 `history`：
+**默认重定向规则（需求 2.2、2.3）与父路由装配**：`router.js` 的父路由不再直接渲染唯一的账本页面，而是承载一个 `index` 子路由（无 `path`，仅在访问 `/investmentLedger` 且未指定 `accounts`/`holdings`/`history` 子路径时命中），其 `element` 为 `pages/InvestmentLedger/IndexRedirect.tsx`——一个轻量的重定向组件：挂载时直接调用 `api/ledger.ts` 的 `fetchInitialModule()`（不经过 redux）判定是否存在已保存的历史交易，再用 `react-router-dom` 的 `<Navigate to={...} replace />` 跳转到 `holdings` 或 `history`：
 
 ```tsx
 // pages/InvestmentLedger/IndexRedirect.tsx（父路由的 index 子路由 element）
-// 需求 2.2：不存在历史交易时默认打开历史交易记录模块；需求 2.3：存在时默认打开持仓模块。
+// 需求 2.2：不存在历史交易时默认打开历史交易记录模块；需求 2.3：存在时默认打开持仓模块；账户管理由独立子路由直接访问。
 // 判定过程中渲染骨架屏，不做任何重定向；判定完成后用 Navigate 一次性跳转到目标子路由。
 const IndexRedirect: React.FC = () => {
   const [target, setTarget] = useState<LedgerModule | null>(null);
@@ -500,19 +577,20 @@ const IndexRedirect: React.FC = () => {
 `router.js` 的嵌套路由结构：
 
 ```js
-// router.js（既有 JS 文件）：父路由 + 两个子路由 + index 子路由承担默认重定向
+// router.js（既有 JS 文件）：父路由 + 三个子路由 + index 子路由承担默认重定向
 {
   path: '/investmentLedger',
   element: <InvestmentLedger />,        // LedgerLayout：渲染 ModuleSwitch + <Outlet />
   children: [
     { index: true, element: <IndexRedirect /> },   // 需求 2.2、2.3：按是否存在历史交易决定默认子路由
+    { path: 'accounts', element: <AccountManagementPage /> },
     { path: 'holdings', element: <HoldingsPage /> },
     { path: 'history', element: <HistoryPage /> },
   ],
 }
 ```
 
-`IndexRedirect` 只在用户直接访问不带子路径的 `/investmentLedger` 时命中一次；一旦重定向完成，浏览器地址变为 `/investmentLedger/holdings` 或 `/investmentLedger/history`。模块内点击 `ModuleSwitch` 使用带 `ledgerNavigation: 'module-switch'` 的导航状态，因此目标模块沿用原有查询状态；无导航上下文直接输入/收藏 `/investmentLedger/history` 则按需求 2.14 初始化默认浏览状态，不继承此前的临时页面状态；从持仓条目进入历史使用 `ledgerNavigation: 'holding-scope'`，只附加产品历史交易范围（需求 2.9、2.10）。
+`IndexRedirect` 只在用户直接访问不带子路径的 `/investmentLedger` 时命中一次；一旦重定向完成，浏览器地址变为 `/investmentLedger/holdings` 或 `/investmentLedger/history`。账户管理通过 `/investmentLedger/accounts` 直接进入，不参与历史交易存在性判定。模块内点击 `ModuleSwitch` 使用带 `ledgerNavigation: 'module-switch'` 的导航状态，因此目标模块沿用原有查询状态；无导航上下文直接输入/收藏 `/investmentLedger/history` 则按需求 2.14 初始化默认浏览状态，不继承此前的临时页面状态；从持仓条目进入历史使用 `ledgerNavigation: 'holding-scope'`，重置历史查询后附加 `scopeAccountId`、`scopeProductType`、`scopeProductCode` 三元范围（需求 2.9、2.10）。
 
 **吸顶导航的实现方式**：左侧导航的吸顶效果通过 CSS `position: sticky` 实现，写在 `pages/InvestmentLedger/index.module.scss` 中，不使用任何行内 `style`：
 
@@ -553,7 +631,7 @@ const IndexRedirect: React.FC = () => {
 | 类型系统 / API 负载 / 数据库列值 | `domain/ledger/constants.ts`、后端 `constants.py`、`il_transaction` 表 | `WEALTH` / `FUND` / `STOCK`，`BUY` / `SELL` |
 | 用户可见文案 | `domain/ledger/labels.ts`（仅前端，仅展示） | 理财 / 基金 / 股票，买入 / 卖出 |
 
-理由：中文字面量作为类型值会把展示语言写死进契约与存储，一旦文案调整就要改数据；英文码使前后端契约稳定、日志与 SQL 可读、URL query 参数无需转义。**本功能的两张表都是全新表，不存在历史中文值，因此没有数据迁移问题。**
+理由：中文字面量作为类型值会把展示语言写死进契约与存储，一旦文案调整就要改数据；英文码使前后端契约稳定、日志与 SQL 可读、URL query 参数无需转义。账户表与交易账户关联必须通过版本化迁移完成，不能以“全新表”假设跳过历史数据处理。
 
 ```ts
 // domain/ledger/constants.ts
@@ -581,8 +659,8 @@ export type PageSize = typeof PAGE_SIZE_OPTIONS[number];
 /** 默认浏览状态使用的页大小（需求「默认浏览状态」定义中的模块预设页大小） */
 export const DEFAULT_PAGE_SIZE: PageSize = 20;
 
-/** 两个独立界面模块的标识：history=历史交易记录模块，holdings=持仓模块（需求 2.1） */
-export type LedgerModule = 'history' | 'holdings';
+/** 三个独立界面模块的标识：accounts=账户管理、history=历史交易、holdings=持仓（需求 2.1、8.1） */
+export type LedgerModule = 'accounts' | 'history' | 'holdings';
 
 /** 排序方向：asc=从小到大，desc=从大到小（需求 2.19） */
 export type SortOrder = 'asc' | 'desc';
@@ -646,6 +724,8 @@ import { DEFAULT_PAGE_SIZE } from './constants';
  * 所有「未启用」的条件统一以 null 表示，便于 toParams() 直接省略该参数。
  */
 export interface LedgerQuerySnapshot {
+  /** 账户筛选标识；null=未启用账户筛选，账户列表由 AccountManagementPage 管理（需求 8.23、8.25） */
+  readonly accountId: number | null;
   /** 产品类型筛选码；null=未启用该筛选（需求 2.16） */
   readonly productType: ProductType | null;
   /** 交易方向筛选码；null=未启用（需求 2.16） */
@@ -668,14 +748,18 @@ export interface LedgerQuerySnapshot {
   readonly page: number;
   /** 当前页大小，只能为 10、20 或 50（需求 2.27、2.29） */
   readonly pageSize: PageSize;
-  /** 产品历史交易范围的产品类型码；与 scopeProductCode 同时为 null 或同时非 null（需求 2.9、2.10） */
+  /** 产品历史交易范围的账户标识；与 scopeProductType、scopeProductCode 同时为 null 或同时非 null（需求 2.9、8.25） */
+  readonly scopeAccountId: number | null;
+  /** 产品历史交易范围的产品类型码；与 scopeAccountId、scopeProductCode 同时为 null 或同时非 null（需求 2.9、2.10、8.25） */
   readonly scopeProductType: ProductType | null;
   /** 产品历史交易范围的产品代码（需求 2.9、2.10） */
   readonly scopeProductCode: string | null;
 }
 
-/** 产品键：持仓条目的唯一标识，也是「从持仓进入历史交易」时携带的范围参数（需求 2.5、2.9） */
+/** 产品键：持仓条目的唯一标识，也是「从持仓进入历史交易」时携带的账户+产品范围（需求 2.5、2.9、8.23） */
 export interface ProductScope {
+  /** 账户标识；系统生成的正整数，仅作为关联值 */
+  readonly accountId: number;
   /** 产品类型码 */
   readonly productType: ProductType;
   /** 产品代码 */
@@ -700,7 +784,7 @@ export default class LedgerQueryState {
 
   /**
    * 构造模块的默认浏览状态：全部筛选/搜索/排序为 null，pageSize=DEFAULT_PAGE_SIZE，page=1，无产品范围。
-   * @param module 目标模块，决定默认排序字段的取舍（当前两模块默认值一致，保留参数以便后续分化）
+   * @param module 目标模块，决定默认排序字段的取舍（账户管理、持仓和历史交易均使用对应模块默认值）
    * @returns 满足需求「默认浏览状态」定义的新实例
    */
   static default(module: LedgerModule): LedgerQueryState { /* ... */ }
@@ -786,6 +870,8 @@ export interface ValidationResult {
  * 界面标签只由产品类型派生，绝不进入 DTO 或持久化字段名。
  */
 export interface TradeDraft {
+  /** 账户标识：必选系统生成正整数；不得由用户输入名称替代（需求 1.1、8.18） */
+  readonly accountId?: number | null;
   /** 产品类型：期望为 PRODUCT_TYPES 中的英文码，其它取值一律判为无效（需求 1.2） */
   readonly productType?: string | null;
   /** 产品名称：非空且 <= 100 字符 */
@@ -833,7 +919,7 @@ export default class TradeDraftValidator {
 - `TradeFormModal` 的交易日期字段使用 antd `DatePicker`。组件渲染时仅在 UI 边界通过 `dayjs(draft.tradeDate, 'YYYY-MM-DD')` 将 Redux 中的字符串还原为 Dayjs；`DatePicker.onChange` 立即以 `value?.format('YYYY-MM-DD') ?? null` 回传。Dayjs 不进入 `TradeDraft`、Redux action、Redux state 或 API DTO，Redux/API 的 `tradeDate` 始终是 `YYYY-MM-DD` 字符串。
 - `TradeDraftValidator.validate(draft)` → `{ valid, fieldErrors: [{ field, code, message }] }`，逐字段给出中文原因，**不修改 draft**（需求 1.2 保留已提交值）。
 - **枚举字段的合法集为英文码**：`productType ∈ PRODUCT_TYPES`（`WEALTH` / `FUND` / `STOCK`）、`direction ∈ TRADE_DIRECTIONS`（`BUY` / `SELL`）。中文字面量（如 `'理财'`）、大小写不符的码（如 `'buy'`）一律判为 `NOT_IN_ENUM` 无效；错误 `message` 仍为中文（例如「产品类型必须为理财、基金或股票之一」），由 `PRODUCT_TYPE_LABELS` 拼装以避免文案与码脱节。
-- `QueryInputValidator` 提供 `validateSearchValue(value: string): ValidationResult`、`validateDateRange(start: string | null, end: string | null): ValidationResult`、`validatePage(page: number, pageCount: number): ValidationResult`；校验失败时容器只 `message.error(...)`，**不 dispatch 查询变更**，从而保证「保留当前结果」（需求 2.22/2.23/2.32）。`validateSearchValue` 仅校验按 Enter 提交的非空值长度不超过 100；`allowClear` 清空已应用搜索是移除条件的合法动作，不按“空搜索值”报错。`validateDateRange` 判定成对出现、日历有效性与 `start <= end`；`validatePage` 需要 `pageCount` 才能判定上界，`pageCount === 0` 时任何页码都无效（需求 2.33）。页大小不再接受用户任意输入，而是由 `PageSize` 与 `PAGE_SIZE_OPTIONS` 静态限制为 10/20/50。`LedgerQueryState.toParams()` 还必须在两个 scope 字段同时非空时输出 `scopeProductType` / `scopeProductCode`，否则省略二者；普通筛选和搜索不得替代产品范围。
+- `QueryInputValidator` 提供 `validateSearchValue(value: string): ValidationResult`、`validateDateRange(start: string | null, end: string | null): ValidationResult`、`validatePage(page: number, pageCount: number): ValidationResult`；校验失败时容器只 `message.error(...)`，**不 dispatch 查询变更**，从而保证「保留当前结果」（需求 2.22/2.23/2.32）。`validateSearchValue` 仅校验按 Enter 提交的非空值长度不超过 100；`allowClear` 清空已应用搜索是移除条件的合法动作，不按“空搜索值”报错。`validateDateRange` 判定成对出现、日历有效性与 `start <= end`；`validatePage` 需要 `pageCount` 才能判定上界，`pageCount === 0` 时任何页码都无效（需求 2.33）。页大小不再接受用户任意输入，而是由 `PageSize` 与 `PAGE_SIZE_OPTIONS` 静态限制为 10/20/50。`LedgerQueryState.toParams()` 还必须在 `scopeAccountId`、`scopeProductType`、`scopeProductCode` 三个范围字段同时非空时输出三者，否则省略全部范围字段；普通筛选和搜索不得替代产品范围。
 - 领域层不含任何金额公式，公式唯一实现在后端计算层，避免双份实现漂移。
 - 领域层不含任何中文展示文案的判定逻辑；`labels.ts` 只被展示层引用，校验器只在拼装 `message` 时读取它。
 
@@ -944,14 +1030,19 @@ export interface FormSliceState<D> {
 /**
  * state.ledger 的完整形状。
  *
- * **不再包含 `activeModule` / `bootstrapping` 字段**：当前显示哪个模块改由路由（`/investmentLedger/holdings`
- * 或 `/investmentLedger/history`）决定，容器通过 `useLocation()` 派生，不再存入 redux；默认打开哪个模块的
- * 一次性判定（需求 2.2、2.3）改由 `pages/InvestmentLedger/IndexRedirect.tsx` 在挂载时直接调用
- * `fetchInitialModule()` 完成，其「判定中」状态是该组件的本地 state，不进入 `LedgerState`（见「前端设计 5」）。
- * `history` 与 `holdings` 两个切片各自的 `query` 仍在 redux 中，且**不随路由切换而重置或丢失**：路由只决定
- * `<Outlet />` 渲染哪个子路由页面，不触发任何 redux 状态清空，从而满足需求 2.13「直接切换保留目标模块状态」。
+ * **不再包含 `activeModule` / `bootstrapping` 字段**：当前显示哪个模块改由路由（`/investmentLedger/accounts`、`/investmentLedger/holdings` 或 `/investmentLedger/history`）决定，容器通过 `useLocation()` 派生，不再存入 redux；默认打开哪个浏览模块仍由 `IndexRedirect` 判定。
+ * `accounts`、`history` 与 `holdings` 三个切片各自的 query/items 不随模块切换而重置或丢失；从持仓条目进入历史时，只有 `openHistoryWithScope` 显式重置历史 query 并写入账户+产品范围。
  */
+export interface AccountOut {
+  /** 系统生成的唯一正整数；仅作操作关联值，不渲染为用户可编辑字段 */
+  accountId: number;
+  /** trim 后的唯一账户名称 */
+  accountName: string;
+}
+
 export interface LedgerState {
+  /** 账户管理模块状态：列表、编辑表单和字段错误 */
+  accounts: { items: AccountOut[]; loading: boolean; form: FormSliceState<{ accountName: string }>; error: string | null };
   /** 历史交易记录模块的列表状态 */
   history: ListSliceState<TransactionOut>;
   /** 持仓模块的列表状态，额外携带投资组合统计；portfolio 为 null 表示尚未取到（需求 3.7-3.9） */
@@ -965,7 +1056,7 @@ export interface LedgerState {
 
 action type 字符串由 RTK 依据 `name: 'ledger'` 自动生成（如 `ledger/applyQuery`、`ledger/fetchHistory/fulfilled`），**天然带命名空间，不会与既有 `actionTypes.js` 中的 `SET_FILTERS` 等常量冲突**，因此不再需要手写 `LEDGER_` 前缀常量文件。
 
-> **不再存在 `switchModule` action 与 `bootstrapLedger` thunk**：模块切换改为路由导航（`navigate('/investmentLedger/holdings' | '/investmentLedger/history')`），不产生任何 redux action；默认模块判定改为 `IndexRedirect` 组件直接调用 `fetchInitialModule()` 并用 `<Navigate>` 跳转，同样不经过 redux（见「前端设计 5」）。`ledgerSlice` 只保留与「查询状态 / 列表数据 / 表单草稿」相关的 action 与 thunk。
+> **不再存在 `switchModule` action 与 `bootstrapLedger` thunk**：模块切换改为路由导航（`navigate('/investmentLedger/accounts' | '/investmentLedger/holdings' | '/investmentLedger/history')`），不产生任何 redux action；默认模块判定改为 `IndexRedirect` 组件直接调用 `fetchInitialModule()` 并用 `<Navigate>` 跳转，同样不经过 redux（见「前端设计 5」）。`ledgerSlice` 只保留与「查询状态 / 列表数据 / 表单草稿」相关的 action 与 thunk。
 
 ```ts
 // store/ledger/thunks.ts
@@ -1042,7 +1133,7 @@ import type { LedgerModule } from '../../domain/ledger/constants';
 import type { LedgerState } from './types';
 import * as thunks from './thunks';
 
-/** 初始状态：两个模块的 query 各自取默认浏览状态；不含任何「当前激活模块」字段（该信息改由路由承载） */
+/** 初始状态：账户列表与 history/holdings 两个交易浏览切片各自取默认浏览状态；不含任何「当前激活模块」字段（该信息改由三模块路由承载） */
 const initialState: LedgerState = { /* 见 4.2，query 由 LedgerQueryState.default(...).toSnapshot() 生成 */ };
 
 const ledgerSlice = createSlice({
@@ -1051,7 +1142,7 @@ const ledgerSlice = createSlice({
   reducers: {
     // createSlice 基于 immer：可直接“赋值式”修改草案对象，产出仍是不可变新状态
     /**
-     * 从持仓条目进入历史交易：以默认浏览状态重置 `history` 切片的 query，仅附加该条目的产品历史交易范围
+     * 从持仓条目进入历史交易：以默认浏览状态重置 `history` 切片的 query，附加该条目的账户+产品历史交易范围
      * （需求 2.9、2.10）；导航到 `/investmentLedger/history` 由容器另行调用 `navigate(...)` 完成，本 action
      * 只负责重置查询状态，不涉及路由。
      */
@@ -1119,7 +1210,7 @@ export default ledgerSlice.reducer;
 | --- | --- | --- |
 | （路由从 `holdings` 导航到 `history` 或反之，且带 `ledgerNavigation='module-switch'`） | 不 dispatch 重置 action；两个切片的 `query`/`items` 均不变，仅 `<Outlet />` 渲染的子路由页面发生切换 | 2.13 |
 | （无导航上下文直接打开 `history`） | `HistoryPage` 将 history query 初始化为默认浏览状态后再请求全部交易 | 2.14 |
-| `openHistoryWithScope`（同步 case reducer） | 仅重置 `history.query = defaultWithScope(...)`（仅保留产品范围）；容器随后另行调用 `navigate('/investmentLedger/history')` | 2.9、2.10 |
+| `openHistoryWithScope`（同步 case reducer） | 仅重置 `history.query = defaultWithScope(...)`（仅保留账户+产品三元范围）；容器随后另行调用 `navigate('/investmentLedger/history')` | 2.9、2.10 |
 | `applyQuery`（同步 case reducer） | `query = LedgerQueryState.from(query).withFilters(patch)`（page 归 1） | 2.27 |
 | `changePageSize`（同步 case reducer） | `withPageSize(size)`，其中 size ∈ {10,20,50}（page 归 1） | 2.29 |
 | `changePage`（同步 case reducer） | 仅改 page，其它字段不变 | 2.28 |
@@ -1163,7 +1254,7 @@ export const selectHistoryQuery = createSelector(
   (ledger) => LedgerQueryState.from(ledger.history.query),   // 记忆化：仅在快照变化时重建领域对象
 );
 
-/** 分页展示所需的四元组，供 LedgerPagination 直接消费（page/pageSize/pageCount/total） */
+/** 分页展示所需的四元组，供 antd Table 的受控 pagination 直接消费（page/pageSize/pageCount/total） */
 export const selectHistoryPagination = createSelector(
   [selectLedger],
   ({ history }) => ({ page: history.page, pageSize: history.pageSize, pageCount: history.pageCount, total: history.total }),
@@ -1172,29 +1263,31 @@ export const selectHistoryPagination = createSelector(
 /** 是否处于产品历史交易范围：驱动「范围标签 + 清除范围」的显示（需求 2.9、2.10） */
 export const selectHasScope = createSelector(
   [selectHistoryQuery],
-  (query) => query.toSnapshot().scopeProductCode !== null,
+  (query) => query.toSnapshot().scopeAccountId !== null,
 );
 ```
 
 ### 5. 路由
 
-两个独立模块通过两个子路由承载，而非单一路由内部状态切换；完整的嵌套路由结构、`IndexRedirect` 默认重定向组件与 `ModuleSwitch` 的导航实现已在「前端设计 2.1」详细给出，此处汇总要点：
+三个独立模块通过三个子路由承载，而非单一路由内部状态切换；完整的嵌套路由结构、`IndexRedirect` 默认重定向组件与 `ModuleSwitch` 的导航实现已在「前端设计 2.1」详细给出，此处汇总要点：
 
 ```js
 // router.js（既有 JS 文件）追加：引入 TS 组件时不写扩展名，由 webpack resolve.extensions 解析
 import InvestmentLedger from './pages/InvestmentLedger';           // LedgerLayout：渲染 ModuleSwitch + <Outlet />
 import IndexRedirect from './pages/InvestmentLedger/IndexRedirect';
+import AccountManagementPage from './pages/InvestmentLedger/AccountManagementPage';
 import HoldingsPage from './pages/InvestmentLedger/HoldingsPage';
 import HistoryPage from './pages/InvestmentLedger/HistoryPage';
 // ...
-// 父路由 + 两个子路由：模块切换即路由导航（URL 变化），不 dispatch 任何 redux action；
-// 两个切片各自的 query/items 不因路由切换而重置，天然满足「直接切换保留目标模块状态」（需求 2.13）；
+// 父路由 + 三个子路由：模块切换即路由导航（URL 变化），不 dispatch 任何 redux action；
+// accounts、holdings、history 各自的列表/query 状态不因路由切换而重置，天然满足「直接切换保留目标模块状态」（需求 2.13）；
 // 从持仓入口进入历史时，容器先 dispatch openHistoryWithScope 重置 history.query，再 navigate 到 history 子路由（需求 2.9）
 {
   path: '/investmentLedger',
   element: <InvestmentLedger />,
   children: [
     { index: true, element: <IndexRedirect /> },          // 需求 2.2、2.3：按是否存在历史交易决定默认子路由
+    { path: 'accounts', element: <AccountManagementPage /> },
     { path: 'holdings', element: <HoldingsPage /> },
     { path: 'history', element: <HistoryPage /> },
   ],
@@ -1246,10 +1339,14 @@ export interface Metric {
   unavailableReason: string | null;
 }
 
-/** 一笔交易记录的出参（历史交易表格的行数据，需求 2.12、6.5）。 */
+/** 一笔交易记录的出参（历史交易表格的行数据，需求 2.12、6.5、8.25）。 */
 export interface TransactionOut {
   /** 交易主键，仅用于删除定位；界面不渲染、也无按 id 查询接口（需求 2.23） */
   id: number;
+  /** 所属账户的系统标识；仅作关联值，不直接展示给用户 */
+  accountId: number;
+  /** 查询时通过关联读取的最新账户名称 */
+  accountName: string;
   /** 产品类型码 WEALTH/FUND/STOCK，展示时经 PRODUCT_TYPE_LABELS 转中文 */
   productType: ProductType;
   /** 产品名称，<= 100 字符 */
@@ -1268,8 +1365,12 @@ export interface TransactionOut {
   tradeDate: string;
 }
 
-/** 一个持仓条目的汇总出参（持仓表格 7 列的数据源，需求 2.6） */
+/** 一个持仓条目的汇总出参（持仓表格 8 列的数据源，需求 2.6、8.26）。 */
 export interface HoldingOut {
+  /** 持仓条目所属账户标识，仅作范围和操作关联值 */
+  accountId: number;
+  /** 持仓条目所属账户最新名称 */
+  accountName: string;
   /** 产品键之一：产品类型码 */
   productType: ProductType;
   /** 展示名称：取该条目内最新一笔交易的产品名称（见「Data Models · 产品名称的确定性」） */
@@ -1314,14 +1415,22 @@ export interface PortfolioStatisticsOut {
   totalAnnualizedRate: Metric;
 }
 
-/** 初始模块决策出参（需求 2.2、2.3） */
+/** 初始模块决策出参（需求 2.2、2.3）；账户管理不参与空交易默认判定 */
 export interface InitialModuleOut {
-  /** 应默认打开的模块：无任何交易时为 'history'，否则为 'holdings' */
-  module: LedgerModule;
+  /** 应默认打开的浏览模块：无任何交易时为 'history'，否则为 'holdings' */
+  module: 'history' | 'holdings';
+}
+
+/** 账户列表出参；id 仅作为操作关联值，名称是唯一用户可编辑字段。 */
+export interface AccountDto {
+  accountId: number;
+  accountName: string;
 }
 
 /** 交易表单草稿（创建请求负载）：字段允许缺失或 null，代表校验前的中间态。 */
 export interface TradeDraft {
+  /** 必选账户标识；来自账户列表，不允许用户自由输入或修改账户 id */
+  accountId?: number | null;
   /** 产品类型码；未选择时为 null */
   productType?: ProductType | null;
   /** 产品名称 */
@@ -1342,6 +1451,8 @@ export interface TradeDraft {
 
 /** 历史交易查询参数：所有字段可选，未启用的条件整体省略而非传空值 */
 export interface TransactionQueryParams {
+  /** 账户筛选标识；null/缺省=全部账户（需求 8.23、8.25） */
+  accountId?: number;
   /** 产品类型筛选码（需求 2.16） */
   productType?: ProductType;
   /** 交易方向筛选码（需求 2.16） */
@@ -1354,16 +1465,18 @@ export interface TransactionQueryParams {
   productName?: string;
   /** 产品代码包含搜索值，长度 1..100 */
   productCode?: string;
+  /** 产品历史交易范围的账户标识；必须与 scopeProductType、scopeProductCode 三者成组出现（需求 2.9、8.25） */
+  scopeAccountId?: number;
   /** 产品历史交易范围的产品类型；仅由持仓条目的“查看交易”入口设置（需求 2.9、2.10） */
   scopeProductType?: ProductType;
-  /** 产品历史交易范围的产品代码；必须与 scopeProductType 成对出现（需求 2.9、2.10） */
+  /** 产品历史交易范围的产品代码；必须与 scopeAccountId、scopeProductType 三者成组出现（需求 2.9、2.10） */
   scopeProductCode?: string;
   /** 交易日期排序方向（需求 2.15） */
   tradeDateOrder?: SortOrder;
   /** 页码，1 起，默认 1 */
   page?: number;
-  /** 页大小，1..100，默认 20 */
-  pageSize?: number;
+  /** 页大小，只能为 10、20 或 50，默认 20 */
+  pageSize?: 10 | 20 | 50;
 }
 
 /** 持仓查询参数：在交易查询之上追加持仓条目的数值排序（需求 2.19） */
@@ -1416,7 +1529,32 @@ export async function unwrap<T>(promise: Promise<AxiosResponse<ApiEnvelope<T>>>)
 export default http;
 ```
 
-#### 6.3 唯一 HTTP 出口（`api/ledger.ts`）——函数签名即前后端契约
+#### 6.3 账户 API 客户端（`api/account.ts`）
+
+```ts
+import http, { unwrap } from './request';
+import type { AccountDto, ApiEnvelope } from './types';
+
+/** 查询账户列表；返回名称已 trim 的账户，按 accountId 稳定排序。 */
+export const fetchAccounts = (): Promise<AccountDto[]> =>
+  unwrap(http.get<ApiEnvelope<AccountDto[]>>('/accounts'));
+
+/** 创建账户；请求只包含 accountName，不接受 accountId。 */
+export const createAccount = (accountName: string): Promise<AccountDto> =>
+  unwrap(http.post<ApiEnvelope<AccountDto>>('/accounts', { accountName }));
+
+/** 编辑账户名称；accountId 只位于路径，名称仍由后端 trim/唯一性校验。 */
+export const updateAccount = (accountId: number, accountName: string): Promise<AccountDto> =>
+  unwrap(http.put<ApiEnvelope<AccountDto>>(`/accounts/${accountId}`, { accountName }));
+
+/** 删除账户；后端在同一事务内拒绝已关联交易的账户。 */
+export const deleteAccount = (accountId: number): Promise<null> =>
+  unwrap(http.delete<ApiEnvelope<null>>(`/accounts/${accountId}`));
+```
+
+账户 API 错误统一使用 `LedgerApiError`：`ACCOUNT_NAME_DUPLICATE` 与 `ACCOUNT_IN_USE` 映射为 HTTP 409，`ACCOUNT_NOT_FOUND` 映射为 HTTP 404，`accountName` 字段校验错误映射到 AccountForm；失败时不改变已应用账户列表和当前交易/持仓状态。
+
+#### 6.4 唯一 HTTP 出口（`api/ledger.ts`）——函数签名即前后端契约
 
 ```ts
 import http, { unwrap } from './request';
@@ -1517,15 +1655,18 @@ export const searchFunds = (keyword: string): Promise<FundSearchOut[]> =>
 
 | 组件 | 职责 | 关键约束 |
 | --- | --- | --- |
+| `AccountManagementPage` | 账户管理子路由容器，连接 `state.ledger.accounts` | 只渲染 `AccountTable` + `AccountForm`，成功后刷新账户列表，不重置交易/持仓 query |
+| `AccountTable` | antd `Table` 展示账户名称和编辑/删除入口 | 不显示 accountId；删除失败保留原列表，409 已使用提示用户先处理关联交易 |
+| `AccountForm` | 创建/编辑账户名称的受控 `Form` | 只提交 accountName；trim/1..100 校验和 `accountName` 字段错误统一回填 |
 | `LedgerLayout`（容器，即 `pages/InvestmentLedger/index.tsx`，父路由 element） | 渲染左侧 `ModuleSwitch` + 右侧 `<Outlet />`；不连接 store 的业务数据，只用 `useLocation` 派生高亮模块 | 布局职责，不持有 `activeModule` 之类的业务状态 |
 | `IndexRedirect`（容器，父路由 index 子路由 element） | 挂载时调用 `fetchInitialModule()`，据结果 `<Navigate>` 到 `holdings` 或 `history` | 仅在访问不带子路径的 `/investmentLedger` 时命中一次；判定中渲染 `Skeleton`（需求 2.2、2.3） |
-| `HoldingsPage` / `HistoryPage`（容器，两个子路由 element） | 各自连接 store 对应切片、挂载时 dispatch 对应 fetch thunk、承接 `message` 提示 | 二者互不感知对方状态；路由切换不清空对方状态（需求 2.13） |
-| `ModuleSwitch` | antd `Menu`（`mode="inline"`）在持仓 / 历史交易两个子路由间导航 | `activeModule` 由容器据当前路由派生传入；`onSwitch` 使用 `ledgerNavigation: 'module-switch'` 导航，不重置目标切片；从持仓条目进入历史时使用 `ledgerNavigation: 'holding-scope'` 并先 dispatch `openHistoryWithScope`（需求 2.9、2.13、2.14） |
-| `TradeHistoryPanel` | antd `Table` 展示当前页交易，列：产品类型、产品名称、产品代码、交易价格、交易数量、交易方向、交易日期 + 操作列（删除） | `rowKey={record => record.id}`，**id 不作为列渲染**（需求 2.23）；数据键固定为 `transactionPrice` / `transactionQuantity`。为支持同页混合产品类型，列标题使用中性「交易价格」/「交易数量」，每个数值单元格按该行 `productType` 附带对应标签：理财/基金为「净值」/「份额」，股票为「单价」/「数量」；仅交易日期列可排序（需求 2.12、2.15）；无编辑入口；`pagination={false}`，分页交给 `LedgerPagination` |
-| `HoldingsPanel` | antd `Table` 展示持仓条目，列：产品类型、产品名称、产品代码、持仓、总收益、总收益率、年化收益率 + 「查看交易」入口 | 只读：无新增/删除/编辑控件；`expandable` 未启用（需求 2.7 不展示逐笔）；持仓与总收益列可排序（需求 2.19）；任何写操作意图（若从其它入口触发）由 `message.info` 提示前往历史交易模块（需求 1.6、1.7） |
-| `TradeFilterBar` | 产品类型、交易方向、交易日期范围、产品名称搜索、产品代码搜索 | 受控组件；提交前经 `QueryInputValidator`；处于产品历史交易范围时展示范围标签与「清除范围」 |
-| `LedgerPagination` | antd `Pagination` + 自定义页大小输入（1-100） | `pageSizeOptions=['10','20','50']`，`showTotal` 展示当前页与总页数（需求 2.24、2.28）；`pageCount === 0` 时渲染「当前结果没有可浏览的页」（需求 2.31） |
-| `TradeFormModal` | antd `Form` 受控表单 | 产品类型变更即从 `tradeFieldPresentation` 派生字段标签与 `aria-label`：理财/基金显示「净值」「份额」，股票显示「单价」「数量」；受控字段和 `fieldErrors` 键仍固定为 `transactionPrice` / `transactionQuantity`。切换类型不重命名、不清空、不格式化已输入数值；校验失败时保留输入并按字段展示错误（需求 1.1、1.2）。产品类型为基金时在产品名称与产品代码输入框下方渲染 `FundSearchResults`，由 `FundSearchController` 以 500ms 防抖发起请求、选择结果即回填两个字段并清空结果（需求 5.1-5.5、5.8） |
+| `HoldingsPage` / `HistoryPage` / `AccountManagementPage`（三个子路由 element） | 各自连接 store 对应切片、挂载时 dispatch 对应 fetch thunk、承接 `message` 提示 | 三个页面职责互不耦合；路由切换不清空其它页面状态（需求 2.13、8.1） |
+| `ModuleSwitch` | antd `Menu`（`mode="inline"`）在账户管理/持仓/历史交易三个子路由间导航 | `activeModule` 由容器据当前路由派生传入；`onSwitch` 使用 `ledgerNavigation: 'module-switch'` 导航，不重置目标切片；从持仓条目进入历史时使用 `ledgerNavigation: 'holding-scope'` 并携带账户+产品范围（需求 2.9、2.13、8.1、8.25） |
+| `TradeHistoryPanel` | antd `Table` 展示当前页交易，列：账户名称、产品类型、产品名称、产品代码、交易价格、交易数量、交易方向、交易日期、费用、交易金额 + 操作列（删除） | `rowKey={record => record.id}`，**id 不作为列渲染**；账户名称来自 accountId 关联的最新名称；数据键固定为 `accountId` / `transactionPrice` / `transactionQuantity`；无编辑入口；仅交易日期列可排序，分页由 Table 自身受控 |
+| `HoldingsPanel` | antd `Table` 展示按账户隔离的持仓条目，列：账户名称、产品类型、产品名称、产品代码、持仓、总收益、总收益率、年化收益率 + 「查看交易」入口 | 只读：无新增/删除/编辑控件；`expandable` 未启用；查看交易传递 `accountId + productType + productCode`；任何写操作意图由 `message.info` 提示持仓模块仅供查看 |
+| `TradeFilterBar` | 账户、产品类型、交易方向、交易日期范围、产品名称搜索、产品代码搜索 | 受控组件；账户选项来自 `fetchAccounts`；提交前经 `QueryInputValidator`；处于产品历史交易范围时展示账户+产品范围标签与「清除范围」 |
+| `TradeHistoryPanel` / `HoldingsPanel` | antd `Table` 自带受控 pagination 与排序 | `current`、`pageSize`、`total` 来自 Redux，`pageSizeOptions=['10','20','50']`；不提供独立分页组件或自定义页大小输入，`pageCount === 0` 时渲染空结果状态（需求 2.24-2.33） |
+| `TradeFormModal` | antd `Form` 受控表单 | 必选账户 `Select` 先于产品字段；账户选择值为 `accountId`，错误映射到 `accountId`；产品类型标签、基金搜索和费用/交易金额约束沿用原设计；账户选择在基金搜索回填时不改变 |
 | `FundSearchResults` | 基金搜索结果列表（受控展示组件，本次新增） | 仅展示「基金名称 + 基金代码」逐条结果与空态提示；选中结果回调由 `TradeFormModal` 处理；无自身请求、无 Redux 依赖、无 `style` 内联（需求 5.4） |
 | `PortfolioSummary` | `Descriptions` 展示总持仓、总收益、总收益率、总年化收益率 | 每项经 `MetricValue` 渲染 |
 | `MetricValue` | 统一渲染统计指标 | `available === false` → 渲染「不可用」并以 `Tooltip` 展示原因；**绝不以 0 或 `--` 之外的数值替代**（需求 3.9） |
@@ -1548,10 +1689,7 @@ import type {
   TradeDraft, FieldErrorItem,
 } from '../../api/types';
 
-/**
- * 模块切换器：两个独立子路由之间的唯一切换入口（需求 2.1、2.13）。
- * 与「前端设计 2.1」声明的契约一致：此处不重复定义，仅在组件文件中 import 复用。
- */
+/** 模块切换器：账户管理、持仓、历史交易三个独立子路由之间的唯一切换入口（需求 2.1、8.1）。 */
 export interface ModuleSwitchProps {
   /** 当前应高亮的模块码；由容器根据当前路由（useLocation）派生，不再来自 redux */
   activeModule: LedgerModule;
@@ -1559,9 +1697,27 @@ export interface ModuleSwitchProps {
   onSwitch: (module: LedgerModule) => void;
 }
 
-/** 历史交易表格面板：7 个数据列 + 删除操作列（需求 2.11、2.12） */
+/** 账户管理表格：只展示账户名称，id 仅在编辑/删除回调中作为关联值。 */
+export interface AccountTableProps {
+  items: AccountDto[];
+  loading: boolean;
+  onEdit: (account: AccountDto) => void;
+  onDelete: (accountId: number) => void;
+}
+
+/** 账户名称表单：创建/编辑共用，字段错误统一映射到 accountName。 */
+export interface AccountFormProps {
+  visible: boolean;
+  initialAccount?: AccountDto | null;
+  fieldErrors: FieldErrorItem[];
+  submitting: boolean;
+  onSubmit: (accountName: string) => void;
+  onCancel: () => void;
+}
+
+/** 历史交易表格面板：账户名称 + 产品/交易字段 + 删除操作列（需求 2.11、2.12、8.25）。 */
 export interface TradeHistoryPanelProps {
-  /** 当前页交易行；产品类型与方向列渲染时经 labels 映射转中文 */
+  /** 当前页交易行；账户名称读取最新关联值，产品类型与方向经 labels 映射转中文 */
   items: TransactionOut[];
   /** 加载中标记，透传给 Table 的 loading */
   loading: boolean;
@@ -1573,9 +1729,9 @@ export interface TradeHistoryPanelProps {
   onDelete: (transactionId: number) => void;
 }
 
-/** 持仓表格面板：只读，7 列汇总 + 「查看交易」入口（需求 2.4-2.8） */
+/** 持仓表格面板：只读，账户名称 + 7 项汇总 + 「查看交易」入口（需求 2.4-2.8、8.23-8.26）。 */
 export interface HoldingsPanelProps {
-  /** 当前页持仓条目 */
+  /** 当前页按 accountId + productType + productCode 隔离的持仓条目 */
   items: HoldingOut[];
   /** 加载中标记 */
   loading: boolean;
@@ -1603,27 +1759,15 @@ export interface TradeFilterBarProps {
   onClearScope: () => void;
 }
 
-/** 分页器：预设页大小 10/20/50 + 自定义页大小 1..100（需求 2.24-2.31） */
-export interface LedgerPaginationProps {
-  /** 当前页码，1 起 */
-  page: number;
-  /** 当前页大小 */
-  pageSize: number;
-  /** 总页数；为 0 时渲染「当前结果没有可浏览的页」（需求 2.31） */
-  pageCount: number;
-  /** 结果集总条数，用于 showTotal 文案 */
-  total: number;
-  /** 翻页回调；越界页码由容器校验后拦截（需求 2.30） */
-  onPageChange: (page: number) => void;
-  /** 页大小变更回调；非 1..100 整数由容器校验后拦截（需求 2.26） */
-  onPageSizeChange: (size: number) => void;
-}
+**分页组件边界**：不新增 `LedgerPagination` 组件或自定义页大小输入。`TradeHistoryPanel` 与 `HoldingsPanel` 直接使用 antd `Table` 的受控 `pagination`，由容器传入 `current`、`pageSize`、`total`、`pageSizeOptions={['10', '20', '50']}` 及统一的 `onChange`；`pageSize` 只能取 10、20、50，`pageCount === 0` 时保留表头并展示空结果状态。
 
-/** 新建交易弹窗：受控表单，校验失败保留输入（需求 1.1、1.2） */
+/** 新建交易弹窗：受控表单，校验失败保留输入（需求 1.1、1.2、8.18）。 */
 export interface TradeFormModalProps {
   /** 弹窗可见性 */
   visible: boolean;
-  /** 当前草稿；枚举字段为英文码，Select 的 options 由 productTypeOptions() 生成 */
+  /** 账户选项；label 为最新账户名称，value 为不可编辑的 accountId */
+  accounts: readonly AccountDto[];
+  /** 当前草稿；必须包含有效 accountId，枚举字段为英文码 */
   draft: TradeDraft;
   /** 字段级错误，映射到 Form.Item 的 validateStatus/help */
   fieldErrors: FieldErrorItem[];
@@ -1654,7 +1798,7 @@ export interface MetricValueProps {
 }
 ```
 
-容器分为三个：父路由布局 `LedgerLayout`（不连接业务数据，只做导航高亮）、`IndexRedirect`（默认重定向判定）与两个子路由页面 `HoldingsPage` / `HistoryPage`（各自连接 store 对应切片）。
+容器分为四个：父路由布局 `LedgerLayout`（不连接业务数据，只做导航高亮）、`IndexRedirect`（默认重定向判定）与三个子路由页面 `AccountManagementPage` / `HoldingsPage` / `HistoryPage`（各自连接 store 对应切片）。
 
 ```tsx
 // pages/InvestmentLedger/index.tsx —— LedgerLayout：父路由 element，仅负责布局与导航高亮，不连接业务数据
@@ -1671,7 +1815,9 @@ import styles from './index.module.scss';
 const LedgerLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const activeModule: LedgerModule = location.pathname.endsWith('/history') ? 'history' : 'holdings';
+  const activeModule: LedgerModule = location.pathname.endsWith('/accounts')
+    ? 'accounts'
+    : location.pathname.endsWith('/history') ? 'history' : 'holdings';
   const handleSwitch = (module: LedgerModule) => navigate(
     `/investmentLedger/${module}`,
     { state: { ledgerNavigation: 'module-switch' } },
@@ -1952,9 +2098,7 @@ class TradeDirection(str, Enum):
 
 
 DEFAULT_PAGE_SIZE = 20  # 默认浏览状态使用的页大小
-MIN_PAGE_SIZE = 1       # 自定义页大小下界（闭区间，需求 2.25、2.26）
-MAX_PAGE_SIZE = 100     # 自定义页大小上界（闭区间，需求 2.25、2.26）
-PAGE_SIZE_OPTIONS = (10, 20, 50)  # 需求 2.24 要求提供的三个预设页大小
+PAGE_SIZE_OPTIONS = (10, 20, 50)  # 唯一合法页大小；由 antd Table 的受控 pagination 提供
 
 MAX_PRODUCT_NAME_LENGTH = 100  # 产品名称长度上限（需求 1.2）
 MAX_PRODUCT_CODE_LENGTH = 32   # 产品代码长度上限（需求 1.2）
@@ -1990,7 +2134,7 @@ class DecimalText(TypeDecorator):
 
 ```python
 # models.py（SQLAlchemy 2.0 Mapped 风格，与 sinaFinanceNews 一致；估值模型使用 UniqueConstraint）
-# from sqlalchemy import Index, String, Date, DateTime, UniqueConstraint
+# from sqlalchemy import Boolean, ForeignKey, Index, String, Date, DateTime, UniqueConstraint
 
 # 复用型主键注解：自增整型主键，避免每张表重复书写 mapped_column 参数
 primaryKey = Annotated[int, mapped_column(primary_key=True, autoincrement=True)]
@@ -2001,6 +2145,21 @@ class Base(DeclarativeBase):
     ...
 
 
+class Account(Base):
+    """投资账户表：名称可编辑，系统生成 id；交易关联通过外键保持完整性（需求 8.3-8.14）。"""
+
+    __tablename__ = "il_account"
+
+    # 系统生成的唯一正整数；不接受客户端写入或编辑
+    id: Mapped[primaryKey]
+    # trim 后 1..100 字符；唯一性按完整字符序列精确比较
+    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    # 系统迁移账户标记；普通账户为 false，迁移账户禁止用户编辑/删除
+    is_system_migration: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+
 class Transaction(Base):
     """交易记录表：一行一笔买卖，**只有 INSERT 与 DELETE 两条路径，没有 UPDATE**（需求 1.4）。"""
 
@@ -2008,6 +2167,8 @@ class Transaction(Base):
 
     # 主键：仅用于删除定位，既不展示也不提供按其查询的接口（需求 2.23）
     id:           Mapped[primaryKey]
+    # 账户外键：每笔交易必须且只能关联一个账户；删除账户时由服务层和外键共同阻止孤儿交易
+    account_id: Mapped[int] = mapped_column(ForeignKey("il_account.id"), nullable=False, index=True)
     # 产品类型英文码，取值 ∈ {WEALTH, FUND, STOCK}；长度 16 足以容纳最长码 WEALTH 并留余量
     product_type: Mapped[str]      = mapped_column(String(16), index=True)
     # 产品名称，1..100 字符；随每笔不可变交易保存，允许同一产品历史更名
@@ -2025,8 +2186,8 @@ class Transaction(Base):
     # 写入时间：同一交易日期内多笔记录的稳定次序依据（需求 2.15）
     created_at:   Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    # 复合索引：支撑按产品键分组与产品历史交易范围查询（需求 2.5、2.10）
-    __table_args__ = (Index("ix_il_transaction_product", "product_type", "product_code"),)
+    # 复合索引：支撑账户+产品分组与产品历史交易范围查询（需求 2.5、2.10、8.23）
+    __table_args__ = (Index("ix_il_transaction_account_product", "account_id", "product_type", "product_code"),)
 
 
 class Valuation(Base):
@@ -2064,20 +2225,19 @@ class Valuation(Base):
 
 **估值表的写入边界**：`il_valuation` 由 `ValuationRepository` 在核心事务中维护，公开 `router.py`、`TransactionService`、前端 API 客户端均没有估值写方法。采集器提交的标准结果必须经过字段和来源校验；同一产品、估值日期、来源的结果使用唯一约束和幂等更新，不能通过用户界面或账本 API 覆盖。产品同日跨来源冲突按 `source_priority` 确定统计采用的记录，所有冲突写入结构化日志。
 
-#### 2.3 开发阶段账本表重建策略
+#### 2.3 Schema 版本、账户迁移与回滚策略
 
-当前项目处于开发阶段，投资账本表不保存需要保留的真实数据。ORM 模型是账本数据库结构的唯一事实来源；发生字段重命名、字段类型或唯一约束等不兼容变更时，不迁移旧账本数据，而是保留 SQLite 数据库文件及其它业务模块表，仅显式重建 `LedgerBase` 所属表。
+当前数据库可能同时存在旧交易列和无账户历史交易。`create_all` 只创建缺失表，不能完成列重命名、外键回填或账户迁移，因此不得再使用开发期 `drop_all` 重建来规避数据问题。目标迁移由 `SchemaManager` 和版本化脚本完成，范围包含 `il_account`、`il_transaction.account_id`、交易 canonical 列、估值来源字段及唯一约束。
 
-**重建边界与入口**：
+迁移执行顺序固定为：**备份 → schema 检查 → 创建/校验账户表 → 创建唯一系统迁移账户 → 回填全部 NULL account_id → 建立 NOT NULL 外键/索引 → 写入版本与 checksum → 自检 → 开放查询**。迁移账户名称固定于服务端配置，账户名称先按普通规则 trim/校验，创建后不可被账户管理 UI 编辑或删除。
 
-- 重建范围仅限 `il_transaction`、`il_valuation` 以及未来注册到 `investmentLedger.models.Base.metadata` 的账本表；不得删除 `various_data.db` / `various_data_dev.db` 文件，也不得操作 `SinaNewsBase`、`OMOBase` 等其它模块表。
-- 执行前必须停止 FastAPI、调度器、估值摄取任务及其它数据库连接，再显式调用 `LedgerBase.metadata.drop_all(bind=engine)` 和 `LedgerBase.metadata.create_all(bind=engine)`；使用模块 metadata 统一处理表依赖、索引和唯一约束，禁止散落手写表清单。
-- `app.models.initAppModels()` 只负责通过 `create_all` 创建缺失表，不负责迁移或删除已有表；正常应用启动路径严禁调用 `drop_all`，避免隐式数据破坏。
-- 重建后必须使用 SQLAlchemy Inspector 检查实际字段、TEXT 类型、非空属性、索引和唯一约束，并完成交易写入/读取及估值同日跨来源幂等写入的冒烟验证。
+- 迁移只允许操作投资账本 metadata 注册的表，不删除其它业务模块表，不创建第二数据库。
+- 备份失败、旧值无法转换、账户名称冲突、外键回填失败、版本跳跃或 checksum 不一致时，事务和备份均保持可恢复，服务 fail closed。
+- 重复执行已完成版本返回 `already_applied`，不创建第二迁移账户、不新增交易、不改变既有非空 account_id；只对仍为 NULL 的旧交易执行回填。
+- `SchemaManager.inspect()` 必须同时检查账户表、交易实际列、外键、唯一约束、版本记录和 `NULL account_id` 数量；任一不满足即阻止公开账户/交易/持仓/统计查询。
+- 迁移成功后使用 Inspector、账户 CRUD、交易查询、跨账户持仓和删除保护完成冒烟验证；不允许以静默重建替代迁移。
 
-**当前期望结构**：`il_transaction` 必须使用 `transaction_price TEXT`、`transaction_quantity TEXT`，不得保留 `unit_price` / `quantity` 等旧交易字段；`il_valuation` 必须包含 `source_id`、`collected_at`、`source_reference`、`raw_payload_hash`，并使用 `(product_type, product_code, valuation_date, source_id)` 唯一约束。所有 Decimal 字段使用无长度的 `DecimalText()`，底层为 `TEXT`。
-
-**生产化门禁**：当数据库开始保存不可丢失数据、进入持久化联调或部署生产环境前，必须停止删除表重建策略，冻结初始 schema，并另行实现 schema 版本表、结构检查、备份及正式版本化迁移。该生产迁移机制当前暂缓，不得被标记为已实现。
+**目标结构**：`il_account` 的 `id` 为自增正整数、`name` 为 trim 后 1..100 字符并精确唯一、`is_system_migration` 标记迁移账户；`il_transaction.account_id` 为非空外键并建立 `(account_id, product_type, product_code)` 索引；`il_valuation` 仍使用 `(product_type, product_code, valuation_date, source_id)` 唯一约束。所有 Decimal 字段继续使用无长度 `DecimalText()`，估值读取不增加账户维度。
 
 ### 3. Pydantic 模型（`schemas.py`）
 
@@ -2108,6 +2268,21 @@ class Metric(BaseModel):
     unavailable_reason: str | None = None  # 中文不可用原因，如「缺少最新估值」
 
 
+class AccountCreate(BaseModel):
+    """创建账户入参；客户端不能提交 account_id。"""
+    account_name: str = Field(min_length=1, max_length=100)
+
+
+class AccountUpdate(AccountCreate):
+    """编辑账户入参；路径中的 account_id 只用于定位。"""
+
+
+class AccountOut(BaseModel):
+    """账户出参；account_id 只作为操作关联值，account_name 是可编辑字段。"""
+    account_id: int
+    account_name: str
+
+
 class TransactionCreate(BaseModel):
     """创建交易的入参（需求 1.1、1.2、6.2、6.3、6.4）。
 
@@ -2115,6 +2290,7 @@ class TransactionCreate(BaseModel):
     稳定暴露为 `transactionPrice` / `transactionQuantity` / `fee`。界面标签不参与 API 契约。
     """
 
+    account_id: int = Field(gt=0)  # 必须关联一个已存在账户；系统生成 id，不允许多账户
     product_type: ProductType   # 英文码枚举，非法值由 Pydantic 拒绝
     product_name: str           # 1..100 字符
     product_code: str           # 1..32 字符
@@ -2134,6 +2310,8 @@ class TransactionOut(BaseModel):
     """交易出参（历史交易表格行数据，需求 2.12、6.5）。"""
 
     id: int                     # 仅用于删除定位，前端不渲染、无查询接口（需求 2.23）
+    account_id: int              # 所属账户标识；展示通过关联账户名称
+    account_name: str            # 查询时读取最新账户名称
     product_type: ProductType   # 英文码，前端经展示映射转中文
     product_name: str           # 产品名称
     product_code: str           # 产品代码
@@ -2147,17 +2325,19 @@ class TransactionOut(BaseModel):
 class TransactionQuery(BaseModel):
     """历史交易查询入参；以 Annotated[TransactionQuery, Depends()] 从 query string 注入。"""
 
+    account_id: int | None = Field(None, gt=0)  # 账户筛选；None=全部账户（需求 8.23）
     product_type: ProductType | None = None    # 产品类型筛选；None=未启用（需求 2.16）
     direction: TradeDirection | None = None    # 交易方向筛选；None=未启用（需求 2.16）
     start_date: date | None = None             # 日期闭区间下界（需求 2.16）
     end_date: date | None = None               # 日期闭区间上界（需求 2.16）
     product_name: str | None = Field(None, min_length=1, max_length=100)  # 名称包含搜索（需求 2.17、2.20）
     product_code: str | None = Field(None, min_length=1, max_length=100)  # 代码包含搜索（需求 2.18、2.20）
-    scope_product_type: ProductType | None = None  # 产品历史交易范围类型；与 scope_product_code 成对（需求 2.9、2.10）
+    scope_account_id: int | None = Field(None, gt=0)  # 必须与 scope_product_type/code 三者成组（需求 8.25）
+    scope_product_type: ProductType | None = None  # 产品历史交易范围类型；三字段成组
     scope_product_code: str | None = Field(None, min_length=1, max_length=32)  # 产品历史交易范围代码（需求 2.9、2.10）
     trade_date_order: Literal["asc", "desc"] | None = None  # 交易日期排序；None=未启用（需求 2.15）
     page: int = Field(1, ge=1)                 # 页码，1 起（需求 2.28）
-    page_size: int = Field(20, ge=1, le=100)   # 页大小，闭区间 1..100（需求 2.25、2.26）
+    page_size: Literal[10, 20, 50] = 20       # Table 受控分页的固定选项（需求 2.27-2.29）
     # 校验器：start_date/end_date 必须成对出现且 start <= end（需求 2.21）
 
 
@@ -2169,8 +2349,10 @@ class HoldingQuery(TransactionQuery):
 
 
 class HoldingOut(BaseModel):
-    """持仓条目汇总出参（需求 2.6 的 7 列数据源）。"""
+    """按账户+产品键隔离的持仓条目汇总出参（需求 2.6、8.23-8.26）。"""
 
+    account_id: int             # 持仓所属账户标识
+    account_name: str           # 关联读取的最新账户名称
     product_type: ProductType   # 产品键之一（英文码）
     product_name: str           # 展示名称：取条目内最新一笔交易的名称
     product_code: str           # 产品键之二
@@ -2212,16 +2394,20 @@ class InitialModuleOut(BaseModel):
 
 | # | 方法与路径 | 请求模型 | 响应 `data` | 覆盖需求 |
 | --- | --- | --- | --- | --- |
-| 1 | `GET /initialModule` | 无 | `InitialModuleOut` | 2.2、2.3 |
-| 2 | `GET /transactions` | `TransactionQuery`（`Depends()`） | `PageOut[TransactionOut]` | 2.10、2.11、2.12、2.14、2.16、2.17、2.18、2.20、2.21、2.22、2.24、2.25、2.28、2.29、2.30、2.31、6.5 |
-| 3 | `POST /transactions` | `TransactionCreate` | `TransactionOut` | 1.1、1.2、1.3、6.2、6.3、6.4 |
-| 4 | `DELETE /transactions/{transactionId}` | 路径参数 `int` | `null` | 1.5 |
-| 5 | `GET /holdings` | `HoldingQuery`（`Depends()`） | `PageOut[HoldingOut]` | 2.4、2.5、2.6、2.7、2.8、2.15、2.19、2.22、2.24、2.28、2.29、2.31、3.1、3.2、3.3、3.4、3.5、3.6 |
-| 6 | `GET /portfolioStatistics` | `HoldingQuery`（复用筛选/搜索，忽略分页与排序） | `PortfolioStatisticsOut` | 3.7、3.8、3.9 |
-| 7 | `GET /fundSearch` | `FundSearchQuery`（`Depends()`，单参数 `keyword`） | `list[FundSearchOut]` | 5.2、5.6、5.7 |
-| 8 | `GET /fundQuote/navHistory` | `FundNavHistoryQuery`（`Depends()`，参数 `fundCode` + 可选 `tradeDate`） | `list[FundNavHistoryOut]` | 7.1、7.2、7.4、7.5 |
+| 1 | `GET /accounts` | 无 | `list[AccountOut]` | 8.1、8.3、8.4 |
+| 2 | `POST /accounts` | `AccountCreate` | `AccountOut` | 8.5-8.9、8.16 |
+| 3 | `PUT /accounts/{accountId}` | `AccountUpdate` | `AccountOut` | 8.7-8.12、8.16 |
+| 4 | `DELETE /accounts/{accountId}` | 路径参数 `int` | `null` | 8.13-8.15 |
+| 5 | `GET /initialModule` | 无 | `InitialModuleOut` | 2.2、2.3 |
+| 6 | `GET /transactions` | `TransactionQuery`（`Depends()`） | `PageOut[TransactionOut]` | 2.10、2.11、2.12、2.14、2.16-2.18、2.20-2.31、6.5、8.18、8.25-8.27 |
+| 7 | `POST /transactions` | `TransactionCreate` | `TransactionOut` | 1.1、1.2、1.3、6.2-6.4、8.18、8.19 |
+| 8 | `DELETE /transactions/{transactionId}` | 路径参数 `int` | `null` | 1.5 |
+| 9 | `GET /holdings` | `HoldingQuery`（`Depends()`） | `PageOut[HoldingOut]` | 2.4-2.8、2.15、2.19、2.22、2.24、2.28-2.31、3.1-3.6、8.23-8.26 |
+| 10 | `GET /portfolioStatistics` | `HoldingQuery`（忽略分页与排序） | `PortfolioStatisticsOut` | 3.7-3.9、8.28-8.29 |
+| 11 | `GET /fundSearch` | `FundSearchQuery`（单参数 `keyword`） | `list[FundSearchOut]` | 5.2、5.6、5.7 |
+| 12 | `GET /fundQuote/navHistory` | `FundNavHistoryQuery`（`fundCode` + 可选 `tradeDate`） | `list[FundNavHistoryOut]` | 7.1、7.2、7.4、7.5 |
 
-> **实现边界修订**：当前仓库暂有 `PUT /valuations` 与对应前端估值表单，但它们不属于本需求允许的公开契约，必须在实现阶段移除或迁移到 `valuation_ingest` 内部服务。公开路由最终只能保留上表 8 个接口；采集器通过受控命令/后台任务调用内部 `CollectorOrchestrator`，不得被前端或普通账本 API 调用。`GET /fundSearch` 与 `GET /fundQuote/navHistory` 均为只读代理，不写账本数据库、不写估值记录，第三方或 akshare 异常收敛为空结果。
+> **实现边界修订**：当前仓库暂有 `PUT /valuations` 与对应前端估值表单，但它们不属于本需求允许的公开契约，必须在实现阶段移除或迁移到 `valuation_ingest` 内部服务。公开路由最终只能保留上表 12 个接口：账户管理 4 个、账本/交易/统计 6 个、基金只读辅助 2 个；采集器通过受控命令/后台任务调用内部 `CollectorOrchestrator`，不得被前端或普通账本 API 调用。`GET /fundSearch` 与 `GET /fundQuote/navHistory` 均为只读代理，不写账本数据库、不写估值记录，第三方或 akshare 异常收敛为空结果。
 
 **估值只读语义**：`GET /holdings` 与 `GET /portfolioStatistics` 只能读取已由外部采集流程写入并通过校验的估值；账本路由、前端 `api/ledger.ts`、`TransactionService` 和 `HoldingService` 均不得导出 `ValuationUpsert`、`upsertValuation` 或任何覆盖语义。
 
@@ -2267,6 +2453,29 @@ def getTransactions(query: Annotated[TransactionQuery, Depends()],
 
 ```python
 # service.py —— 用例编排与事务边界；不接触 HTTP 对象，也不写 SQL
+class AccountService:
+    """账户管理用例：创建、查询、编辑和删除；不暴露账户 id 编辑。"""
+
+    def listAccounts(self) -> list[AccountOut]:
+        """返回按 id 稳定排序的账户名称；调用前必须通过迁移门禁。"""
+
+    def createAccount(self, payload: AccountCreate) -> AccountOut:
+        """trim 后校验 1..100 字符并在事务内执行精确唯一检查；重复名抛 AccountNameDuplicate（409）。"""
+
+    def updateAccount(self, accountId: int, payload: AccountUpdate) -> AccountOut:
+        """仅更新名称；当前名称可保持不变，重复名/不存在分别抛 409/404。"""
+
+    def deleteAccount(self, accountId: int) -> None:
+        """同一事务内检查交易外键；已使用账户抛 AccountInUse（409），不存在抛 AccountNotFound（404）。"""
+
+
+class LegacyAccountMigrationService:
+    """将所有 NULL account_id 交易幂等关联到同一个系统迁移账户，并提供查询门禁。"""
+
+    def ensureMigrated(self) -> None:
+        """创建或复用迁移账户、回填旧交易、写版本审计；任一失败整体回滚。"""
+
+
 class TransactionService:
     """历史交易用例：查询、创建、删除。**刻意不提供更新方法**（需求 1.4）。"""
 
@@ -2287,7 +2496,7 @@ class TransactionService:
 
         :param payload: 已通过 Pydantic 校验的入参；fee 为 None 时归一为 Decimal(0) 后落库
         :return: 落库后的交易；不变量：写入值与入参逐字段相等（fee 经归一后非空）
-        :raises InsufficientHolding: 落库前预演该笔交易后，同产品（按 product_type + product_code）
+        :raises InsufficientHolding: 落库前预演该笔交易后，该账户同产品（按 account_id + product_type + product_code）
             的持仓数量（Σ 买入数量 − Σ 卖出数量，含本次）小于 0；不写入任何记录，
             返回 `fieldErrors` 指向 `transactionQuantity` 的中文原因（如「卖出数量超过当前持仓」）
         """
@@ -2331,11 +2540,11 @@ class OverviewService:
 
 `HoldingService.listHoldings` 的固定流水线（职责单一、可单独测试）：
 
-1. `crud.queryTransactions(query)`：把筛选（产品类型、方向、日期闭区间）、搜索（`LIKE %v%`）与产品历史交易范围下推到 SQL，并按 `trade_date` 排序（未指定排序时按 `id` 升序）→ **结果集**。
-2. `groupByProductKey(rows)`：以 `(product_type, product_code)` 为键分组，保持首次出现顺序（`dict` 插入序即稳定去重序）→ 需求 2.5、2.15。
-3. `crud.getLatestValuations(keys, sourcePriority)`：一次查询取每个产品 `valuation_date` 最大的采集入库标准估值；同一日期的来源按核心配置的优先级确定 → 需求 3.1。
-4. `ProductPerformanceCalculator.calculate(txns, latestValuation)`：纯 `Decimal` 计算 → 需求 3.2-3.6。
-5. `sortHoldings(...)`：按用户选择的 `position` / `total_profit` 数值稳定排序；未选择字段时按 `position` 升序，等值项保持来源顺序，指标不可用者恒排在末尾 → 需求 2.19。
+1. `crud.queryTransactions(query)`：把账户筛选、产品类型、方向、日期闭区间、搜索（`LIKE %v%`）与三元产品历史范围下推到 SQL，并按 `trade_date` 排序（未指定排序时按 `id` 升序）→ **结果集**。
+2. `groupByAccountProductKey(rows)`：以 `(account_id, product_type, product_code)` 为键分组，保持首次出现顺序（`dict` 插入序即稳定去重序）→ 需求 2.5、2.15、8.23。
+3. `crud.getLatestValuations(keys, sourcePriority)`：估值 keys 仍仅为 `(product_type, product_code)`，一次查询取每个产品 `valuation_date` 最大的采集入库标准估值；同一日期的来源按核心配置的优先级确定 → 需求 3.1、8.28。
+4. `ProductPerformanceCalculator.calculate(txns, latestValuation)`：对单一账户产品条目执行纯 `Decimal` 计算 → 需求 3.2-3.6。
+5. `sortHoldings(...)`：按用户选择的数值字段稳定排序，绝不在计算前跨账户合并 → 需求 2.19、8.23。
 6. `Paginator.slice(items, page, pageSize)`：`page_count = ceil(total / page_size)`；`page > page_count` → `PageOutOfRange` → 需求 2.24-2.31。
 
 `crud.py` 仅暴露数据动作，不含业务判断：
@@ -2428,7 +2637,7 @@ class Paginator:
         """切出当前页并给出总页数。
 
         :param page: 请求页码，1 起
-        :param pageSize: 页大小，闭区间 1..100
+        :param pageSize: 页大小，只能为 10、20 或 50
         :return: (当前页切片, page_count)；page_count = ceil(len(items) / pageSize)，空集为 0
         :raises PageOutOfRange: page_count > 0 且 page > page_count（需求 2.30）
         :不变量: 按页码顺序拼接全部有效页恰好还原 items，无重复无遗漏
@@ -2670,18 +2879,23 @@ ORM 定义见「后端设计 2」。业务级约束与需求映射如下：
 
 | 表 | 字段 | 类型 / 约束 | 需求 |
 | --- | --- | --- | --- |
+| `il_account` | `id` | 自增唯一正整数；仅作操作关联值，不展示/不可编辑 | 8.3、8.4、8.6 |
+| | `name` | trim 后 1..100 字符，按完整字符序列精确唯一 | 8.7-8.11 |
+| | `is_system_migration` | 是否为单一系统迁移账户；迁移账户禁止用户编辑/删除 | 8.20-8.22 |
+| | `created_at/updated_at` | 审计时间 | 8.6、8.12 |
 | `il_transaction` | `id` | 自增主键，仅用于删除定位，不展示、不可查询 | 2.23 |
+| | `account_id` | 非空正整数外键，关联 `il_account.id`；删除账户时受保护 | 1.1、8.18-8.24 |
 | | `product_type` | `String(16)`，`∈ {WEALTH, FUND, STOCK}`（英文码，展示时前端映射为理财/基金/股票），索引 | 1.1、1.2 |
 | | `product_name` | `String(100)`，非空且 ≤ 100 字符 | 1.2 |
 | | `product_code` | `String(32)`，非空且 ≤ 32 字符，索引 | 1.2 |
 | | `transaction_price` | `DecimalText`（无长度、无量化文本），有限且 `> 0`；不限制小数位、整数位或最大数值 | 1.2 |
 | | `transaction_quantity` | `DecimalText`（无长度、无量化文本），有限且 `> 0`；理财/基金允许任意小数，股票必须是整数 | 1.2 |
-| | `fee` | `DecimalText`（无长度、无量化文本），非负有限 `Decimal`；可空，未提供时由服务层归一为 `Decimal(0)`（需求 6.2、6.3、6.4） | 6.2、6.3、6.4 |
+| | `fee` | `DecimalText`（无长度、无量化文本），非负有限 `Decimal`；可空，未提供时由服务层归一为 `Decimal(0)` | 6.2-6.4 |
 | | `direction` | `String(16)`，`∈ {BUY, SELL}`（英文码，展示时前端映射为买入/卖出），索引 | 1.1、1.2 |
 | | `trade_date` | `Date`，有效日历日期，索引（排序与区间筛选） | 1.2、2.16 |
 | | `created_at` | `DateTime`，写入时间；同日交易的稳定次序依据 | 2.15 |
-| | 复合索引 | `(product_type, product_code)`：分组与产品范围查询 | 2.5、2.10 |
-| | 更新路径 | **无**：不存在 `UPDATE` 语句与更新路由 | 1.4 |
+| | 复合索引 | `(account_id, product_type, product_code)`：按账户分组与产品范围查询 | 2.5、2.10、8.23 |
+| | 更新路径 | **无**：不存在 `UPDATE` 交易路由 | 1.4 |
 | `il_valuation` | `id` | 自增主键，仅内部使用 | — |
 | | `product_type` | `String(16)`，∈ `{WEALTH,FUND,STOCK}`，由核心标准化校验 | 3.1、3.12 |
 | | `product_code` | `String(32)`，非空，核心校验并与交易产品键匹配 | 3.1、3.12 |
@@ -2699,7 +2913,7 @@ ORM 定义见「后端设计 2」。业务级约束与需求映射如下：
 
 | 概念 | 表示 | 说明 |
 | --- | --- | --- |
-| 产品键 | `(product_type, product_code)` | 持仓条目的唯一标识（需求 2.5）；不含产品名称，允许历史更名 |
+| 产品键 | `(account_id, product_type, product_code)` | 持仓条目的唯一标识；账户名称不参与键，允许改名后保持同一归属（需求 2.5、8.23-8.27） |
 | 枚举 | 后端 `str, Enum` 英文码 ↔ 数据库 TEXT ↔ JSON 英文字符串 ↔ 前端联合类型 | 全链路同一串英文码（`WEALTH`/`FUND`/`STOCK`、`BUY`/`SELL`），无编码与转义问题 |
 | 枚举展示文案 | 前端 `Record<ProductType, string>` / `Record<TradeDirection, string>` | 仅存在于前端展示映射层；`Record` 保证映射对码全集穷尽（缺项即编译报错），后端不参与翻译 |
 | 金额 / 单价 | Python `Decimal` ↔ 数据库 TEXT ↔ JSON 十进制字符串 | 全链路避免二进制浮点误差 |
@@ -2709,9 +2923,13 @@ ORM 定义见「后端设计 2」。业务级约束与需求映射如下：
 
 **产品名称的确定性**：产品名称随每笔不可变交易保存。持仓条目的展示名称取该条目内「交易日期最大、同日 `id` 最大」的那笔交易的名称，保证同一产品发生历史更名时展示结果稳定（需求 2.6）。
 
+### 账户关联与前端状态模型
+
+账户是交易草稿、交易行和持仓行的必需关联字段，但账户名称不复制进交易数据作为真源。`accountId` 是 Redux/API/数据库中的唯一关联值，`accountName` 由账户关联查询实时读取；改名只更新 `il_account.name`，不更新交易行、不改变持仓键和统计输入。账户 slice 保存可序列化的 `AccountDto[]`、表单可见性、提交状态和 `FieldErrorItem[]`；历史交易/持仓 query 快照分别保存 `accountId` 筛选和三元 scope。账户模块切换不清空其它切片，账户 CRUD 成功只刷新账户 slice，交易/持仓 query 保持不变。
+
 ### 前端状态模型
 
-前端不保存领域实体的第二份真源，只保存「已应用的浏览状态 + 当前页数据 + 表单草稿」，TypeScript 类型见「前端设计 4.2」的 `LedgerState`；`LedgerState` **不含「当前激活模块」字段**，当前显示哪个模块由路由（`/investmentLedger/holdings` 或 `/investmentLedger/history`）决定，容器用 `useLocation()` 派生（见「前端设计 2.1」「前端设计 5」）。redux 中流转的枚举值恒为英文码，中文文案不进入 state。redux 中存放的是**可序列化的 `LedgerQuerySnapshot` 纯数据**；`LedgerQueryState`（不可变值对象，`readonly` 字段）在 reducer 与选择器中按需由快照构造，是需求 2.9 / 2.27 重置规则的唯一实现处；需求 2.13「直接切换保留目标模块状态」由「路由切换不 dispatch 任何 action」这一事实保证——`history` 与 `holdings` 两个切片各自的查询状态只受各自的 `applyQuery` / `changePage` / `changePageSize` 影响，不受路由切换影响。DTO 类型（`TransactionOut`、`HoldingOut`、`Metric`、`PageOut<T>`、`PortfolioStatisticsOut`、`InitialModuleOut`、`FieldErrorItem`）与后端 Pydantic 的 camelCase 输出逐字段镜像，见「前端设计 6.1」。
+前端不保存领域实体的第二份真源，只保存账户列表、已应用的浏览状态、当前页数据和表单草稿；`LedgerState` 不含当前激活模块字段，当前显示哪个模块由路由（`/investmentLedger/accounts`、`/investmentLedger/holdings` 或 `/investmentLedger/history`）决定。Redux/API 中交易和持仓 DTO 始终带 `accountId`，账户名称由后端关联返回；`LedgerQuerySnapshot` 保存账户筛选及包含账户的三元产品范围，`LedgerQueryState` 负责重置规则。
 
 ---
 
@@ -2719,14 +2937,70 @@ ORM 定义见「后端设计 2」。业务级约束与需求映射如下：
 
 > 说明：requirements.md 未包含数据导入 / 导出需求，因此不提供该流程时序图；下列 6 张图覆盖需求文档定义的全部核心流程。
 
-### 流程 1：进入账本 —— 默认子路由重定向与模块导航（需求 2.2、2.3、2.13）
+### 流程 0：账户管理与交易账户关联（需求 8.3-8.22）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant AM as AccountManagementPage
+    participant S as Redux ledger/accounts
+    participant A as api/account.ts
+    participant R as router.py
+    participant AS as AccountService
+    participant DB as SQLite
+
+    U->>AM: 打开账户管理
+    AM->>S: dispatch(fetchAccounts())
+    S->>A: GET /accounts
+    A->>R: GET /api/investmentLedger/accounts
+    R->>AS: listAccounts()
+    AS->>AS: 检查 LegacyAccountMigrationService 门禁
+    AS->>DB: SELECT id,name FROM il_account
+    DB-->>AS: 账户列表
+    AS-->>R: AccountOut[]（不含可编辑 id 字段）
+    R-->>A: {code:200,data:[...]}
+    A-->>S: 保存账户列表
+    S-->>AM: 展示名称和编辑/删除入口
+
+    U->>AM: 提交名称
+    AM->>S: dispatch(createAccount/renameAccount)
+    S->>A: POST /accounts 或 PUT /accounts/{accountId}
+    A->>R: 请求
+    R->>AS: trim + 1..100 + 精确唯一校验
+    alt 名称重复
+        AS-->>R: AccountNameDuplicate
+        R-->>A: 409 + ACCOUNT_NAME_DUPLICATE
+        A-->>S: 字段错误；列表/交易数据不变
+    else 有效唯一
+        AS->>DB: 原子 INSERT/UPDATE + COMMIT
+        AS-->>R: AccountOut
+        R-->>A: 成功
+        A-->>S: 刷新账户列表
+    end
+
+    U->>AM: 删除账户
+    AM->>A: DELETE /accounts/{accountId}
+    A->>R: 请求
+    R->>AS: 同一事务检查关联交易
+    alt 已有关联交易
+        AS-->>R: AccountInUse
+        R-->>A: 409 + ACCOUNT_IN_USE
+        A-->>AM: 保留账户和全部账本数据，提示错误
+    else 未使用
+        AS->>DB: DELETE account + COMMIT
+        R-->>A: 成功
+    end
+```
+
+### 流程 1：进入账本 —— 默认子路由重定向与模块导航（需求 2.2、2.3、2.12、8.1）
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor U as 用户
     participant IR as IndexRedirect（父路由 index 子路由）
-    participant HP as HoldingsPage / HistoryPage（子路由容器）
+    participant MP as AccountManagementPage / HoldingsPage / HistoryPage（子路由容器）
     participant S as Redux Store（RTK ledgerSlice）
     participant A as api/ledger.ts
     participant R as router.py
@@ -2750,17 +3024,17 @@ sequenceDiagram
     R-->>A: {code:200, data:{module}}
     A-->>IR: module
     IR->>IR: <Navigate to={`/investmentLedger/${module}`} replace />（不写入 redux，需求 2.2、2.3）
-    IR-->>HP: 路由跳转命中目标子路由，渲染对应容器
-    HP->>S: dispatch(fetchHoldings() 或 fetchHistory())（子路由挂载时按已存 query 拉取）
-    S-->>HP: 渲染目标模块（两个切片各自的 query 取各自默认浏览状态，因为尚未被应用过）
+    IR-->>MP: 路由跳转命中目标子路由，渲染对应容器
+    MP->>S: dispatch(fetchHoldings() 或 fetchHistory())（子路由挂载时按已存 query 拉取）
+    S-->>MP: 渲染目标模块（两个交易浏览切片各自的 query 取各自默认浏览状态，因为尚未被应用过）
 
-    U->>HP: 点击 ModuleSwitch 导航到另一子路由
-    HP->>HP: navigate(`/investmentLedger/${target}`, { state: { ledgerNavigation: 'module-switch' } })
+    U->>MP: 点击 ModuleSwitch 导航到另一子路由
+    MP->>MP: navigate(`/investmentLedger/${target}`, { state: { ledgerNavigation: 'module-switch' } })
     Note over S: 路由切换不清空目标切片；目标页面沿用此前 query/items（需求 2.13）
-    HP->>S: 目标子路由容器按已应用 query dispatch(fetchHoldings() 或 fetchHistory())
+    MP->>S: 目标子路由容器按已应用 query dispatch(fetchHoldings() 或 fetchHistory())
     S->>A: 按目标模块已应用查询拉取数据
     A-->>S: 数据
-    S-->>HP: 渲染（保留目标模块此前已应用的筛选/搜索/排序/页大小/有效页码）
+    S-->>MP: 渲染（保留目标模块此前已应用的筛选/搜索/排序/页大小/有效页码）
 ```
 
 ### 流程 2：新建交易记录（需求 1.1、1.2、1.3）
@@ -2780,8 +3054,8 @@ sequenceDiagram
     participant C as crud.py
     participant DB as SQLite
 
-    U->>F: 选择产品类型/交易方向，填写名称、代码、单价、数量、日期
-    F->>P: onSubmit(draft)
+    U->>F: 选择账户、产品类型/交易方向，填写名称、代码、单价、数量、日期
+    F->>P: onSubmit(draft，其中含必选 accountId)
     P->>S: dispatch(submitTrade(draft))
     S->>V: validate(draft)
     alt 存在无效字段
@@ -2801,7 +3075,7 @@ sequenceDiagram
         else 校验通过
             SC-->>R: TransactionCreate
             R->>SV: createTransaction(payload)
-            SV->>SV: 预演该笔交易后持仓（按 product_type + product_code 聚合 Σ 买入数量 − Σ 卖出数量，含本次）
+            SV->>SV: 预演该笔交易后持仓（按 account_id + product_type + product_code 聚合 Σ 买入数量 − Σ 卖出数量，含本次）
             alt 卖出后持仓 < 0
                 SV-->>R: raise InsufficientHolding
                 R-->>A: 422 {code:422, msg:"卖出数量超过当前持仓", data:{fieldErrors:[{field:"transactionQuantity", code:"INSUFFICIENT_HOLDING", message:"卖出数量超过当前持仓"}]}}
@@ -2872,7 +3146,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor U as 用户
-    participant FB as TradeFilterBar / LedgerPagination
+    participant FB as TradeFilterBar / antd Table pagination
     participant P as HistoryPage（history 子路由容器）
     participant S as Redux Store
     participant QV as QueryInputValidator（领域层）
@@ -2887,7 +3161,7 @@ sequenceDiagram
     U->>FB: 修改筛选/搜索/日期排序/页大小/页码
     FB->>P: onChange(patch)
     P->>S: dispatch(applyQuery({module:'history', patch})) 或 changePage / changePageSize
-    S->>QV: 校验搜索值(1-100)、日期范围(成对且 start<=end)、页大小(1-100 整数)、页码(1..pageCount)
+    S->>QV: 校验搜索值(1-100)、日期范围(成对且 start<=end)、页大小(10/20/50)、页码(1..pageCount)
     alt 输入无效
         QV-->>S: invalid(reason)
         S-->>P: message.error(reason)
@@ -2900,7 +3174,7 @@ sequenceDiagram
         A->>R: GET /transactions?...
         R->>SV: listTransactions(query)
         SV->>C: queryTransactions(query)
-        C->>DB: SELECT ... WHERE 产品类型 AND 方向 AND trade_date BETWEEN ? AND ? AND name LIKE ? AND code LIKE ? ORDER BY trade_date/id
+        C->>DB: SELECT ... WHERE account_id（可选）AND product_type AND direction AND trade_date BETWEEN ? AND ? AND name LIKE ? AND code LIKE ? ORDER BY trade_date/id
         DB-->>C: 结果集
         C-->>SV: rows, total
         SV->>PG: slice(rows, page, pageSize)
@@ -2945,7 +3219,7 @@ sequenceDiagram
     C->>DB: SELECT 交易（应用筛选与搜索，按 trade_date 排序）
     DB-->>C: 结果集
     C-->>SV: rows
-    SV->>SV: groupByProductKey(rows) → 保持首次出现顺序的持仓条目
+    SV->>SV: groupByAccountProductKey(rows) → 按 (account_id, product_type, product_code) 保持首次出现顺序生成独立持仓条目
     SV->>C: getLatestValuations(productKeys)
     C->>DB: SELECT 每个产品 valuation_date 最大且按来源优先级生效的采集估值
     DB-->>C: 最新估值映射
@@ -2967,7 +3241,7 @@ sequenceDiagram
     end
     R-->>A: {code:200, data:...}
     A-->>S: 持仓分页数据 + 组合统计
-    S-->>H: 7 列只读表格 + PortfolioSummary；不可用指标显示「不可用」
+    S-->>H: 8 列按账户隔离的只读表格 + PortfolioSummary；不可用指标显示「不可用」
 
     U->>H: 点击某条目的「查看交易」
     H->>S: dispatch(openHistoryWithScope({productType, productCode}))
@@ -3101,7 +3375,7 @@ sequenceDiagram
 
 本功能的核心逻辑（采集结果标准化、来源冲突与幂等写入、校验器、查询谓词、分组、排序、分页、收益计算）具有明确输入/输出关系，输入空间巨大，适合属性测试。插件目录白名单、公开路由不存在估值写接口、手动命令装配等固定边界不适合属性测试，改由示例、冒烟和集成测试覆盖（见测试策略）。
 
-以下 13 条属性已按预分析完成反思：查询谓词合并所有条件组合，分页合并所有边界，浏览状态合并所有重置路径；采集器部分将标准化、故障隔离、幂等与来源冲突分别保留，因为它们验证不同的不变量。
+以下 18 条属性已按预分析完成反思：查询谓词合并所有条件组合，分页合并所有边界，浏览状态合并所有重置路径；采集器部分将标准化、故障隔离、幂等与来源冲突分别保留；账户部分将名称规范化/唯一性、原子 CRUD、迁移幂等、账户隔离和改名传播分别保留，因为它们验证不同的不变量。
 
 ### Property 1: 差异化交易数值校验拒绝无效输入并保留原值
 
@@ -3111,7 +3385,7 @@ sequenceDiagram
 
 ### Property 2: 浏览状态转换遵守导航意图与重置不变量
 
-*For any（对于任意）*已应用的筛选条件、搜索条件、交易日期排序、持仓条目排序、页大小与有效页码组合：带 `ledgerNavigation='module-switch'` 的直接模块切换后，目标模块保留此前已应用的浏览状态和结果；带 `ledgerNavigation='holding-scope'` 从持仓条目进入历史后，历史状态等于默认浏览状态且仅附加该条目的产品历史交易范围；无导航上下文直接进入历史模块时，状态等于默认浏览状态并查询全部交易；对任一筛选条件、搜索条件、排序或页大小做出改变后，页码恒等于 1。
+*For any（对于任意）*已应用的筛选条件、搜索条件、交易日期排序、持仓条目排序、页大小与有效页码组合：带 `ledgerNavigation='module-switch'` 的直接模块切换后，目标模块保留此前已应用的浏览状态和结果；带 `ledgerNavigation='holding-scope'` 从持仓条目进入历史后，历史状态等于默认浏览状态且仅附加该条目的 `scopeAccountId + scopeProductType + scopeProductCode` 三元产品历史交易范围；无导航上下文直接进入历史模块时，状态等于默认浏览状态并查询全部交易；对任一筛选条件、搜索条件、排序或页大小做出改变后，页码恒等于 1。
 
 **Validates: Requirements 2.9, 2.13, 2.14, 2.27**
 
@@ -3123,7 +3397,7 @@ sequenceDiagram
 
 ### Property 4: 持仓条目是结果集的一个精确划分
 
-*For any（对于任意）*结果集，按产品类型与产品代码分组后：每一笔交易属于且仅属于一个持仓条目，任意两个持仓条目的（产品类型, 产品代码）键不相同，同一持仓条目内所有交易的产品类型与产品代码均相同，且所有条目内交易的并集等于结果集。
+*For any（对于任意）*结果集，按账户标识、产品类型和产品代码分组后：每一笔交易属于且仅属于一个持仓条目，任意两个持仓条目的（账户标识, 产品类型, 产品代码）键不相同，同一持仓条目内所有交易的三项键均相同，且所有条目内交易的并集等于结果集。
 
 **Validates: Requirements 2.5**
 
@@ -3135,13 +3409,13 @@ sequenceDiagram
 
 ### Property 6: 分页是结果集无重复、无遗漏的有序划分
 
-*For any（对于任意）*有序结果集（交易记录或持仓条目）与 1 至 100 之间的整数页大小：总页数等于 `ceil(总条数 / 页大小)`；每一有效页的内容精确等于结果集在 `[(页码-1)×页大小, 页码×页大小)` 上的切片；按页码顺序拼接全部有效页恰好还原结果集且不出现重复项；当总条数不能被页大小整除时最后一页包含全部剩余项；当结果集为空时总页数为 0 且不存在有效页码。
+*For any（对于任意）*有序结果集（交易记录或持仓条目）与属于 `{10, 20, 50}` 的页大小：总页数等于 `ceil(总条数 / 页大小)`；每一有效页的内容精确等于结果集在 `[(页码-1)×页大小, 页码×页大小)` 上的切片；按页码顺序拼接全部有效页恰好还原结果集且不出现重复项；当总条数不能被页大小整除时最后一页包含全部剩余项；当结果集为空时总页数为 0 且不存在有效页码。
 
 **Validates: Requirements 2.11, 2.25, 2.28, 2.29, 2.31**
 
 ### Property 7: 无效查询输入不改变已应用的浏览状态与结果
 
-*For any（对于任意）*先前有效的浏览状态，以及任意一种无效查询输入（产品名称或产品代码搜索值为空或超过 100 字符、交易日期范围缺少起始或结束日期或包含无效日历日期或起始晚于结束、自定义页大小不是 1 至 100 的整数、请求页码小于 1 或大于总页数）：系统都必须报告相应的无效提示，且已应用的筛选条件、搜索条件、排序、页大小、当前有效页码以及当前结果切片全部保持不变。
+*For any（对于任意）*先前有效的浏览状态，以及任意一种无效查询输入（产品名称或产品代码搜索值为空或超过 100 字符、交易日期范围缺少起始或结束日期或包含无效日历日期或起始晚于结束、页大小不属于 `{10, 20, 50}`、请求页码小于 1 或大于总页数）：系统都必须报告相应的无效提示，且已应用的筛选条件、搜索条件、排序、页大小、当前有效页码以及当前结果切片全部保持不变。
 
 **Validates: Requirements 2.20, 2.21, 2.26, 2.30**
 
@@ -3189,6 +3463,36 @@ sequenceDiagram
 
 ---
 
+### Property 14: 账户名称规范化与精确唯一性
+
+*For any（对于任意）*账户名称输入，系统都必须先去除首尾空白，再接受长度为 1..100 的完整字符序列；两个 trim 后完整字符序列相同的不同账户创建/编辑操作必须被拒绝为 `ACCOUNT_NAME_DUPLICATE`，而同一账户提交自身当前名称必须成功且不改变账户标识。
+
+**Validates: Requirements 8.6-8.11**
+
+### Property 15: 账户 CRUD 原子性与删除保护
+
+*For any（对于任意）*账户 CRUD 操作：有效唯一名称创建只增加一个账户并保留其它账户；有效编辑只改变目标名称并保留 id、交易、持仓和统计归属；不存在 id 返回 404 且状态不变；关联至少一笔交易的账户删除返回 409 且账户、交易、持仓和统计完全不变；未关联账户删除后只从账户集合移除该账户。
+
+**Validates: Requirements 8.6, 8.8, 8.11-8.15**
+
+### Property 16: 旧交易到账户迁移幂等
+
+*For any（对于任意）*包含零条或多条 `account_id IS NULL` 旧交易的数据库，运行 `LegacyAccountMigrationService.ensureMigrated()` 后所有旧交易都关联同一个合法系统迁移账户；重复运行不创建第二迁移账户、不新增交易、不改变已有非空关联，任一中途失败都不暴露部分回填结果。
+
+**Validates: Requirements 8.20-8.22**
+
+### Property 17: 账户产品键隔离且估值键不含账户
+
+*For any（对于任意）*包含相同产品类型和代码但属于不同账户的交易集合，查询、持仓分组和产品历史范围必须按 `(accountId, productType, productCode)` 形成互不相同的条目；每个条目独立计算持仓、收益率和年化收益率，而各账户条目读取同一 `(productType, productCode)` 的最新估值，不跨账户合并交易。
+
+**Validates: Requirements 2.8, 3.1-3.4, 8.18-8.29**
+
+### Property 18: 账户改名传播且账户关联不可变
+
+*For any（对于任意）*已关联交易和持仓的账户，提交有效新名称后，所有交易行、持仓行和统计展示都必须读取新名称；其 `accountId`、交易行、持仓分组键、统计输入和结果值必须保持不变，基金搜索或交易金额辅助也不得改变账户关联。
+
+**Validates: Requirements 6.9, 7.9, 8.12, 8.25-8.29**
+
 ## Error Handling
 
 （错误处理）
@@ -3205,10 +3509,14 @@ sequenceDiagram
 | --- | --- | --- | --- | --- |
 | `LedgerError`（基类） | 400 | 400 | 兜底业务错误 | — |
 | `LedgerValidationError` | 422 | 422 | 服务层或标准化器判定的业务校验失败（含 `fieldErrors`）；采集批次内部错误由编排器隔离而不返回前端 | 1.2、3.12 |
+| `AccountNotFound` | 404 | `ACCOUNT_NOT_FOUND` | 账户 id 不存在，账户列表和交易数据不变 | 8.15 |
+| `AccountNameDuplicate` | 409 | `ACCOUNT_NAME_DUPLICATE` | trim 后名称已被另一个账户使用，账户/交易数据不变 | 8.11 |
+| `AccountInUse` | 409 | `ACCOUNT_IN_USE` | 删除账户时发现关联交易，账户/交易/持仓/统计不变 | 8.14 |
+| `AccountMigrationRequired` | 503 | `ACCOUNT_MIGRATION_REQUIRED` | schema 或系统迁移账户未完成，拒绝查询和写入 | 8.20-8.22 |
 | `TransactionNotFound` | 404 | 404 | 删除的交易不存在 | 1.5 |
 | `InsufficientHolding` | 422 | 422 | 创建卖出交易后该产品持仓数量（Σ 买入数量 − Σ 卖出数量，含本次）< 0；`msg` 为「卖出数量超过当前持仓」，`fieldErrors` 指向 `transactionQuantity`，不写入记录、不修改既有行 | 1.3 |
 | `PageOutOfRange` | 422 | 422 | 页码 < 1 或 > 总页数，`msg` 含「有效页码为 1 至 N」 | 2.30 |
-| `InvalidPageSize` | 422 | 422 | 页大小不是 1-100 的整数 | 2.26 |
+| `InvalidPageSize` | 422 | 422 | 页大小不属于 10、20、50 | 2.27-2.29 |
 | `InvalidDateRange` | 422 | 422 | 日期范围缺项或起始晚于结束 | 2.21 |
 | `InvalidSearchValue` | 422 | 422 | 搜索值为空或超 100 字符 | 2.20 |
 
@@ -3229,7 +3537,7 @@ sequenceDiagram
 
 ### 统一后端接口异常边界与响应映射
 
-所有公开 FastAPI 路由（6 个账本接口）以及受控估值采集入口必须经过同一套 middleware/exception handler 装配，不允许在每个业务函数中自行拼装不同错误格式。路由和服务层只抛领域异常或原始技术异常，由 `exceptions.py` 的 `registerLedgerExceptionHandlers(app)` 统一捕获、记录和转换；现有 `{code,msg,data}` JSON 信封不变，成功和既有业务错误的 API 契约不改变。
+所有公开 FastAPI 路由（12 个账本/账户/辅助接口）以及受控估值采集入口必须经过同一套 middleware/exception handler 装配，不允许在每个业务函数中自行拼装不同错误格式。路由和服务层只抛领域异常或原始技术异常，由 `exceptions.py` 的 `registerLedgerExceptionHandlers(app)` 统一捕获、记录和转换；现有 `{code,msg,data}` JSON 信封不变，成功和既有业务错误的 API 契约不改变。
 
 捕获顺序必须从具体到一般：
 
@@ -3280,8 +3588,10 @@ sequenceDiagram
 | 表单字段无效（前端领域层拦截） | 不发请求；按字段渲染中文错误；输入内容原样保留 | 1.2 |
 | 后端 422 带 `fieldErrors` | 映射到 antd `Form.Item.help/validateStatus`；输入保留 | 1.2、3.2 |
 | 创建卖出交易后持仓 < 0（后端拦截） | `transactionQuantity` 字段渲染「卖出数量超过当前持仓」（`code: INSUFFICIENT_HOLDING`）；草稿与输入保留，不写入记录、不关闭弹窗 | 1.3 |
-| 搜索值 / 日期范围 / 页大小 / 页码无效 | `message.error(原因)`；**不更新 query、不清空 items** | 2.20、2.21、2.26、2.30 |
+| 搜索值 / 日期范围 / 页大小（非 10/20/50）/ 页码无效 | `message.error(原因)`；**不更新 query、不清空 items** | 2.20、2.21、2.27-2.30 |
 | 404 删除失败 | `message.error`；表格与查询状态不变 | 1.5 |
+| 账户创建/编辑字段错误 | 422 的 `accountName` 字段错误回填 AccountForm，名称输入和已应用账户列表保留 | 8.5-8.7 |
+| 账户不存在、重名或已使用删除 | 分别提示 404、409 `ACCOUNT_NAME_DUPLICATE` 或 409 `ACCOUNT_IN_USE`；账户列表与交易/持仓状态不变 | 8.11、8.14-8.15 |
 | 网络异常 / 超时 / 5xx | `message.error('网络异常，请稍后重试')`；保留当前已渲染表格与浏览状态，允许重试 | — |
 | 持仓模块的写操作意图 | `message.info('请在历史交易记录模块中维护历史交易')` / `message.info('持仓模块仅供查看')`，不发任何写请求 | 1.6、1.7 |
 | 统计指标不可用 | `MetricValue` 渲染「不可用」+ Tooltip 原因，绝不以 0 替代 | 3.9 |
@@ -3296,12 +3606,12 @@ sequenceDiagram
 
 | 层次 | 范围 | 工具 |
 | --- | --- | --- |
-| 后端属性测试 | `calculators.py`、`service.py` 中的分组/排序/分页/谓词流水线、`schemas.py` 校验器 | `pytest` + `hypothesis`（需以固定版本加入 Pipfile `[dev-packages]`，例如 `pytest = "==8.3.3"`、`hypothesis = "==6.112.1"`） |
-| 后端示例/集成测试 | 路由边界、采集器发现/注册、标准化、超时隔离、SQLite 读取与内部摄取事务、初始模块决策、事务回滚 | `pytest` + `fastapi.testclient.TestClient` + 临时 SQLite 文件 + mock HTTP/插件 |
+| 后端属性测试 | `calculators.py`、`service.py` 中的账户 CRUD、迁移幂等、账户分组/排序/分页/谓词流水线、`schemas.py` 校验器 | `pytest` + `hypothesis`（固定版本） |
+| 后端示例/集成测试 | 账户路由边界、账户名称 409、已使用删除 409、不存在 404、账户迁移门禁、采集器发现/注册、标准化、超时隔离、SQLite 读取与内部摄取事务、初始模块决策、事务回滚 | `pytest` + `fastapi.testclient.TestClient` + 临时 SQLite 文件 + mock HTTP/插件 |
 | 后端采集器属性测试 | `protocol.py`、`normalizer.py`、`repository.py` 的字段规范化、来源冲突和幂等批次 | `pytest` + `hypothesis`，不访问真实金融网站 |
 | 前端类型检查 | 全部新增 `.ts` / `.tsx`（含 store 切片、DTO 契约、组件 props） | `tsc --noEmit`（`npm run type-check`），`strict: true`；babel 不做类型检查，故这是前端唯一的类型防线 |
 | 前端属性测试 | `domain/ledger/*.ts`（`LedgerQueryState`、`TradeDraftValidator`）与 `ledgerSlice` 的纯 reducer 转换 | `vitest` + `fast-check`（需以固定版本加入 devDependencies；均为 dev 依赖，不进入产物） |
-| 前端示例测试 | 列结构、只读约束、空结果列头、页大小选项、错误提示 | `@testing-library/react` + `vitest` |
+| 前端示例测试 | 账户表格/表单、三模块路由、交易账户选择、账户名称展示/改名传播、列结构、只读约束、空结果列头、页大小选项、错误提示 | `@testing-library/react` + `vitest` |
 
 **当前依赖基线**：仓库 `package.json` 已包含 `@reduxjs/toolkit@^1.9.7`、TypeScript、`vitest@2.1.8`、`fast-check@3.23.1`、Testing Library 和 `jsdom`；因此不再把这些包描述为待新增的未知依赖。后端 `pytest` / `hypothesis` 仍由 Pipfile 的开发环境提供，版本在实现任务中固定。vitest 配置使用 `environment: 'jsdom'`，测试命令使用 `vitest --run`，不使用 watch 模式。CSS Modules 使用测试 stub 或已加载的模块映射，保持无行内样式约束。
 
@@ -3309,19 +3619,20 @@ sequenceDiagram
 
 ### 属性测试实现约束
 
-- 每条正确性属性**恰好**实现为 1 个属性测试，命名 `test_property_{n}_{简述}`；本设计的 Property 1-10 覆盖账本领域逻辑，Property 11-13 覆盖采集标准化、故障隔离和幂等冲突。
+- 每条正确性属性**恰好**实现为 1 个属性测试，命名 `test_property_{n}_{简述}`；本设计的 Property 1-10 覆盖账本领域逻辑，Property 11-13 覆盖采集标准化/故障隔离/幂等冲突，Property 14-18 覆盖账户名称、账户 CRUD、旧交易迁移、账户隔离和改名传播。
 - 每个测试至少运行 100 个样本：`@settings(max_examples=100, deadline=None)`（前端 `fc.assert(..., { numRuns: 100 })`）。
 - 采集器属性测试使用内存 fake collector、fake clock 和 fake repository；不得让随机测试访问天天基金网或其它真实外部网站。
 - 每个测试首行注释关联设计：
   `# Feature: investment-trade-ledger, Property 8: 产品统计精确计算并显式标记不可用指标`
 - 生成器（`strategies.py`）必须偏置以下边界：
-  - 枚举字段：合法取值只从**英文码全集**中采样（`WEALTH` / `FUND` / `STOCK`，`BUY` / `SELL`，即 `sampled_from(list(ProductType))`）；非法取值必须覆盖中文字面量（`'理财'`、`'买入'`）、大小写不符的码（`'buy'`、`'Stock'`）、空串与 `None`，用于驱动 Property 1 的 `NOT_IN_ENUM` 分支。
+  - 账户：生成 trim 前后带空白、长度 0 / 1 / 100 / 101、中文和 Unicode 字符的名称；生成 trim 后相同/不同的名称、当前账户自名、不同账户重复名、已用/未用/不存在 accountId；生成多账户同产品交易和 `account_id IS NULL` 旧交易批次，用于迁移幂等与删除保护属性。
+  - 查询与范围：生成 accountId 筛选、`scopeAccountId + scopeProductType + scopeProductCode` 成组/缺项组合，断言缺项不被静默放宽为全量查询。
   - 产品名称长度 0 / 1 / 100 / 101，含中文、emoji、空白串；产品代码长度 0 / 1 / 32 / 33。
   - 交易数值：对理财/基金生成任意长度（在测试资源可承受范围内）的有限正 Decimal 文本，覆盖整数、小数、前导/尾随零、高精度小数和极大数量级；对股票生成同样的有限正价格以及正整数数量。无效集覆盖 `0`、负数、`NaN`、Infinity、非数字文本和（仅股票数量）含小数文本。生成器和断言不得以两位小数、固定整数位、`String(n)`、或最大数值作为有效性边界。
   - DTO/持久化：生成 `transactionPrice` / `transactionQuantity` 的 camelCase 负载，断言经 Pydantic 别名、服务映射和数据库 `transaction_price` / `transaction_quantity` 往返后不发生量化或字段语义漂移。
   - 日期：闰年 2 月 29 日、`2 月 30 日`（非法）、跨年区间、`start == end`、`start > end`；持有天数 1 天与数千天。
   - 采集器：`plugin_id`、版本和 manifest 入口生成重复/冲突组合；标准估值生成合法与非法产品类型、代码长度、日期、正数 Decimal、来源不一致、缺失引用；批次生成同来源重复值、同日跨来源冲突、乱序到达和部分失败插件。
-  - 分页：`total = 0`、`total < pageSize`、整除与非整除、`pageSize = 1` 与 `pageSize = 100`。
+  - 分页：生成器仅使用 `pageSize ∈ {10, 20, 50}`，覆盖 `total = 0`、`total < pageSize`、整除与非整除、页码越界。
 - 金额与比率的期望值一律以 `Decimal` 计算并比较，**禁止使用 `float` 断言**；比率比较允许在 `Decimal('1e-18')` 量级内。
 - 统计属性采用「参考实现对比」（model-based）：用最直白的循环求和实现作为模型，与生产实现结果比对。
 
@@ -3338,14 +3649,18 @@ sequenceDiagram
 9. 使用临时 SQLite 验证标准估值批次同产品同日同来源幂等、跨来源按优先级确定、事务失败回滚；重复批次不产生重复行。
 10. 断言前端 API、公开账本路由和 `TransactionService` 不存在估值写入口；采集命令不是用户接口，且不接受单条用户覆盖参数。
 11. 缺失估值时验证产品数量/累计金额仍输出，依赖估值的产品/组合指标显示不可用而不是 0。
-12. 全部集成测试使用临时 SQLite 文件并在结束后清理，**不得连接 `various_data.db` 或 `various_data_dev.db`**，不访问真实金融接口。
+13. 账户 API：创建有效唯一名称成功；trim 后空/超长返回 422；重复名创建/编辑返回 409 `ACCOUNT_NAME_DUPLICATE`；编辑自身当前名称成功且 id 不变；不存在 id 返回 404；未使用账户可删除，已使用账户返回 409 `ACCOUNT_IN_USE`。
+14. 账户迁移门禁：旧 `account_id IS NULL` 交易被同一系统迁移账户幂等回填；重复启动不创建第二账户；迁移/外键/版本失败时查询和写入均 fail closed，事务与备份可回滚。
+15. 跨账户隔离：两个账户使用相同产品类型/代码时，交易查询、持仓、产品历史范围和账户统计均不混合；两条持仓读取同一产品估值但分别计算交易输入；账户改名后所有展示读取新名称。
+16. 前端账户交互：三入口互斥；账户管理表不显示 id；交易表单账户 Select 必选；持仓“查看交易”携带三元范围；直接模块切换保留目标状态，持仓入口按账户+产品范围重置历史状态；不出现 `style` 属性。
+17. 全部集成测试使用临时 SQLite 文件并在结束后清理，**不得连接 `various_data.db` 或 `various_data_dev.db`**，不访问真实金融接口。
 
 ### Schema、异常与日志验证
 
-1. **临时 SQLite schema 夹具**：每个测试创建临时数据库文件并在 teardown 删除，禁止连接 `various_data.db`、`various_data_dev.db` 或生产路径。分别构造 canonical v002 表、旧字段 `unit_price/quantity` 表、缺一列/混合新旧列表和无版本记录表，断言 `SchemaManager.inspect()` 依据实际列而非 ORM metadata 给出准确状态。
-2. **迁移成功与字段语义**：旧表含多行整数、小数、中文和边界值时，先备份再迁移；断言新 `transaction_price` / `transaction_quantity` 与旧值 Decimal 语义相等，旧列被隔离为 `legacy_unit_price` / `legacy_quantity`，版本/checksum 正确，业务查询只读 canonical 列；不得丢行、量化、四舍五入或改变原始语义。
+1. **临时 SQLite schema 夹具**：每个测试创建临时数据库文件并在 teardown 删除，禁止连接正式数据库。分别构造旧 `unit_price/quantity` + NULL `account_id` 表、缺少 `il_account`/外键/唯一约束的混合表、canonical account schema 和无版本记录表，断言 `SchemaManager.inspect()` 依据实际结构给出准确状态并阻止查询门禁。
+2. **迁移成功与字段语义**：旧表含多行交易和 NULL `account_id` 时，先备份再创建/复用单一迁移账户并回填；断言 canonical 交易字段与账户关联完整，账户名称符合 trim/长度/唯一规则，旧值 Decimal 语义相等且不量化；版本/checksum/外键/唯一约束正确。
 3. **事务失败回滚**：注入锁超时、不可解析值、新旧值冲突、版本跳跃和 checksum 不一致，断言迁移事务完全回滚，原表/原列/原数据不变；备份失败时原库不变。对提交后进程中断场景，下一次运行必须能由版本与实际列状态安全识别，不重复回填。
-4. **幂等与非破坏性**：对同一旧库重复执行 `migrate`，断言第二次返回 `already_applied` 且行数、值、版本记录不变；断言迁移不会 `DROP TABLE`、不会未经批准删除旧列、不会创建第二份静默数据库。另测 `create_all` 在已有旧表上不被视为升级，并由启动门禁先拒绝服务。
+4. **幂等与非破坏性**：对同一旧库重复执行 `migrate`，断言第二次返回 `already_applied`，迁移账户数量为 1，NULL `account_id` 数量为 0，行数、值、版本记录不变；断言迁移不会 `DROP TABLE`、不会创建第二份静默数据库。另测 `create_all` 在已有旧表上不被视为升级，并由启动门禁先拒绝服务。
 5. **启动与错误响应**：使用 TestClient/测试 lifespan，schema 不匹配时断言服务启动失败并出现明确 mismatch 信息；分别触发 `LedgerError`、`RequestValidationError`、`OperationalError`、其它 `SQLAlchemyError` 和未知异常，断言所有公开路由仍返回统一 `{code,msg,data}`，状态码/业务码按映射表，客户端不包含 SQL、表名、堆栈、数据库路径、请求体或敏感字段。
 6. **日志字段与堆栈策略**：对已处理业务/校验异常断言 `log/various_data.log` 有方法、路径、状态码、业务码、异常类别和 request/trace id 且无完整堆栈；对 `OperationalError` 和未知异常断言有完整堆栈、数据库路径或 database label、schema 版本、方法/路径和 request/trace id。模拟日志 handler 写失败，断言原 HTTP 响应和状态不变。
 7. **开发/生产日志隔离**：开发模式断言记录耗时、路由、状态码、schema 检查结果和参数化 SQL 模板，但参数、密码、token、Cookie、完整请求体、交易价格/数量、产品名/代码均被过滤；生产模式断言默认 INFO/WARNING、SQL logger/echo 关闭且不记录 SQL 参数。测试日志只能使用临时文件/内存 handler，不能污染正式日志。
@@ -3365,9 +3680,10 @@ sequenceDiagram
 
 ### 前端示例测试要点
 
-- 交易表单与历史交易表格：对 WEALTH/FUND 渲染「净值」「份额」，对 STOCK 渲染「单价」「数量」；切换产品类型只改变标签，草稿、请求、字段错误和表格数据键仍为 `transactionPrice` / `transactionQuantity`。历史混合列表在中性列标题下为每行展示正确的产品类型标签；无 id、无编辑入口（需求 1.1、1.2、1.4、2.12、2.23）。
+- 交易表单与历史交易表格：账户 Select 必选且只传 `accountId`，历史表展示关联账户最新名称；对 WEALTH/FUND 渲染「净值」「份额」，对 STOCK 渲染「单价」「数量」；切换产品类型只改变标签，草稿、请求、字段错误和表格数据键仍为 `accountId` / `transactionPrice` / `transactionQuantity`。历史混合列表在中性列标题下为每行展示正确产品类型标签；无 id、无编辑入口（需求 1.1、1.2、1.4、2.12、2.23、8.18、8.25）。
+- 账户管理界面：只展示账户名称；创建/编辑 trim 后保存，409 重名/已使用删除/404 不存在均使用统一错误提示，失败保留列表和字段值；改名后交易与持仓即时展示最新名称。
 - 交易费用与交易金额展示（需求 6）：新建交易弹窗的「费用」为可选输入，未填写时落库为 0；「交易金额」字段只读展示，值 = 交易价格 × 交易数量 + 费用，由组件根据当前草稿即时计算，不写入草稿、Redux 状态或请求负载。历史交易表格新增「费用」与「交易金额」两列；交易金额列由组件根据已落库的 `transactionPrice` / `transactionQuantity` / `fee` 计算展示，不作为独立字段从后端返回；断言交易金额不出现于 `TradeDraft`、`TransactionOut` 持久化字段或网络请求体。
-- 持仓表格：7 列只读；无新增/删除/编辑控件；无展开行（需求 2.4、2.6、2.7）。
+- 持仓表格：账户名称 + 7 项汇总只读；无新增/删除/编辑控件；无展开行；“查看交易”必须携带 `accountId`、`productType`、`productCode`，不能跨账户合并同产品。
 - 空结果：0 行但列头保留（需求 2.22）。
 - 分页：页大小选项为 10/20/50；`pageCount === 0` 时显示「当前结果没有可浏览的页」（需求 2.24、2.31）。
 - 枚举展示映射：产品类型列与交易方向列渲染出的文本为中文标签（理财/基金/股票、买入/卖出），而 dispatch 出的 action 载荷与请求参数为英文码；断言 `Object.keys(PRODUCT_TYPE_LABELS)` 与 `PRODUCT_TYPES` 集合相等（映射穷尽性的运行时兜底，编译期已由 `Record` 保证）。
@@ -3388,7 +3704,7 @@ sequenceDiagram
 
 ## 部署与运行说明
 
-- **账本 Web 服务**：按现有 FastAPI 进程部署，公开路由只包含交易写入和持仓/收益读取；前端不持有采集器凭据，也不调用采集命令。
+- **账本 Web 服务**：按现有 FastAPI 进程部署，公开路由包含账户 CRUD、交易写入、持仓/收益/基金辅助只读查询；前端不持有采集器凭据，也不调用采集命令。服务启动前必须完成 schema 检查和旧交易单一系统迁移账户门禁。
 - **采集任务**：本期由受信运维环境手动执行 `python -m app.investmentLedger.valuation_ingest.cli --collector <plugin_id>`，或由同一后端代码中的后台任务进程调用 `CollectorOrchestrator.run`。采集器与 Web 请求使用独立批次事务；采集失败、超时或外部网站不可用不应阻断账本查询。
 - **配置**：manifest 白名单、插件目录、来源优先级、产品类型能力、HTTP 超时、重试次数和退避参数从服务端受控配置读取，不接受前端传入；生产环境的外部网站凭据/代理配置通过环境变量或受控密钥注入，禁止写入 manifest、日志或数据库引用字段。
 - **调度扩展**：当前仓库没有既有调度基础，因此本期不承诺 cron、Celery、APScheduler 或管理后台。后续可由调度器调用同一 `run` 接口，复用注册、超时、失败隔离和幂等逻辑，不新增账本 API，也不改变前端。
@@ -3397,7 +3713,7 @@ sequenceDiagram
 
 ## 任务与依赖影响说明
 
-本次设计更新不改变 `requirements.md` 的用户验收范围，也不把估值维护重新引入前端。仓库已有交易、持仓和统计代码可复用，但实现任务必须先修正当前已知差距：移除公开估值写入/表单、将单页模块切换迁移为带导航意图的独立子路由、确保产品历史范围贯穿前后端，并补齐估值采集器与来源元数据。
+本次设计更新不改变 `requirements.md` 的用户验收范围，也不把估值维护重新引入前端。仓库已有交易、持仓和统计代码可复用，但实现任务必须先修正当前已知差距：移除公开估值写入/表单、完成账户表和交易 account_id 迁移、确保单一系统迁移账户门禁、将单页模块切换迁移为账户/持仓/历史三个带导航意图的独立子路由、确保账户+产品历史范围贯穿前后端，并补齐估值采集器与来源元数据。
 
 1. **采集协议与模型先行**：先实现 `valuation_ingest/protocol.py`、manifest schema、`StandardValuation` 和 `Valuation` 新字段/唯一约束，再实现标准化器与来源优先级配置。统计计算依赖稳定的 `Valuation` 值对象，但不依赖任何具体网站。
 2. **注册与编排随后**：实现 `CollectorRegistry` 的目录白名单、动态导入、唯一 `plugin_id`/版本冲突处理，再实现 `CollectorOrchestrator` 的能力匹配、超时、有限重试、失败隔离和批次报告。具体天天基金网脚本只是插件，不得反向修改 `TransactionService`、`HoldingService` 或公开 router。

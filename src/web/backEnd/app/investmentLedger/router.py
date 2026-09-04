@@ -6,11 +6,14 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
 from sqlalchemy.orm import Session
 
 import app.dependencies as dependencies
 from app.investmentLedger.schemas import (
+    AccountCreate,
+    AccountOut,
+    AccountRemarkUpdate,
     ApiResponse,
     HoldingOut,
     HoldingQuery,
@@ -20,7 +23,11 @@ from app.investmentLedger.schemas import (
     TransactionQuery,
 )
 from app.investmentLedger.fund_quote import FundQuoteService
-from app.investmentLedger.service import HoldingService, TransactionService
+from app.investmentLedger.service import (
+    AccountService,
+    HoldingService,
+    TransactionService,
+)
 
 get_db = dependencies.get_db
 
@@ -37,6 +44,13 @@ def getTransactionService(
     return TransactionService(db)
 
 
+def getAccountService(
+    db: Annotated[Session, Depends(get_db)],
+) -> AccountService:
+    """构造绑定请求级数据库会话的账户服务。"""
+    return AccountService(db)
+
+
 def getHoldingService(
     db: Annotated[Session, Depends(get_db)],
     fundQuoteService: Annotated[FundQuoteService, Depends(getFundQuoteService)],
@@ -49,6 +63,44 @@ fund_quote_service = FundQuoteService()
 def getFundQuoteService() -> FundQuoteService:
     """构造供持仓查询使用的基金最新净值服务。"""
     return fund_quote_service
+
+
+@router.get(
+    "/accounts",
+    response_model=ApiResponse[list[AccountOut]],
+)
+def getAccounts(
+    service: Annotated[AccountService, Depends(getAccountService)],
+) -> ApiResponse[list[AccountOut]]:
+    """按创建时间倒序返回全部投资账户。"""
+    return ApiResponse(data=service.listAccounts())
+
+
+@router.post(
+    "/accounts",
+    response_model=ApiResponse[AccountOut],
+)
+def createAccount(
+    payload: AccountCreate,
+    service: Annotated[AccountService, Depends(getAccountService)],
+) -> ApiResponse[AccountOut]:
+    """创建投资账户；账户身份字段创建后不可修改。"""
+    return ApiResponse(data=service.createAccount(payload))
+
+
+@router.patch(
+    "/accounts/{accountId}/remark",
+    response_model=ApiResponse[AccountOut],
+)
+def updateAccountRemark(
+    accountId: Annotated[int, Path(ge=1)],
+    payload: AccountRemarkUpdate,
+    service: Annotated[AccountService, Depends(getAccountService)],
+) -> ApiResponse[AccountOut]:
+    """仅更新指定账户的备注。"""
+    return ApiResponse(
+        data=service.updateAccountRemark(accountId, payload)
+    )
 
 
 @router.get(

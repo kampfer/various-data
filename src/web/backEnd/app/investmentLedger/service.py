@@ -27,9 +27,14 @@ from app.investmentLedger.exceptions import (
     InvalidDateRange,
     InvalidPageSize,
     InvalidSearchValue,
+    AccountNotFound,
     TransactionNotFound,
 )
+from app.investmentLedger.models import Account
 from app.investmentLedger.schemas import (
+    AccountCreate,
+    AccountOut,
+    AccountRemarkUpdate,
     HoldingOut,
     HoldingQuery,
     HoldingSortFieldLiteral,
@@ -196,6 +201,39 @@ def sortHoldings(
     return [item for item, _metric in orderedAvailable] + unavailableItems
 
 
+class AccountService:
+    """账户查询、创建和备注更新用例；账户身份字段不可修改。"""
+
+    def __init__(self, db: Session) -> None:
+        """绑定请求级数据库会话。"""
+        self._db = db
+
+    def listAccounts(self) -> list[AccountOut]:
+        """返回按创建时间倒序排列的全部账户。"""
+        return [
+            AccountOut.model_validate(account)
+            for account in crud.listAccounts(self._db)
+        ]
+
+    def createAccount(self, payload: AccountCreate) -> AccountOut:
+        """创建账户并返回最终落库值。"""
+        account = crud.addAccount(self._db, payload)
+        return AccountOut.model_validate(account)
+
+    def updateAccountRemark(
+        self, accountId: int, payload: AccountRemarkUpdate
+    ) -> AccountOut:
+        """仅更新账户备注；账户不存在时抛出 404 业务异常。"""
+        account = crud.updateAccountRemark(
+            self._db,
+            accountId,
+            payload.remark,
+        )
+        if account is None:
+            raise AccountNotFound(accountId)
+        return AccountOut.model_validate(account)
+
+
 class TransactionService:
     """历史交易的查询、创建与删除用例；刻意不提供更新方法（需求 1.4）。"""
 
@@ -234,6 +272,8 @@ class TransactionService:
         费用归一：``payload.fee`` 为 ``None`` 时在落库前归一为 ``Decimal(0)``，
         使出参的 ``fee`` 始终为非空十进制字符串（需求 6.2、6.4）。
         """
+        if payload.account_id is not None and self._db.get(Account, payload.account_id) is None:
+            raise AccountNotFound(payload.account_id)
         if payload.fee is None:
             payload = payload.model_copy(update={"fee": Decimal(0)})
         if payload.direction == TradeDirection.SELL:

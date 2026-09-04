@@ -8,6 +8,7 @@ import {
   PRODUCT_TYPE_LABELS,
   TRADE_DIRECTION_LABELS,
   TRADE_VALUE_LABELS,
+  formatAccountDisplayName,
 } from '../../../domain/ledger/labels';
 import { formatPriceByProductType } from '../../../domain/ledger/formatNumbers';
 import computeTransactionAmount from '../../../domain/ledger/transactionAmount';
@@ -107,6 +108,13 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
       },
       { title: '产品名称', dataIndex: 'productName', key: 'productName' },
       { title: '产品代码', dataIndex: 'productCode', key: 'productCode' },
+      {
+        title: '交易账户',
+        dataIndex: 'accountName',
+        key: 'accountName',
+        render: (value: string | null, record: TransactionOut) =>
+          formatAccountDisplayName(record.accountInstitution, value) ?? '未关联账户',
+      },
       {
         title: '净值/单价', dataIndex: 'transactionPrice', key: 'transactionPrice',
         // 基金/理财净值固定 4 位小数展示；股票单价保持原样（精度无限制）

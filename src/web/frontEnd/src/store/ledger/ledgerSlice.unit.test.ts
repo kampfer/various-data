@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
+  AccountOut,
   HoldingOut,
   Metric,
   TransactionOut,
@@ -25,6 +26,9 @@ const availableMetric = (value: string): Metric => ({
 
 const transaction: TransactionOut = {
   id: 7,
+  accountId: 3,
+  accountName: '基金账户',
+  accountInstitution: '示例机构',
   productType: 'FUND',
   productName: '测试基金',
   productCode: 'F001',
@@ -126,7 +130,7 @@ describe('ledger slice 查询状态不变量', () => {
       LedgerQueryState.defaultWithScope('history', scope).toSnapshot(),
     );
     expect(state.history).toMatchObject({
-      items: [], total: 0, page: 1, pageSize: 20, pageCount: 0, loading: false, error: null,
+      items: [], total: 0, page: 1, pageSize: 10, pageCount: 0, loading: false, error: null,
     });
   });
 
@@ -239,5 +243,60 @@ describe('根 store 迁移兼容性', () => {
       .map(String)
       .join('\n');
     expect(messages).not.toMatch(/non-serializable|mutation detected|immutable/i);
+  });
+});
+
+
+describe('ledger slice 账户状态', () => {
+  const account: AccountOut = {
+    id: 1,
+    name: '证券账户',
+    accountType: 'STOCK',
+    institution: '示例券商',
+    isActive: true,
+    remark: null,
+    createdAt: '2024-01-01T00:00:00',
+    updatedAt: '2024-01-01T00:00:00',
+  };
+
+  it('账户列表请求成功后写入账户数据，失败时保留旧数据', () => {
+    let state = ledgerReducer(undefined, { type: 'test/init' });
+    state = ledgerReducer(state, thunks.fetchAccounts.fulfilled([account], 'accounts-success', undefined));
+    expect(state.accounts).toMatchObject({ items: [account], loading: false, error: null });
+
+    state = ledgerReducer(
+      state,
+      thunks.fetchAccounts.rejected(null, 'accounts-failure', undefined, { message: '账户加载失败' }),
+    );
+    expect(state.accounts.items).toEqual([account]);
+    expect(state.accounts.error).toBe('账户加载失败');
+  });
+
+  it('创建账户或更新备注成功后关闭对应弹窗，失败时保留字段错误', () => {
+    let state = ledgerReducer(undefined, { type: 'test/init' });
+    state = ledgerReducer(state, thunks.createAccount.pending('create-pending', {
+      name: '证券账户', accountType: 'STOCK', institution: null, remark: null,
+    }));
+    expect(state.accountForm.submitting).toBe(true);
+    state = ledgerReducer(state, thunks.createAccount.fulfilled(account, 'create-success', {
+      name: '证券账户', accountType: 'STOCK', institution: null, remark: null,
+    }));
+    expect(state.accountForm.visible).toBe(false);
+
+    state = ledgerReducer(state, {
+      type: 'ledger/openAccountRemarkForm',
+      payload: { id: account.id, remark: account.remark },
+    });
+    state = ledgerReducer(state, thunks.updateAccountRemark.rejected(
+      null,
+      'remark-failure',
+      { accountId: account.id, payload: { remark: '过长备注' } },
+      {
+        message: '备注内容有误',
+        fieldErrors: [{ field: 'remark', code: 'TOO_LONG', message: '备注过长' }],
+      },
+    ));
+    expect(state.accountRemarkForm.visible).toBe(true);
+    expect(state.accountRemarkForm.fieldErrors[0]?.field).toBe('remark');
   });
 });

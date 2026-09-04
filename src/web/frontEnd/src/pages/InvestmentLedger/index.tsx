@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import type { LedgerModule } from '../../domain/ledger/constants';
+import type { LedgerNavigationModule } from '../../domain/ledger/constants';
 import ModuleSwitch from '../../components/InvestmentLedger/ModuleSwitch';
 import styles from './index.module.scss';
 
@@ -12,12 +12,14 @@ export const LedgerLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   /** 菜单高亮仅由当前 URL 派生，不读取或保存 Redux 模块状态。 */
-  const selectedModule: LedgerModule = location.pathname.endsWith('/history')
-    ? 'history'
-    : 'holdings';
+  const selectedModule: LedgerNavigationModule = location.pathname.endsWith('/accounts')
+    ? 'accounts'
+    : location.pathname.endsWith('/history')
+      ? 'history'
+      : 'holdings';
 
   /** 直接模块切换只写入 URL 和导航意图，目标模块快照由子页面继续复用。 */
-  const handleSwitch = (module: LedgerModule): void => {
+  const handleSwitch = (module: LedgerNavigationModule): void => {
     if (module === selectedModule) return;
     navigate(`/investmentLedger/${module}`, {
       state: { ledgerNavigation: 'module-switch' },

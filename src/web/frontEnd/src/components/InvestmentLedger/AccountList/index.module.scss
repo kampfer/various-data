@@ -1,0 +1,18 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.actionButton {
+  padding-inline: 0;
+}

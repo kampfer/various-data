@@ -22,6 +22,7 @@ import {
   resetHistory,
 } from '../../../store/ledger/ledgerSlice';
 import {
+  fetchAccounts,
   fetchHistory,
   removeTransaction,
   submitTransaction,
@@ -37,6 +38,7 @@ import styles from '../index.module.scss';
 interface StateProps {
   readonly history: LedgerState['history'];
   readonly tradeForm: LedgerState['tradeForm'];
+  readonly accounts: LedgerState['accounts'];
 }
 interface DispatchProps {
   readonly dispatch: AppDispatch;
@@ -55,6 +57,7 @@ type HistoryPageProps = StateProps & DispatchProps & OwnProps;
 export class HistoryPageContainer extends React.Component<HistoryPageProps> {
   public override componentDidMount(): void {
     this.syncScopeFromUrl();
+    void this.props.dispatch(fetchAccounts());
     void this.props.dispatch(fetchHistory());
   }
 
@@ -62,6 +65,10 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
     if (this.props.history.error !== null
       && this.props.history.error !== previousProps.history.error) {
       void message.error(this.props.history.error);
+    }
+    if (this.props.accounts.error !== null
+      && this.props.accounts.error !== previousProps.accounts.error) {
+      void message.error(this.props.accounts.error);
     }
     // URL 中的产品代码变化时重新同步范围并刷新
     if (this.props.scopeProductCode !== previousProps.scopeProductCode) {
@@ -129,7 +136,7 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
   };
 
   public override render(): React.ReactNode {
-    const { history, tradeForm, scopeProductCode, scopeProductName } = this.props;
+    const { history, tradeForm, accounts, scopeProductCode, scopeProductName } = this.props;
     const scoped = scopeProductCode !== null;
 
     return (
@@ -166,6 +173,7 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
         <TradeFormModal
           visible={tradeForm.visible}
           draft={tradeForm.draft}
+          accounts={accounts.items}
           fieldErrors={tradeForm.fieldErrors}
           submitting={tradeForm.submitting}
           onChange={(patch) => this.props.dispatch(changeTradeDraft(patch))}
@@ -180,6 +188,7 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
 const mapStateToProps = (state: RootState): StateProps => ({
   history: state.ledger.history,
   tradeForm: state.ledger.tradeForm,
+  accounts: state.ledger.accounts,
 });
 const mapDispatchToProps = (dispatch: AppDispatch): DispatchProps => ({ dispatch });
 const ConnectedHistoryPage = connect<StateProps, DispatchProps, OwnProps, RootState>(

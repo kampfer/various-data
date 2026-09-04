@@ -26,6 +26,9 @@ const availableMetric = (value: string): Metric => ({
 
 const transaction: TransactionOut = {
   id: 7,
+  accountId: 3,
+  accountName: '基金账户',
+  accountInstitution: '示例机构',
   productType: 'FUND',
   productName: '测试基金',
   productCode: 'F001',

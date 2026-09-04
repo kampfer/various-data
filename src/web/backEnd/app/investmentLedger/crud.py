@@ -13,7 +13,11 @@ from sqlalchemy.orm import Session
 
 from app.investmentLedger import models
 from app.investmentLedger.constants import SOURCE_PRIORITY, TradeDirection
-from app.investmentLedger.schemas import TransactionCreate, TransactionQuery
+from app.investmentLedger.schemas import (
+    AccountCreate,
+    TransactionCreate,
+    TransactionQuery,
+)
 
 
 def _transactionPredicates(query: TransactionQuery) -> list[ColumnElement[bool]]:
@@ -80,6 +84,55 @@ def countTransactions(db: Session) -> int:
     return db.execute(statement).scalar_one()
 
 
+def listAccounts(db: Session) -> list[models.Account]:
+    """按创建时间倒序查询全部账户；同一时间使用主键倒序稳定排序。"""
+    statement = select(
+        models.Account
+    ).order_by(
+        models.Account.created_at.desc(),
+        models.Account.id.desc(),
+    )
+    return list(db.scalars(statement).all())
+
+
+def addAccount(
+    db: Session, payload: AccountCreate
+) -> models.Account:
+    """创建并提交账户；数据库异常时回滚当前事务。"""
+    account = models.Account(
+        name=payload.name,
+        account_type=payload.account_type,
+        institution=payload.institution,
+        remark=payload.remark,
+    )
+    try:
+        db.add(account)
+        db.commit()
+        db.refresh(account)
+        return account
+    except Exception:
+        db.rollback()
+        raise
+
+
+def updateAccountRemark(
+    db: Session, accountId: int, remark: str | None
+) -> models.Account | None:
+    """更新账户备注；账户不存在时返回 None。"""
+    account = db.get(models.Account, accountId)
+    if account is None:
+        return None
+
+    account.remark = remark
+    try:
+        db.commit()
+        db.refresh(account)
+        return account
+    except Exception:
+        db.rollback()
+        raise
+
+
 def addTransaction(
     db: Session, payload: TransactionCreate
 ) -> models.Transaction:
@@ -88,6 +141,7 @@ def addTransaction(
     ``fee`` 由服务层归一为非空 ``Decimal``（``None`` 已转为 ``Decimal(0)``）后随交易落库。
     """
     transaction = models.Transaction(
+        account_id=payload.account_id,
         product_type=payload.product_type.value,
         product_name=payload.product_name,
         product_code=payload.product_code,

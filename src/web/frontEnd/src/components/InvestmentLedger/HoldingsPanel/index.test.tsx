@@ -42,7 +42,7 @@ describe('HoldingsPanel', () => {
     const { container } = renderPanel();
 
     expect(screen.getAllByRole('columnheader').map((node) => node.textContent?.trim())).toEqual([
-      '产品类型', '产品名称', '产品代码', '持仓', '持仓量', '总收益', '总收益率', '年化收益率',
+      '产品类型', '产品名称', '产品代码', '持仓额', '持仓量', '总收益', '总收益率', '年化收益率',
     ]);
     expect(screen.getByText('基金')).toBeInTheDocument();
     expect(screen.getByText('100')).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe('HoldingsPanel', () => {
     const onSortChange = vi.fn();
     const { rerender } = renderPanel({ onSortChange });
 
-    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓$/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓额$/ }));
     expect(onSortChange).toHaveBeenLastCalledWith('position', 'asc');
     rerender(
       <HoldingsPanel
@@ -80,7 +80,7 @@ describe('HoldingsPanel', () => {
         onReadOnlyIntent={() => undefined}
       />,
     );
-    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓$/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓额$/ }));
     expect(onSortChange).toHaveBeenLastCalledWith('position', 'desc');
     rerender(
       <HoldingsPanel
@@ -93,7 +93,7 @@ describe('HoldingsPanel', () => {
         onReadOnlyIntent={() => undefined}
       />,
     );
-    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓$/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /^持仓额$/ }));
     expect(onSortChange).toHaveBeenLastCalledWith(null, null);
 
     rerender(

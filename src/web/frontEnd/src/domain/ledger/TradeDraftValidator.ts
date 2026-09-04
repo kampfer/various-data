@@ -48,6 +48,7 @@ export default class TradeDraftValidator {
   public validate(draft: TradeDraftLike): ValidationResult {
     const fieldErrors: FieldError[] = [];
     const push = (error: FieldError | null): void => { if (error !== null) fieldErrors.push(error); };
+    push(this.checkAccountId(draft.accountId));
     push(this.checkEnum('productType', draft.productType, PRODUCT_TYPES, `产品类型必须为${PRODUCT_TYPE_HINT}之一`));
     push(this.checkText('productName', draft.productName, MAX_PRODUCT_NAME_LENGTH, '产品名称'));
     push(this.checkText('productCode', draft.productCode, MAX_PRODUCT_CODE_LENGTH, '产品代码'));
@@ -57,6 +58,12 @@ export default class TradeDraftValidator {
     push(this.checkEnum('direction', draft.direction, TRADE_DIRECTIONS, `交易方向必须为${TRADE_DIRECTION_HINT}之一`));
     push(this.checkTradeDate(draft.tradeDate));
     return { valid: fieldErrors.length === 0, fieldErrors };
+  }
+
+  private checkAccountId(value: number | null | undefined): FieldError | null {
+    return typeof value === 'number' && Number.isInteger(value) && value > 0
+      ? null
+      : { field: 'accountId', code: TRADE_ERROR_CODES.REQUIRED, message: '交易账户不能为空' };
   }
 
   private checkEnum(field: string, value: string | null | undefined, codes: readonly string[], message: string): FieldError | null {

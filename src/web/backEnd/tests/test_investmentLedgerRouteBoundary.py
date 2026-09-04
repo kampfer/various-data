@@ -11,6 +11,9 @@ def testPublicLedgerRoutesExposeOnlyTransactionWritesAndLedgerReads() -> None:
         for method in route.methods or set()
     }
     assert routes == {
+        ("/investmentLedger/accounts", "GET"),
+        ("/investmentLedger/accounts", "POST"),
+        ("/investmentLedger/accounts/{accountId}/remark", "PATCH"),
         ("/investmentLedger/transactions", "GET"),
         ("/investmentLedger/transactions", "POST"),
         ("/investmentLedger/transactions/{transactionId}", "DELETE"),
@@ -19,6 +22,7 @@ def testPublicLedgerRoutesExposeOnlyTransactionWritesAndLedgerReads() -> None:
     assert all("valuation" not in path.lower() for path, _method in routes)
     assert ("/investmentLedger/transactions/{transactionId}", "GET") not in routes
     assert not any(
-        method in {"PUT", "PATCH"}
-        for _path, method in routes
+        path.startswith("/investmentLedger/transactions")
+        and method in {"PUT", "PATCH"}
+        for path, method in routes
     )

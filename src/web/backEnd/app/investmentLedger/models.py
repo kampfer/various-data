@@ -17,8 +17,20 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Optional
 
-from sqlalchemy import Date, DateTime, Index, String, UniqueConstraint, ForeignKey, Integer
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+    true,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.investmentLedger.types import DecimalText
 
@@ -36,6 +48,17 @@ PRODUCT_NAME_LENGTH = 100
 #: 产品代码列长度上限，与 ``constants.MAX_PRODUCT_CODE_LENGTH`` 对应（需求 1.2、3.2）
 PRODUCT_CODE_LENGTH = 32
 
+#: 账户类型编码长度；数据库只要求非空，不限制具体取值，便于未来扩展
+ACCOUNT_TYPE_CODE_LENGTH = 32
+
+#: 账户名称长度上限
+ACCOUNT_NAME_LENGTH = 100
+
+#: 账户所属机构或平台名称长度上限
+INSTITUTION_NAME_LENGTH = 100
+
+#: 账户备注长度上限
+ACCOUNT_REMARK_LENGTH = 255
 
 
 class Base(DeclarativeBase):
@@ -49,6 +72,69 @@ class Base(DeclarativeBase):
     pass
 
 
+class Account(Base):
+    """投资交易账户主表；账户类型使用可扩展的英文字符串编码。"""
+
+    __tablename__ = "il_account"
+
+    #: 系统生成的账户主键；账户创建后不可由用户覆盖
+    id: Mapped[primaryKey]
+
+    #: 用户自定义账户名称；不保存完整账号或登录凭证
+    name: Mapped[str] = mapped_column(String(ACCOUNT_NAME_LENGTH))
+
+    #: 账户类型编码，例如 FUND、STOCK；数据库不绑定固定枚举集合
+    account_type: Mapped[str] = mapped_column(String(ACCOUNT_TYPE_CODE_LENGTH))
+
+    #: 所属机构或平台；基础标识信息，可为空
+    institution: Mapped[str | None] = mapped_column(
+        String(INSTITUTION_NAME_LENGTH), nullable=True
+    )
+
+    #: 是否允许继续用于新业务；停用账户仍保留历史交易关联
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default=true(),
+        nullable=False,
+        index=True,
+    )
+
+    #: 用户备注，不保存敏感凭证
+    remark: Mapped[str | None] = mapped_column(
+        String(ACCOUNT_REMARK_LENGTH), nullable=True
+    )
+
+    #: 创建时间
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+
+    #: 最后更新时间；账户名称等可编辑基础信息变化时由 ORM 更新
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        onupdate=datetime.now,
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+
+    #: 账户关联的历史交易；交易删除不会反向删除账户。
+    transactions: Mapped[list["Transaction"]] = relationship(
+        back_populates="account"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(account_type) > 0",
+            name="ck_il_account_type_not_empty",
+        ),
+    )
+
+
 class Transaction(Base):
     """交易记录表：一行一笔买卖，**只有 INSERT 与 DELETE 两条路径，没有 UPDATE**（需求 1.4）。"""
 
@@ -56,6 +142,21 @@ class Transaction(Base):
 
     #: 主键：仅用于删除定位，既不展示也不提供按其查询的接口（需求 2.23）
     id: Mapped[primaryKey]
+
+    #: 账户外键；历史交易允许为空，新交易由后续服务层要求选择账户
+    account_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey(
+            "il_account.id",
+            name="fk_il_transaction_account",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    #: 交易所属账户；旧交易为空时仍允许历史记录正常读取。
+    account: Mapped[Account | None] = relationship(back_populates="transactions")
 
     #: 产品类型英文码，取值 ∈ {WEALTH, FUND, STOCK}（需求 1.1、1.2）；
     #: 单列索引支撑按产品类型筛选（需求 2.16）
@@ -90,9 +191,26 @@ class Transaction(Base):
     #: 交易不可编辑，故不设置 onupdate（需求 1.4）
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
+    @property
+    def account_name(self) -> str | None:
+        """返回历史列表展示用的账户名称；旧交易未关联账户时返回空值。"""
+        return self.account.name if self.account is not None else None
+
+    @property
+    def account_institution(self) -> str | None:
+        """返回历史列表展示用的账户机构；旧交易未关联账户时返回空值。"""
+        return self.account.institution if self.account is not None else None
+
     __table_args__ = (
         # 复合索引：支撑按产品键分组与「产品历史交易范围」查询（需求 2.5、2.10）
         Index("ix_il_transaction_product", "product_type", "product_code"),
+        # 账户维度的产品查询索引，为未来账户级持仓统计预留性能基础
+        Index(
+            "ix_il_transaction_account_product",
+            "account_id",
+            "product_type",
+            "product_code",
+        ),
     )
 
 

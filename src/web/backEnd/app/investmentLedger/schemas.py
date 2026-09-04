@@ -16,7 +16,7 @@
   ``RequestValidationError`` 处理器直接翻译为 ``FieldErrorItem.code``（需求 1.2、3.2）。
 """
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Annotated, Generic, Literal, TypeVar
 
@@ -34,6 +34,10 @@ from pydantic_core import PydanticCustomError
 
 from app.investmentLedger.constants import (
     DEFAULT_PAGE_SIZE,
+    MAX_ACCOUNT_NAME_LENGTH,
+    MAX_ACCOUNT_REMARK_LENGTH,
+    MAX_ACCOUNT_TYPE_LENGTH,
+    MAX_INSTITUTION_NAME_LENGTH,
     MAX_PAGE_SIZE,
     MAX_PRODUCT_CODE_LENGTH,
     MAX_PRODUCT_NAME_LENGTH,
@@ -194,6 +198,76 @@ class ApiResponse(LedgerSchema, Generic[T]):
     data: T | None = None
 
 
+class AccountCreate(LedgerSchema):
+    """创建账户请求；账户身份字段只在创建时提供。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    #: 账户名称，创建后不可修改
+    name: str = Field(min_length=1, max_length=MAX_ACCOUNT_NAME_LENGTH)
+
+    #: 可扩展账户类型编码，创建后不可修改
+    account_type: str = Field(min_length=1, max_length=MAX_ACCOUNT_TYPE_LENGTH)
+
+    #: 所属机构或平台，创建后不可修改
+    institution: str | None = Field(
+        default=None,
+        max_length=MAX_INSTITUTION_NAME_LENGTH,
+    )
+
+    #: 账户备注，后续唯一允许修改的字段
+    remark: str | None = Field(
+        default=None,
+        max_length=MAX_ACCOUNT_REMARK_LENGTH,
+    )
+
+    @field_validator("name", "account_type", mode="before")
+    @classmethod
+    def stripRequiredText(cls, value: object) -> object:
+        """去除首尾空白，避免空白文本绕过非空校验。"""
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("institution", "remark", mode="before")
+    @classmethod
+    def normalizeOptionalText(cls, value: object) -> object:
+        """把空字符串归一为空值，并去除普通文本首尾空白。"""
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip()
+        return normalized or None
+
+
+class AccountRemarkUpdate(LedgerSchema):
+    """账户备注更新请求；禁止提交账户其它字段。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    #: 新备注；允许传 null 清空备注
+    remark: str | None = Field(max_length=MAX_ACCOUNT_REMARK_LENGTH)
+
+    @field_validator("remark", mode="before")
+    @classmethod
+    def normalizeRemark(cls, value: object) -> object:
+        """去除备注首尾空白，空字符串归一为空值。"""
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip()
+        return normalized or None
+
+
+class AccountOut(LedgerSchema):
+    """账户响应；身份字段和状态字段均为只读数据。"""
+
+    id: int
+    name: str
+    account_type: str
+    institution: str | None = None
+    is_active: bool
+    remark: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class FieldErrorItem(LedgerSchema):
     """字段级错误项，前端据此把错误定位到具体表单项并保留已填值（需求 1.2、3.2）。"""
 
@@ -273,6 +347,9 @@ class TransactionCreate(LedgerSchema):
     非法枚举值（中文字面量「理财」、小写码 ``wealth``）由 Pydantic 的枚举校验直接拒绝；
     长度、正数、两位小数等约束由下方字段校验器给出中文原因。
     """
+
+    #: 账户主键；创建新交易时可关联账户，旧交易允许为空
+    account_id: int | None = Field(default=None, ge=1)
 
     #: 产品类型英文码，取值 ∈ {WEALTH, FUND, STOCK}（需求 1.1、1.2）
     product_type: ProductType
@@ -357,6 +434,15 @@ class TransactionOut(LedgerSchema):
 
     #: 交易主键，仅用于删除定位；前端不渲染，也不提供按其查询的接口（需求 2.23）
     id: int
+
+    #: 所属账户主键；旧历史交易未关联账户时为空
+    account_id: int | None = None
+
+    #: 所属账户名称；由 ORM 关联得到，旧历史交易为空
+    account_name: str | None = None
+
+    #: 所属账户机构；由 ORM 关联得到，旧历史交易为空
+    account_institution: str | None = None
 
     #: 产品类型英文码，前端经展示映射转中文
     product_type: ProductType

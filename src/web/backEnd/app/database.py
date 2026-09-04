@@ -1,6 +1,6 @@
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.logger import logger
@@ -13,11 +13,22 @@ DB_FILE_PATH = os.path.join(
 )
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_FILE_PATH}"
 
+
+def enableSqliteForeignKeys(dbapiConnection, _connectionRecord) -> None:
+    """为每个 SQLite 连接启用外键约束，确保删除策略在运行时生效。"""
+    cursor = dbapiConnection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys = ON")
+    finally:
+        cursor.close()
+
+
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
     echo=os.getenv("mode") != "pro",
 )
+event.listen(engine, "connect", enableSqliteForeignKeys)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import type { Dayjs } from "dayjs";
 import type { ChangeEvent } from "react";
 import type {
+  AccountOut,
   FieldErrorItem,
   FundSearchOut,
   TradeDraft,
@@ -20,6 +21,7 @@ import {
   productTypeOptions,
   tradeDirectionOptions,
   TRADE_VALUE_LABELS,
+  formatAccountDisplayName,
 } from "../../../domain/ledger/labels";
 import FundSearchResults from "../FundSearchResults";
 import styles from "./index.module.scss";
@@ -37,6 +39,7 @@ const toTradeDateDayjs = (value: string | null | undefined): Dayjs | null => {
 export interface TradeFormModalProps {
   readonly visible: boolean;
   readonly draft: TradeDraft;
+  readonly accounts: readonly AccountOut[];
   readonly fieldErrors: readonly FieldErrorItem[];
   readonly submitting: boolean;
   readonly onChange: (patch: Partial<TradeDraft>) => void;
@@ -147,20 +150,15 @@ export default class TradeFormModal extends React.Component<
     }
     if (!isFund) return;
 
-    // 产品类型为基金：根据产品名称或产品代码的最新变化触发防抖搜索
-    const prevName = prevDraft.productName ?? "";
-    const currName = draft.productName ?? "";
+    // 产品类型为基金：仅根据产品代码的最新变化触发防抖搜索。
+    // 产品名称由基金搜索结果回填，不作为搜索输入，避免名称与代码脱钩。
     const prevCode = prevDraft.productCode ?? "";
     const currCode = draft.productCode ?? "";
 
-    if (currName !== prevName && currName.length > 0) {
-      // 产品名称变化且非空：以名称为关键词搜索
-      this.fundSearchController.search(currName);
-    } else if (currCode !== prevCode && currCode.length > 0) {
-      // 产品代码变化且非空：以代码为关键词搜索
+    if (currCode !== prevCode && currCode.length > 0) {
       this.fundSearchController.search(currCode);
-    } else if (currName !== prevName || currCode !== prevCode) {
-      // 任一字段被清空：清空搜索结果与 hasSearched，隐藏浮动框（需求 5.3 空输入不发请求）
+    } else if (currCode !== prevCode) {
+      // 产品代码被清空：清空搜索结果与 hasSearched，隐藏浮动框（需求 5.3）
       this.resetSearch();
     }
   }
@@ -178,6 +176,24 @@ export default class TradeFormModal extends React.Component<
     (field: keyof TradeDraft) =>
       (event: ChangeEvent<HTMLInputElement>): void =>
         this.changeField(field, event.target.value);
+
+  /** 基金代码变化时清除旧名称，避免用户修改代码后提交名称与代码不匹配。 */
+  private readonly changeFundCode = (
+    event: ChangeEvent<HTMLInputElement>,
+  ): void => {
+    const productCode = event.target.value;
+    const isFund = this.props.draft.productType === "FUND";
+    this.setState((current) => ({
+      fieldErrors: current.fieldErrors.filter(
+        (error) =>
+          error.field !== "productCode" &&
+          (!isFund || error.field !== "productName"),
+      ),
+    }));
+    this.props.onChange(
+      isFund ? { productCode, productName: null } : { productCode },
+    );
+  };
   /**
    * 净值/单价失焦：基金/理财类型按 4 位小数格式化写回草稿（方便用户确认最终录入值）；
    * 股票不格式化；空值或非法文本不动。
@@ -225,6 +241,7 @@ export default class TradeFormModal extends React.Component<
     const { visible, draft, submitting, onCancel } = this.props;
     const type = draft.productType ?? "FUND";
     const labels = TRADE_VALUE_LABELS[type];
+    const activeAccounts = this.props.accounts.filter((account) => account.isActive);
     // 浮动下拉框显示条件（需求 5.1、5.4）：
     //   - productType 必须为 FUND；非 FUND 一律不显示；
     //   - searching=true（正在防抖/请求）→ 显示加载态浮动框；
@@ -248,6 +265,27 @@ export default class TradeFormModal extends React.Component<
       >
         <Form className={styles.form} layout="vertical" autoComplete="off">
           <div className={styles.grid}>
+            <Form.Item
+              label="交易账户"
+              required
+              validateStatus={
+                this.errorFor("accountId") ? "error" : undefined
+              }
+              help={this.errorFor("accountId")}
+            >
+              <Select<number>
+                aria-label="交易账户"
+                className={styles.fullWidth}
+                virtual={false}
+                placeholder={activeAccounts.length > 0 ? "请选择交易账户" : "暂无可用账户"}
+                value={draft.accountId ?? undefined}
+                options={activeAccounts.map((account) => ({
+                  value: account.id,
+                  label: formatAccountDisplayName(account.institution, account.name) ?? account.name,
+                }))}
+                onChange={(value) => this.changeField("accountId", value)}
+              />
+            </Form.Item>
             <Form.Item
               label="产品类型"
               required
@@ -282,22 +320,21 @@ export default class TradeFormModal extends React.Component<
                 onChange={(value) => this.changeField("direction", value)}
               />
             </Form.Item>
+            <Form.Item
+              label="交易日期"
+              required
+              validateStatus={this.errorFor("tradeDate") ? "error" : undefined}
+              help={this.errorFor("tradeDate")}
+            >
+              <DatePicker
+                aria-label="交易日期"
+                className={styles.fullWidth}
+                format={TRADE_DATE_FORMAT}
+                value={toTradeDateDayjs(draft.tradeDate)}
+                onChange={this.changeTradeDate}
+              />
+            </Form.Item>
             <div className={styles.fundFieldsRow}>
-              <Form.Item
-                label="产品名称"
-                required
-                validateStatus={
-                  this.errorFor("productName") ? "error" : undefined
-                }
-                help={this.errorFor("productName")}
-              >
-                <Input
-                  aria-label="产品名称"
-                  allowClear
-                  value={draft.productName ?? ""}
-                  onChange={this.changeText("productName")}
-                />
-              </Form.Item>
               <Form.Item
                 label="产品代码"
                 required
@@ -310,8 +347,32 @@ export default class TradeFormModal extends React.Component<
                   aria-label="产品代码"
                   allowClear
                   value={draft.productCode ?? ""}
-                  onChange={this.changeText("productCode")}
+                  onChange={this.changeFundCode}
                 />
+              </Form.Item>
+              <Form.Item
+                label="产品名称"
+                required
+                validateStatus={
+                  this.errorFor("productName") ? "error" : undefined
+                }
+                help={this.errorFor("productName")}
+              >
+                {type === "FUND" ? (
+                  <span
+                    className={styles.readOnlyText}
+                    aria-label="产品名称"
+                  >
+                    {draft.productName || "选择基金后自动填入"}
+                  </span>
+                ) : (
+                  <Input
+                    aria-label="产品名称"
+                    allowClear
+                    value={draft.productName ?? ""}
+                    onChange={this.changeText("productName")}
+                  />
+                )}
               </Form.Item>
               {showFundSearch && (
                 <FundSearchResults
@@ -366,20 +427,6 @@ export default class TradeFormModal extends React.Component<
                 allowClear
                 value={draft.fee ?? ""}
                 onChange={this.changeText("fee")}
-              />
-            </Form.Item>
-            <Form.Item
-              label="交易日期"
-              required
-              validateStatus={this.errorFor("tradeDate") ? "error" : undefined}
-              help={this.errorFor("tradeDate")}
-            >
-              <DatePicker
-                aria-label="交易日期"
-                className={styles.fullWidth}
-                format={TRADE_DATE_FORMAT}
-                value={toTradeDateDayjs(draft.tradeDate)}
-                onChange={this.changeTradeDate}
               />
             </Form.Item>
           </div>

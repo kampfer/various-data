@@ -10,3 +10,22 @@ export const TRADE_VALUE_LABELS: Record<ProductType, { readonly price: string; r
 export interface LabeledOption<T extends string> { readonly value: T; readonly label: string; }
 export const productTypeOptions = (): readonly LabeledOption<ProductType>[] => PRODUCT_TYPES.map((value) => ({ value, label: PRODUCT_TYPE_LABELS[value] }));
 export const tradeDirectionOptions = (): readonly LabeledOption<TradeDirection>[] => TRADE_DIRECTIONS.map((value) => ({ value, label: TRADE_DIRECTION_LABELS[value] }));
+
+/** 常用账户类型展示标签；未知编码保留原值，便于未来扩展账户类型。 */
+export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  FUND: '基金账户',
+  STOCK: '证券账户',
+};
+
+export const accountTypeLabel = (accountType: string): string =>
+  ACCOUNT_TYPE_LABELS[accountType] ?? accountType;
+
+/** 格式化账户展示名称；有机构时显示“机构 - 名称”，无机构时仅显示名称。 */
+export const formatAccountDisplayName = (
+  institution: string | null | undefined,
+  name: string | null | undefined,
+): string | null => {
+  if (!name) return null;
+  const normalizedInstitution = institution?.trim();
+  return normalizedInstitution ? `${normalizedInstitution} - ${name}` : name;
+};

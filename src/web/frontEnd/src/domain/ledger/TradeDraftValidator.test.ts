@@ -7,7 +7,7 @@ import type { TradeDraftLike } from './TradeDraftValidator';
 
 const validDecimal = fc.tuple(fc.integer({ min: 1, max: 10 ** 12 }), fc.integer({ min: 0, max: 10 ** 12 })).map(([whole, fraction]) => `${whole}.${String(fraction).padStart(12, '0')}`);
 const invalidDecimal = fc.constantFrom('NaN', 'Infinity', '-1', '0', 'abc', '');
-const base = (productType: string, transactionPrice: string, transactionQuantity: string): TradeDraftLike => ({ productType, productName: '产品', productCode: 'P001', transactionPrice, transactionQuantity, direction: 'BUY', tradeDate: '2024-02-29' });
+const base = (productType: string, transactionPrice: string, transactionQuantity: string): TradeDraftLike => ({ accountId: 3, productType, productName: '产品', productCode: 'P001', transactionPrice, transactionQuantity, direction: 'BUY', tradeDate: '2024-02-29' });
 describe('Property 1: 差异化交易数值校验', () => {
   it('对至少 100 个任意精度数值，保留输入并按产品类型拒绝无效值', () => {
     fc.assert(fc.property(fc.constantFrom('WEALTH', 'FUND', 'STOCK'), validDecimal, validDecimal, invalidDecimal, (productType, price, quantity, invalid) => {

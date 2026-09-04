@@ -26,8 +26,11 @@ export const MIN_PAGE_SIZE = 1;
 /** 自定义页大小上界，闭区间（需求 2.25、2.26） */
 export const MAX_PAGE_SIZE = 100;
 
-/** 两个独立界面模块的标识：history=历史交易记录模块，holdings=持仓模块（需求 2.1） */
+/** 两个交易查询模块的标识；账户管理不属于交易查询模型。 */
 export type LedgerModule = 'history' | 'holdings';
+
+/** 投资台账导航模块；accounts 仅用于 URL 导航，不进入交易查询状态。 */
+export type LedgerNavigationModule = LedgerModule | 'accounts';
 
 /** 排序方向：asc=从小到大，desc=从大到小（需求 2.19） */
 export type SortOrder = 'asc' | 'desc';

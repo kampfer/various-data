@@ -167,6 +167,19 @@ class TransactionNotFound(LedgerError):
         super().__init__()
 
 
+class AccountNotFound(LedgerError):
+    """账户不存在：HTTP 404、业务 ``code`` 404。"""
+
+    statusCode = HTTP_404_NOT_FOUND
+    code = BUSINESS_CODE_NOT_FOUND
+    defaultMsg = "投资账户不存在或已被删除"
+
+    def __init__(self, accountId: int | None = None) -> None:
+        """构造账户不存在异常；账户标识不写入对外提示。"""
+        self.accountId = accountId
+        super().__init__()
+
+
 class InsufficientHolding(LedgerValidationError):
     """卖出数量使同产品持仓数量（Σ 买入 − Σ 卖出，含本次）小于 0（需求 1.3）。
 
@@ -323,6 +336,10 @@ FIELD_LABELS = {
     "productType": "产品类型",
     "productName": "产品名称",
     "productCode": "产品代码",
+    "name": "账户名称",
+    "accountType": "账户类型",
+    "institution": "所属机构或平台",
+    "remark": "账户备注",
     "transactionPrice": "交易价格",
     "transactionQuantity": "交易数量",
     "direction": "交易方向",
@@ -362,6 +379,24 @@ FIELD_MESSAGES = {
     ),
     ("productCode", ERROR_CODE_OUT_OF_RANGE): (
         f"产品代码不能为空，且不能超过 {MAX_PRODUCT_CODE_LENGTH} 个字符"
+    ),
+    ("name", ERROR_CODE_TOO_LONG): (
+        "账户名称不能超过 100 个字符"
+    ),
+    ("name", ERROR_CODE_OUT_OF_RANGE): (
+        "账户名称不能为空，且不能超过 100 个字符"
+    ),
+    ("accountType", ERROR_CODE_TOO_LONG): (
+        "账户类型编码不能超过 32 个字符"
+    ),
+    ("accountType", ERROR_CODE_OUT_OF_RANGE): (
+        "账户类型编码不能为空，且不能超过 32 个字符"
+    ),
+    ("institution", ERROR_CODE_TOO_LONG): (
+        "所属机构或平台不能超过 100 个字符"
+    ),
+    ("remark", ERROR_CODE_TOO_LONG): (
+        "账户备注不能超过 255 个字符"
     ),
     ("scopeProductCode", ERROR_CODE_OUT_OF_RANGE): (
         f"产品历史交易范围的产品代码不能为空，且不能超过 {MAX_PRODUCT_CODE_LENGTH} 个字符"

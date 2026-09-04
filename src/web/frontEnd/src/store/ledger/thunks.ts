@@ -4,11 +4,15 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import * as ledgerApi from '../../api/ledger';
 import { LedgerApiError } from '../../api/request';
 import type {
+  AccountCreatePayload,
+  AccountOut,
+  AccountRemarkUpdatePayload,
   HoldingOut,
   PageOut,
   TradeDraft,
   TransactionOut,
 } from '../../api/types';
+import AccountDraftValidator from '../../domain/ledger/AccountDraftValidator';
 import LedgerQueryState from '../../domain/ledger/LedgerQueryState';
 import TradeDraftValidator from '../../domain/ledger/TradeDraftValidator';
 import type { FieldError } from '../../domain/ledger/TradeDraftValidator';
@@ -109,3 +113,67 @@ export const submitTrade = submitTransaction;
 
 /** 设计文档旧命名兼容：与 removeTransaction 是同一 thunk，不生成重复 action。 */
 export const deleteTrade = removeTransaction;
+
+/** 拉取全部投资账户；账户接口不使用交易分页查询参数。 */
+export const fetchAccounts = createAsyncThunk<AccountOut[], void, ThunkConfig>(
+  'ledger/fetchAccounts',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await ledgerApi.fetchAccounts();
+    } catch (error) {
+      return rejectWithValue(toRejectValue(error));
+    }
+  },
+);
+
+/** 创建账户；校验失败时保留原始草稿，成功后重新拉取服务端排序后的列表。 */
+export const createAccount = createAsyncThunk<AccountOut, AccountCreatePayload, ThunkConfig>(
+  'ledger/createAccount',
+  async (payload, { dispatch, rejectWithValue }) => {
+    const draft = {
+      name: payload.name,
+      accountType: payload.accountType,
+      institution: payload.institution ?? '',
+      remark: payload.remark ?? '',
+    };
+    const validation = new AccountDraftValidator().validateCreate(draft);
+    if (!validation.valid) {
+      return rejectWithValue({
+        message: '账户信息有误，请检查后重试',
+        fieldErrors: [...validation.fieldErrors],
+      });
+    }
+    try {
+      const created = await ledgerApi.createAccount(payload);
+      await dispatch(fetchAccounts());
+      return created;
+    } catch (error) {
+      return rejectWithValue(toRejectValue(error));
+    }
+  },
+);
+
+/** 仅更新 remark；成功后重新拉取列表，避免覆盖服务端的更新时间和排序结果。 */
+export const updateAccountRemark = createAsyncThunk<
+  AccountOut,
+  { accountId: number; payload: AccountRemarkUpdatePayload },
+  ThunkConfig
+>(
+  'ledger/updateAccountRemark',
+  async ({ accountId, payload }, { dispatch, rejectWithValue }) => {
+    const validation = new AccountDraftValidator().validateRemark(payload.remark);
+    if (!validation.valid) {
+      return rejectWithValue({
+        message: '备注内容有误，请检查后重试',
+        fieldErrors: [...validation.fieldErrors],
+      });
+    }
+    try {
+      const updated = await ledgerApi.updateAccountRemark(accountId, payload);
+      await dispatch(fetchAccounts());
+      return updated;
+    } catch (error) {
+      return rejectWithValue(toRejectValue(error));
+    }
+  },
+);

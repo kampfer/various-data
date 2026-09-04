@@ -2,7 +2,7 @@
 // Redux Toolkit 账本切片：只保存可序列化数据，查询规则统一委托给 LedgerQueryState。
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { TradeDraft } from '../../api/types';
+import type { AccountDraft, AccountOut, TradeDraft } from '../../api/types';
 import LedgerQueryState from '../../domain/ledger/LedgerQueryState';
 import type {
   LedgerQuerySnapshot,
@@ -15,6 +15,7 @@ import type { LedgerState } from './types';
 
 /** 构造空交易草稿；每次调用均返回新的可序列化对象。 */
 const createEmptyTradeDraft = (): TradeDraft => ({
+  accountId: null,
   productType: null,
   productName: null,
   productCode: null,
@@ -22,6 +23,14 @@ const createEmptyTradeDraft = (): TradeDraft => ({
   transactionQuantity: null,
   direction: null,
   tradeDate: null,
+});
+
+/** 构造新建账户的空草稿。 */
+const createEmptyAccountDraft = (): AccountDraft => ({
+  name: '',
+  accountType: '',
+  institution: '',
+  remark: '',
 });
 
 /** 从 thunk 的可序列化拒绝载荷取得用户可见错误。 */
@@ -55,6 +64,24 @@ const initialState: LedgerState = {
   tradeForm: {
     visible: false,
     draft: createEmptyTradeDraft(),
+    fieldErrors: [],
+    submitting: false,
+  },
+  accounts: {
+    items: [],
+    loading: false,
+    error: null,
+  },
+  accountForm: {
+    visible: false,
+    draft: createEmptyAccountDraft(),
+    fieldErrors: [],
+    submitting: false,
+  },
+  accountRemarkForm: {
+    visible: false,
+    accountId: null,
+    remark: '',
     fieldErrors: [],
     submitting: false,
   },
@@ -138,6 +165,43 @@ const ledgerSlice = createSlice({
       state.tradeForm.draft = { ...state.tradeForm.draft, ...action.payload };
     },
 
+    /** 打开新建账户弹窗并清除旧草稿。 */
+    openAccountForm(state) {
+      state.accountForm.visible = true;
+      state.accountForm.draft = createEmptyAccountDraft();
+      state.accountForm.fieldErrors = [];
+      state.accountForm.submitting = false;
+    },
+
+    /** 关闭账户创建弹窗但不丢弃草稿，提交失败时可继续修正。 */
+    closeAccountForm(state) {
+      state.accountForm.visible = false;
+    },
+
+    /** 合并账户创建草稿输入。 */
+    changeAccountDraft(state, action: PayloadAction<Partial<AccountDraft>>) {
+      state.accountForm.draft = { ...state.accountForm.draft, ...action.payload };
+    },
+
+    /** 打开备注编辑弹窗；账户身份字段不会进入编辑草稿。 */
+    openAccountRemarkForm(state, action: PayloadAction<Pick<AccountOut, 'id' | 'remark'>>) {
+      state.accountRemarkForm.visible = true;
+      state.accountRemarkForm.accountId = action.payload.id;
+      state.accountRemarkForm.remark = action.payload.remark ?? '';
+      state.accountRemarkForm.fieldErrors = [];
+      state.accountRemarkForm.submitting = false;
+    },
+
+    closeAccountRemarkForm(state) {
+      state.accountRemarkForm.visible = false;
+    },
+
+    changeAccountRemark(state, action: PayloadAction<string>) {
+      state.accountRemarkForm.remark = action.payload;
+      state.accountRemarkForm.fieldErrors = state.accountRemarkForm.fieldErrors
+        .filter((error) => error.field !== 'remark');
+    },
+
   },
   extraReducers: (builder) => {
     builder
@@ -200,6 +264,48 @@ const ledgerSlice = createSlice({
         state.history.loading = false;
         state.history.error = rejectMessage(action.payload);
       })
+      .addCase(thunks.fetchAccounts.pending, (state) => {
+        state.accounts.loading = true;
+        state.accounts.error = null;
+      })
+      .addCase(thunks.fetchAccounts.fulfilled, (state, action) => {
+        state.accounts.loading = false;
+        state.accounts.error = null;
+        state.accounts.items = action.payload;
+      })
+      .addCase(thunks.fetchAccounts.rejected, (state, action) => {
+        state.accounts.loading = false;
+        state.accounts.error = rejectMessage(action.payload);
+      })
+      .addCase(thunks.createAccount.pending, (state) => {
+        state.accountForm.submitting = true;
+        state.accountForm.fieldErrors = [];
+      })
+      .addCase(thunks.createAccount.fulfilled, (state) => {
+        state.accountForm.submitting = false;
+        state.accountForm.visible = false;
+        state.accountForm.draft = createEmptyAccountDraft();
+        state.accountForm.fieldErrors = [];
+      })
+      .addCase(thunks.createAccount.rejected, (state, action) => {
+        state.accountForm.submitting = false;
+        state.accountForm.fieldErrors = action.payload?.fieldErrors ?? [];
+      })
+      .addCase(thunks.updateAccountRemark.pending, (state) => {
+        state.accountRemarkForm.submitting = true;
+        state.accountRemarkForm.fieldErrors = [];
+      })
+      .addCase(thunks.updateAccountRemark.fulfilled, (state) => {
+        state.accountRemarkForm.submitting = false;
+        state.accountRemarkForm.visible = false;
+        state.accountRemarkForm.accountId = null;
+        state.accountRemarkForm.remark = '';
+        state.accountRemarkForm.fieldErrors = [];
+      })
+      .addCase(thunks.updateAccountRemark.rejected, (state, action) => {
+        state.accountRemarkForm.submitting = false;
+        state.accountRemarkForm.fieldErrors = action.payload?.fieldErrors ?? [];
+      })
   },
 });
 
@@ -213,6 +319,12 @@ export const {
   openTradeForm,
   closeTradeForm,
   changeTradeDraft,
+  openAccountForm,
+  closeAccountForm,
+  changeAccountDraft,
+  openAccountRemarkForm,
+  closeAccountRemarkForm,
+  changeAccountRemark,
 } = ledgerSlice.actions;
 
 /** 默认导出 reducer，供任务 12.4 装配到根 store 的 ledger 键。 */

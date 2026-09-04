@@ -41,7 +41,7 @@ describe('账本路由导航状态', () => {
     }).toSnapshot());
     expect(state.history.query.productName).toBeNull();
     expect(state.history.query.direction).toBeNull();
-    expect(state.history.query.pageSize).toBe(20);
+    expect(state.history.query.pageSize).toBe(10);
   });
 
   it('无上下文 history 深链重置为全部交易默认状态且不产生 scope', () => {

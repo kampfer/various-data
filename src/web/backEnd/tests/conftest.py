@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -36,6 +36,15 @@ def assertNotRealDatabase(databaseUrl: str) -> None:
             raise AssertionError(f"测试禁止连接真实数据库：{forbiddenFileName}")
 
 
+def enableSqliteForeignKeys(dbapiConnection, _connectionRecord) -> None:
+    """为测试 SQLite 连接启用外键约束，保持与生产数据库一致。"""
+    cursor = dbapiConnection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys = ON")
+    finally:
+        cursor.close()
+
+
 @pytest.fixture()
 def tempDatabasePath(tmp_path: Path) -> Path:
     """返回本次测试专用的临时 SQLite 文件路径（由 pytest 负责目录清理）。"""
@@ -48,6 +57,7 @@ def tempEngine(tempDatabasePath: Path) -> Iterator[Engine]:
     databaseUrl = f"sqlite:///{tempDatabasePath}"
     assertNotRealDatabase(databaseUrl)
     engine = create_engine(databaseUrl, connect_args={"check_same_thread": False})
+    event.listen(engine, "connect", enableSqliteForeignKeys)
     try:
         yield engine
     finally:

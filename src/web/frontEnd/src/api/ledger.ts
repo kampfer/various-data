@@ -16,6 +16,9 @@ import type {
   TradeDraft,
   TransactionQueryParams,
   HoldingQueryParams,
+  AccountCreatePayload,
+  AccountOut,
+  AccountRemarkUpdatePayload,
 } from './types';
 import type { LedgerQueryParams } from '../domain/ledger/LedgerQueryState';
 
@@ -68,3 +71,18 @@ export const deleteTransaction = (transactionId: number): Promise<null> =>
  */
 export const fetchHoldings = (params: HoldingQueryInput): Promise<PageOut<HoldingOut>> =>
   unwrap(http.get<ApiEnvelope<PageOut<HoldingOut>>>('/holdings', { params, timeout: 30000 }));
+
+/** 查询全部投资账户；后端按创建时间倒序返回。 */
+export const fetchAccounts = (): Promise<AccountOut[]> =>
+  unwrap(http.get<ApiEnvelope<AccountOut[]>>('/accounts'));
+
+/** 创建投资账户；账户身份字段创建后不再提供编辑入口。 */
+export const createAccount = (payload: AccountCreatePayload): Promise<AccountOut> =>
+  unwrap(http.post<ApiEnvelope<AccountOut>>('/accounts', payload));
+
+/** 仅更新账户备注，账户其它字段不会随请求发送。 */
+export const updateAccountRemark = (
+  accountId: number,
+  payload: AccountRemarkUpdatePayload,
+): Promise<AccountOut> =>
+  unwrap(http.patch<ApiEnvelope<AccountOut>>(`/accounts/${accountId}/remark`, payload));

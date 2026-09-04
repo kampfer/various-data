@@ -3,6 +3,8 @@
 import type { LedgerQuerySnapshot } from '../../domain/ledger/LedgerQueryState';
 import type { FieldError } from '../../domain/ledger/TradeDraftValidator';
 import type {
+  AccountDraft,
+  AccountOut,
   HoldingOut,
   TradeDraft,
   TransactionOut,
@@ -47,6 +49,28 @@ export interface LedgerState {
   holdings: ListSliceState<HoldingOut>;
   /** 新建交易表单状态。 */
   tradeForm: FormSliceState<TradeDraft>;
+  /** 全部投资账户；后端已按创建时间倒序返回。 */
+  accounts: AccountListState;
+  /** 新建账户表单状态。 */
+  accountForm: FormSliceState<AccountDraft>;
+  /** 账户备注编辑表单状态。 */
+  accountRemarkForm: AccountRemarkFormState;
+}
+
+/** 账户列表状态不复用交易分页查询状态。 */
+export interface AccountListState {
+  items: AccountOut[];
+  loading: boolean;
+  error: string | null;
+}
+
+/** 备注编辑状态；accountId 为空表示当前没有编辑目标。 */
+export interface AccountRemarkFormState {
+  visible: boolean;
+  accountId: number | null;
+  remark: string;
+  fieldErrors: FieldError[];
+  submitting: boolean;
 }
 
 /**
