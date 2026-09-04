@@ -16,9 +16,18 @@ const account: AccountOut = {
 };
 
 describe('AccountList', () => {
-  it('展示账户身份字段并只提供编辑备注操作', () => {
+  it('展示账户身份字段并支持编辑备注和启停状态', () => {
     const onEditRemark = vi.fn();
-    render(<AccountList items={[account]} loading={false} onEditRemark={onEditRemark} />);
+    const onToggleStatus = vi.fn();
+    render(
+      <AccountList
+        items={[account]}
+        loading={false}
+        updatingId={null}
+        onEditRemark={onEditRemark}
+        onToggleStatus={onToggleStatus}
+      />,
+    );
 
     expect(screen.getByText('我的证券账户')).toBeInTheDocument();
     expect(screen.getByText('证券账户')).toBeInTheDocument();
@@ -28,5 +37,7 @@ describe('AccountList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '编辑备注' }));
     expect(onEditRemark).toHaveBeenCalledWith(account);
+    fireEvent.click(screen.getByRole('button', { name: '停用' }));
+    expect(onToggleStatus).toHaveBeenCalledWith(account);
   });
 });

@@ -14,7 +14,7 @@ import {
   openAccountForm,
   openAccountRemarkForm,
 } from '../../../store/ledger/ledgerSlice';
-import { createAccount, fetchAccounts, updateAccountRemark } from '../../../store/ledger/thunks';
+import { createAccount, fetchAccounts, updateAccountRemark, updateAccountStatus } from '../../../store/ledger/thunks';
 import type { LedgerState } from '../../../store/ledger/types';
 import { rejectionMessage } from '../pageUtils';
 import styles from '../index.module.scss';
@@ -62,6 +62,16 @@ export class AccountsPageContainer extends React.Component<AccountsPageProps> {
     this.props.dispatch(openAccountRemarkForm({ id: account.id, remark: account.remark }));
   };
 
+  private readonly handleToggleStatus = (account: StateProps['accounts']['items'][number]): void => {
+    const nextIsActive = !account.isActive;
+    void this.props.dispatch(updateAccountStatus({
+      accountId: account.id,
+      payload: { isActive: nextIsActive },
+    })).unwrap()
+      .then(() => message.success(nextIsActive ? '账户已启用' : '账户已停用'))
+      .catch((error: unknown) => message.error(rejectionMessage(error, '账户状态更新失败')));
+  };
+
   private readonly handleSaveRemark = (): void => {
     const { accountId, remark } = this.props.accountRemarkForm;
     if (accountId === null) return;
@@ -93,7 +103,9 @@ export class AccountsPageContainer extends React.Component<AccountsPageProps> {
         <AccountList
           items={accounts.items}
           loading={accounts.loading}
+          updatingId={accounts.updatingId}
           onEditRemark={this.handleEditRemark}
+          onToggleStatus={this.handleToggleStatus}
         />
         <AccountFormModal
           visible={accountForm.visible}

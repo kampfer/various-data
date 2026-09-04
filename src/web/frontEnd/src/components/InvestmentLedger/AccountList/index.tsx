@@ -11,11 +11,19 @@ type AccountColumns = NonNullable<TableProps<AccountOut>['columns']>;
 export interface AccountListProps {
   readonly items: readonly AccountOut[];
   readonly loading: boolean;
+  readonly updatingId: number | null;
   readonly onEditRemark: (account: AccountOut) => void;
+  readonly onToggleStatus: (account: AccountOut) => void;
 }
 
-/** 投资账户只读身份列表；编辑操作仅暴露备注入口。 */
-const AccountList: React.FC<AccountListProps> = ({ items, loading, onEditRemark }) => {
+/** 投资账户身份列表；状态操作只改变启用状态，不删除账户或历史交易。 */
+const AccountList: React.FC<AccountListProps> = ({
+  items,
+  loading,
+  updatingId,
+  onEditRemark,
+  onToggleStatus,
+}) => {
   const columns: AccountColumns = [
     { title: '账户名称', dataIndex: 'name', key: 'name' },
     {
@@ -54,13 +62,26 @@ const AccountList: React.FC<AccountListProps> = ({ items, loading, onEditRemark 
       title: '操作',
       key: 'actions',
       render: (_value: unknown, record: AccountOut) => (
-        <Button
-          type="link"
-          className={styles.actionButton}
-          onClick={() => onEditRemark(record)}
-        >
-          编辑备注
-        </Button>
+        <div className={styles.actions}>
+          <Button
+            type="link"
+            className={styles.actionButton}
+            onClick={() => onEditRemark(record)}
+            disabled={updatingId !== null}
+          >
+            编辑备注
+          </Button>
+          <Button
+            type="link"
+            danger={record.isActive}
+            className={styles.actionButton}
+            loading={updatingId === record.id}
+            disabled={updatingId !== null && updatingId !== record.id}
+            onClick={() => onToggleStatus(record)}
+          >
+            {record.isActive ? '停用' : '启用'}
+          </Button>
+        </div>
       ),
     },
   ];

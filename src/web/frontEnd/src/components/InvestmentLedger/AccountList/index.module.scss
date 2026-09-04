@@ -13,6 +13,11 @@
   overflow-x: auto;
 }
 
+.actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .actionButton {
   padding-inline: 0;
 }

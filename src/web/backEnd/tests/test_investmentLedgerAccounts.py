@@ -99,7 +99,47 @@ def testPatchAccountRemarkOnlyUpdatesRemark(accountClient: TestClient):
     assert updated["remark"] == "新备注"
 
 
-def testPatchAccountRemarkRejectsOtherFields(accountClient: TestClient):
+def testPatchAccountStatusDisablesAndReEnablesAccount(accountClient: TestClient):
+    createResponse = accountClient.post(
+        "/api/investmentLedger/accounts",
+        json={"name": "基金账户", "accountType": "FUND"},
+    )
+    accountId = createResponse.json()["data"]["id"]
+
+    disableResponse = accountClient.patch(
+        f"/api/investmentLedger/accounts/{accountId}/status",
+        json={"isActive": False},
+    )
+    assert disableResponse.status_code == 200
+    assert disableResponse.json()["data"]["isActive"] is False
+
+    listResponse = accountClient.get("/api/investmentLedger/accounts")
+    assert listResponse.status_code == 200
+    assert listResponse.json()["data"][0]["isActive"] is False
+
+    enableResponse = accountClient.patch(
+        f"/api/investmentLedger/accounts/{accountId}/status",
+        json={"isActive": True},
+    )
+    assert enableResponse.status_code == 200
+    assert enableResponse.json()["data"]["isActive"] is True
+
+
+def testPatchAccountStatusRejectsOtherFields(accountClient: TestClient):
+    createResponse = accountClient.post(
+        "/api/investmentLedger/accounts",
+        json={"name": "基金账户", "accountType": "FUND"},
+    )
+    accountId = createResponse.json()["data"]["id"]
+
+    response = accountClient.patch(
+        f"/api/investmentLedger/accounts/{accountId}/status",
+        json={"isActive": False, "name": "不允许修改"},
+    )
+
+    assert response.status_code == 422
+
+
     createResponse = accountClient.post(
         "/api/investmentLedger/accounts",
         json={"name": "基金账户", "accountType": "FUND"},

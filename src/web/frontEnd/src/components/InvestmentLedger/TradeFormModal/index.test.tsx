@@ -3,7 +3,10 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import type { AccountOut, TradeDraft } from '../../../api/types';
 import TradeFormModal from './index';
 
-const accounts: AccountOut[] = [{ id: 3, name: '基金账户', accountType: 'FUND', institution: '示例机构', isActive: true, remark: null, createdAt: '2024-01-01', updatedAt: '2024-01-01' }];
+const accounts: AccountOut[] = [
+  { id: 3, name: '基金账户', accountType: 'FUND', institution: '示例机构', isActive: true, remark: null, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { id: 4, name: '已停用账户', accountType: 'FUND', institution: '示例机构', isActive: false, remark: null, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+];
 const Harness = ({ initialDraft, onSubmit }: { initialDraft: TradeDraft; onSubmit: (draft: TradeDraft) => void }): React.ReactElement => {
   const [draft, setDraft] = useState(initialDraft);
   return <TradeFormModal visible draft={draft} accounts={accounts} fieldErrors={[]} submitting={false} onChange={(patch) => setDraft((old) => ({ ...old, ...patch }))} onSubmit={onSubmit} onCancel={() => undefined} />;
@@ -30,6 +33,15 @@ describe('TradeFormModal', () => {
     fireEvent.click(within(await screen.findByRole('listbox')).getByRole('option', { name: '示例机构 - 基金账户' }));
     fireEvent.click(screen.getByRole('button', { name: '创建交易' }));
     await waitFor(() => expect(submitted[0]?.accountId).toBe(3));
+  });
+
+  it('新建交易账户下拉框不显示已停用账户', async () => {
+    render(<Harness initialDraft={{ productType: 'STOCK', direction: 'BUY' }} onSubmit={() => undefined} />);
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: '交易账户' }));
+    const listbox = await screen.findByRole('listbox');
+    expect(within(listbox).getByRole('option', { name: '示例机构 - 基金账户' })).toBeInTheDocument();
+    expect(within(listbox).queryByRole('option', { name: '示例机构 - 已停用账户' })).not.toBeInTheDocument();
   });
 
   it('基金类型下输入产品代码触发搜索后无匹配，仍展示空态浮动框（需求 5.4）', async () => {

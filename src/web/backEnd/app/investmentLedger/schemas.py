@@ -74,6 +74,9 @@ ERROR_CODE_TOO_LONG = "TOO_LONG"
 #: 卖出数量使同产品持仓数量（Σ 买入 − Σ 卖出，含本次）小于 0（需求 1.3）
 ERROR_CODE_INSUFFICIENT_HOLDING = "INSUFFICIENT_HOLDING"
 
+#: 账户已停用，不能创建新交易。
+ERROR_CODE_ACCOUNT_DISABLED = "ACCOUNT_DISABLED"
+
 # ---------------------------------------------------------------------------
 # 领域字面量类型：取值与前端 domain/ledger/constants.ts 的联合类型逐字符一致
 # ---------------------------------------------------------------------------
@@ -253,6 +256,15 @@ class AccountRemarkUpdate(LedgerSchema):
             return value
         normalized = value.strip()
         return normalized or None
+
+
+class AccountStatusUpdate(LedgerSchema):
+    """账户启用状态更新请求；禁止提交账户其它字段。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    #: 是否允许账户继续用于新业务
+    is_active: bool
 
 
 class AccountOut(LedgerSchema):

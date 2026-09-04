@@ -14,6 +14,7 @@ from app.investmentLedger.schemas import (
     AccountCreate,
     AccountOut,
     AccountRemarkUpdate,
+    AccountStatusUpdate,
     ApiResponse,
     HoldingOut,
     HoldingQuery,
@@ -101,6 +102,19 @@ def updateAccountRemark(
     return ApiResponse(
         data=service.updateAccountRemark(accountId, payload)
     )
+
+
+@router.patch(
+    "/accounts/{accountId}/status",
+    response_model=ApiResponse[AccountOut],
+)
+def updateAccountStatus(
+    accountId: Annotated[int, Path(ge=1)],
+    payload: AccountStatusUpdate,
+    service: Annotated[AccountService, Depends(getAccountService)],
+) -> ApiResponse[AccountOut]:
+    """更新账户启用状态；停用账户仍保留历史交易关联。"""
+    return ApiResponse(data=service.updateAccountStatus(accountId, payload))
 
 
 @router.get(

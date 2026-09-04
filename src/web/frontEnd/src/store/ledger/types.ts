@@ -61,6 +61,7 @@ export interface LedgerState {
 export interface AccountListState {
   items: AccountOut[];
   loading: boolean;
+  updatingId: number | null;
   error: string | null;
 }
 

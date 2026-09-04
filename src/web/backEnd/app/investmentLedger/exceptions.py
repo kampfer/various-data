@@ -40,6 +40,7 @@ from app.investmentLedger.constants import (
     MIN_PAGE_SIZE,
 )
 from app.investmentLedger.schemas import (
+    ERROR_CODE_ACCOUNT_DISABLED,
     ERROR_CODE_INSUFFICIENT_HOLDING,
     ERROR_CODE_INVALID_SCALE,
     ERROR_CODE_NOT_A_NUMBER,
@@ -178,6 +179,25 @@ class AccountNotFound(LedgerError):
         """构造账户不存在异常；账户标识不写入对外提示。"""
         self.accountId = accountId
         super().__init__()
+
+
+class AccountDisabled(LedgerValidationError):
+    """账户已停用，不能用于创建新交易；历史交易不受影响。"""
+
+    defaultMsg = "投资账户已停用，请启用后再创建交易"
+
+    def __init__(self) -> None:
+        """构造账户停用异常并定位到账户字段。"""
+        super().__init__(
+            self.defaultMsg,
+            fieldErrors=[
+                FieldErrorItem(
+                    field="accountId",
+                    code=ERROR_CODE_ACCOUNT_DISABLED,
+                    message=self.defaultMsg,
+                )
+            ],
+        )
 
 
 class InsufficientHolding(LedgerValidationError):

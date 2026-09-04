@@ -14,6 +14,7 @@ def testPublicLedgerRoutesExposeOnlyTransactionWritesAndLedgerReads() -> None:
         ("/investmentLedger/accounts", "GET"),
         ("/investmentLedger/accounts", "POST"),
         ("/investmentLedger/accounts/{accountId}/remark", "PATCH"),
+        ("/investmentLedger/accounts/{accountId}/status", "PATCH"),
         ("/investmentLedger/transactions", "GET"),
         ("/investmentLedger/transactions", "POST"),
         ("/investmentLedger/transactions/{transactionId}", "DELETE"),

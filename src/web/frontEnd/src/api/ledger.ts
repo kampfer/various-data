@@ -19,6 +19,7 @@ import type {
   AccountCreatePayload,
   AccountOut,
   AccountRemarkUpdatePayload,
+  AccountStatusUpdatePayload,
 } from './types';
 import type { LedgerQueryParams } from '../domain/ledger/LedgerQueryState';
 
@@ -86,3 +87,10 @@ export const updateAccountRemark = (
   payload: AccountRemarkUpdatePayload,
 ): Promise<AccountOut> =>
   unwrap(http.patch<ApiEnvelope<AccountOut>>(`/accounts/${accountId}/remark`, payload));
+
+/** 更新账户启用状态；停用账户仍保留历史交易关联。 */
+export const updateAccountStatus = (
+  accountId: number,
+  payload: AccountStatusUpdatePayload,
+): Promise<AccountOut> =>
+  unwrap(http.patch<ApiEnvelope<AccountOut>>(`/accounts/${accountId}/status`, payload));

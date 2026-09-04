@@ -70,6 +70,7 @@ const initialState: LedgerState = {
   accounts: {
     items: [],
     loading: false,
+    updatingId: null,
     error: null,
   },
   accountForm: {
@@ -275,6 +276,17 @@ const ledgerSlice = createSlice({
       })
       .addCase(thunks.fetchAccounts.rejected, (state, action) => {
         state.accounts.loading = false;
+        state.accounts.error = rejectMessage(action.payload);
+      })
+      .addCase(thunks.updateAccountStatus.pending, (state, action) => {
+        state.accounts.updatingId = action.meta.arg.accountId;
+        state.accounts.error = null;
+      })
+      .addCase(thunks.updateAccountStatus.fulfilled, (state) => {
+        state.accounts.updatingId = null;
+      })
+      .addCase(thunks.updateAccountStatus.rejected, (state, action) => {
+        state.accounts.updatingId = null;
         state.accounts.error = rejectMessage(action.payload);
       })
       .addCase(thunks.createAccount.pending, (state) => {

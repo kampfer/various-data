@@ -45,6 +45,11 @@ export interface AccountRemarkUpdatePayload {
   remark: string | null;
 }
 
+/** 账户启用状态更新入参；禁止携带其它账户字段。 */
+export interface AccountStatusUpdatePayload {
+  isActive: boolean;
+}
+
 /** 账户创建表单草稿；保留字符串输入以便提交失败时原样回填。 */
 export interface AccountDraft {
   name: string;

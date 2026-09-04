@@ -10,6 +10,7 @@ import {
   fetchAccounts,
   fetchTransactions,
   updateAccountRemark,
+  updateAccountStatus,
 } from './ledger';
 import http, {
   LedgerApiError,
@@ -213,6 +214,28 @@ describe('投资账户 API', () => {
     expect(remarkData).not.toHaveProperty('name');
     expect(remarkData).not.toHaveProperty('accountType');
     expect(remarkData).not.toHaveProperty('institution');
+  });
+
+  it('更新账户状态使用专用 PATCH 接口且只发送 isActive', async () => {
+    let sentConfig: InternalAxiosRequestConfig | undefined;
+    http.defaults.adapter = async (config) => {
+      sentConfig = config;
+      return response({ code: 200, msg: 'ok', data: { ...account, isActive: false } });
+    };
+
+    await expect(updateAccountStatus(account.id, { isActive: false })).resolves.toMatchObject({
+      id: account.id,
+      isActive: false,
+    });
+
+    expect(sentConfig).toMatchObject({
+      url: '/accounts/3/status',
+      method: 'patch',
+    });
+    const statusData = typeof sentConfig?.data === 'string'
+      ? JSON.parse(sentConfig.data) as Record<string, unknown>
+      : sentConfig?.data as Record<string, unknown>;
+    expect(statusData).toEqual({ isActive: false });
   });
 });
 

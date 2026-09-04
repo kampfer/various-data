@@ -7,6 +7,7 @@ import type {
   AccountCreatePayload,
   AccountOut,
   AccountRemarkUpdatePayload,
+  AccountStatusUpdatePayload,
   HoldingOut,
   PageOut,
   TradeDraft,
@@ -170,6 +171,24 @@ export const updateAccountRemark = createAsyncThunk<
     }
     try {
       const updated = await ledgerApi.updateAccountRemark(accountId, payload);
+      await dispatch(fetchAccounts());
+      return updated;
+    } catch (error) {
+      return rejectWithValue(toRejectValue(error));
+    }
+  },
+);
+
+/** 更新账户启用状态；成功后重新拉取账户列表，确保交易表单立即使用最新状态。 */
+export const updateAccountStatus = createAsyncThunk<
+  AccountOut,
+  { accountId: number; payload: AccountStatusUpdatePayload },
+  ThunkConfig
+>(
+  'ledger/updateAccountStatus',
+  async ({ accountId, payload }, { dispatch, rejectWithValue }) => {
+    try {
+      const updated = await ledgerApi.updateAccountStatus(accountId, payload);
       await dispatch(fetchAccounts());
       return updated;
     } catch (error) {

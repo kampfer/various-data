@@ -96,3 +96,41 @@ def testLegacyTransactionCanStillHaveNoAccount(transactionClient: TestClient):
     assert response.json()["data"]["accountId"] is None
     assert response.json()["data"]["accountName"] is None
     assert response.json()["data"]["accountInstitution"] is None
+
+
+def testDisabledAccountCannotCreateNewTransactionButHistoryRemainsVisible(
+    transactionClient: TestClient,
+):
+    accountResponse = transactionClient.post(
+        "/api/investmentLedger/accounts",
+        json={"name": "基金账户", "accountType": "FUND", "institution": "示例机构"},
+    )
+    accountId = accountResponse.json()["data"]["id"]
+
+    firstTransaction = transactionClient.post(
+        "/api/investmentLedger/transactions",
+        json=transactionPayload(accountId),
+    )
+    assert firstTransaction.status_code == 200
+
+    disableResponse = transactionClient.patch(
+        f"/api/investmentLedger/accounts/{accountId}/status",
+        json={"isActive": False},
+    )
+    assert disableResponse.status_code == 200
+
+    blockedTransaction = transactionClient.post(
+        "/api/investmentLedger/transactions",
+        json=transactionPayload(accountId),
+    )
+    assert blockedTransaction.status_code == 422
+    blockedPayload = blockedTransaction.json()
+    assert blockedPayload["data"]["fieldErrors"][0]["field"] == "accountId"
+    assert blockedPayload["data"]["fieldErrors"][0]["code"] == "ACCOUNT_DISABLED"
+
+    historyResponse = transactionClient.get("/api/investmentLedger/transactions")
+    assert historyResponse.status_code == 200
+    historyItems = historyResponse.json()["data"]["items"]
+    assert len(historyItems) == 1
+    assert historyItems[0]["accountId"] == accountId
+    assert historyItems[0]["accountName"] == "基金账户"

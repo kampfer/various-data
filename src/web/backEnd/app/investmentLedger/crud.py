@@ -133,6 +133,24 @@ def updateAccountRemark(
         raise
 
 
+def updateAccountStatus(
+    db: Session, accountId: int, isActive: bool
+) -> models.Account | None:
+    """更新账户启用状态；账户不存在时返回 None。"""
+    account = db.get(models.Account, accountId)
+    if account is None:
+        return None
+
+    account.is_active = isActive
+    try:
+        db.commit()
+        db.refresh(account)
+        return account
+    except Exception:
+        db.rollback()
+        raise
+
+
 def addTransaction(
     db: Session, payload: TransactionCreate
 ) -> models.Transaction:
