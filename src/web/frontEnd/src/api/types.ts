@@ -6,7 +6,7 @@ export interface FieldErrorItem { field: string; code: string; message: string; 
 export interface Metric { available: boolean; value: string | null; unavailableReason: string | null; }
 /** 历史交易行：价格、数量使用 canonical 字段，均不做前端数值转换。 */
 export interface TransactionOut { id: number; accountId: number | null; accountName: string | null; accountInstitution: string | null; productType: ProductType; productName: string; productCode: string; transactionPrice: string; transactionQuantity: string; fee: string; direction: TradeDirection; tradeDate: string; }
-export interface HoldingOut { productType: ProductType; productName: string; productCode: string; position: Metric; positionQuantity: Metric; totalProfit: Metric; totalProfitRate: Metric; annualizedRate: Metric; }
+export interface HoldingOut { productType: ProductType; productName: string; productCode: string; position: Metric; positionQuantity: Metric; latestValuationUnitPrice: Metric; latestValuationDate: string | null; totalProfit: Metric; totalProfitRate: Metric; annualizedRate: Metric; }
 export interface PageOut<T> { items: T[]; total: number; page: number; pageSize: number; pageCount: number; }
 /** 基金代码表筛选结果：用于展示并回填交易草稿，不经过 HTTP 传输。 */
 export interface FundSearchOut {

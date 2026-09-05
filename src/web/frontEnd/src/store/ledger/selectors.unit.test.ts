@@ -45,6 +45,8 @@ const holding: HoldingOut = {
   productCode: 'F001',
   position: availableMetric('12.50'),
   positionQuantity: availableMetric('10'),
+  latestValuationUnitPrice: availableMetric('1.25'),
+  latestValuationDate: '2024-01-02',
   totalProfit: availableMetric('0.00'),
   totalProfitRate: availableMetric('0'),
   annualizedRate: availableMetric('0'),

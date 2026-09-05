@@ -103,7 +103,7 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
     this.props.onReadOnlyIntent(kind);
   };
 
-  /** 生成恰好 8 个只读列；产品名称本身作为进入历史交易的导航入口。 */
+  /** 生成持仓汇总列；产品名称本身作为进入历史交易的导航入口。 */
   private columns(): HoldingColumns {
     return [
       {
@@ -132,6 +132,12 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
       },
       { title: '产品代码', dataIndex: 'productCode', key: 'productCode' },
       {
+        title: '持仓量',
+        dataIndex: 'positionQuantity',
+        key: 'positionQuantity',
+        render: (metric: HoldingOut['positionQuantity']) => <MetricValue metric={metric} kind="quantity" />,
+      },
+      {
         title: '持仓额',
         dataIndex: 'position',
         key: 'position',
@@ -140,10 +146,18 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
         render: (metric: HoldingOut['position']) => <MetricValue metric={metric} kind="amount" />,
       },
       {
-        title: '持仓量',
-        dataIndex: 'positionQuantity',
-        key: 'positionQuantity',
-        render: (metric: HoldingOut['positionQuantity']) => <MetricValue metric={metric} kind="quantity" />,
+        title: '最新净值',
+        dataIndex: 'latestValuationUnitPrice',
+        key: 'latestValuationUnitPrice',
+        render: (metric: HoldingOut['latestValuationUnitPrice']) => (
+          <MetricValue metric={metric} kind="quantity" />
+        ),
+      },
+      {
+        title: '最新净值日期',
+        dataIndex: 'latestValuationDate',
+        key: 'latestValuationDate',
+        render: (value: HoldingOut['latestValuationDate']) => value ?? '--',
       },
       {
         title: '总收益',

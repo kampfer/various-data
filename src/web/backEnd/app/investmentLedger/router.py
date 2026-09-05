@@ -52,18 +52,20 @@ def getAccountService(
     return AccountService(db)
 
 
+fund_quote_service = FundQuoteService()
+
+
+def getFundQuoteService() -> FundQuoteService:
+    """构造供持仓查询使用的基金最新净值服务。"""
+    return fund_quote_service
+
+
 def getHoldingService(
     db: Annotated[Session, Depends(get_db)],
     fundQuoteService: Annotated[FundQuoteService, Depends(getFundQuoteService)],
 ) -> HoldingService:
     """构造绑定请求级数据库会话的只读持仓服务。"""
     return HoldingService(db, fundQuoteService)
-
-
-fund_quote_service = FundQuoteService()
-def getFundQuoteService() -> FundQuoteService:
-    """构造供持仓查询使用的基金最新净值服务。"""
-    return fund_quote_service
 
 
 @router.get(

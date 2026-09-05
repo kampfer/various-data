@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tooltip } from 'antd';
 import type { Metric } from '../../../api/types';
+import { formatDecimalScale } from '../../../domain/ledger/formatNumbers';
 import styles from './index.module.scss';
 
 /** 单个统计指标展示组件的输入契约（需求 3.9）。 */
@@ -31,7 +32,10 @@ export default class MetricValue extends React.Component<MetricValueProps> {
       );
     }
 
-    const value = metric.value ?? '--';
+    const rawValue = metric.value ?? '--';
+    const value = kind === 'amount' || kind === 'rate'
+      ? formatDecimalScale(rawValue, 2)
+      : rawValue;
     const suffix = kind === 'amount' ? '元' : kind === 'rate' ? '%' : '';
     return (
       <span className={styles.value}>

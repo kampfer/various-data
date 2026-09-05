@@ -15,7 +15,9 @@ from typing import Generic, Iterable, Protocol, TypeVar
 from sqlalchemy.orm import Session
 
 from app.investmentLedger import crud
-from app.investmentLedger.calculators import Paginator, Paginator2
+from app.investmentLedger.calculators import Paginator
+from app.investmentLedger.fund_performance import FundPerformanceCalculator, FundTrade
+from app.investmentLedger.fund_quote import FundPerformanceData, FundQuoteService
 from app.investmentLedger.constants import (
     MAX_PAGE_SIZE,
     MAX_SEARCH_VALUE_LENGTH,
@@ -314,62 +316,170 @@ class TransactionService:
 
 
 class HoldingService:
-    """持仓只读聚合用例；刻意不提供任何创建、修改或删除方法。"""
+    """持仓和基金收益只读聚合用例。"""
 
-    def __init__(self, db: Session, fundQuoteService) -> None:
-        """绑定请求级会话并装配无状态计算组件。"""
+    def __init__(
+        self,
+        db: Session,
+        fundQuoteService: FundQuoteService | None = None,
+        performanceCalculator: FundPerformanceCalculator | None = None,
+    ) -> None:
+        """绑定数据库、行情服务和可替换的纯收益计算器。"""
         self._db = db
         self._fundQuoteService = fundQuoteService
+        self._performanceCalculator = performanceCalculator or FundPerformanceCalculator()
 
     def listHoldings(self, query: HoldingQuery) -> PageOut[HoldingOut]:
-        """分页查询持仓。"""
-
+        """计算并分页返回基金、股票和理财产品的持仓指标。"""
         ServiceQueryValidator.validate(query)
 
-        limit, offset = Paginator2.get_limit_offset(
-            query.page, query.page_size
-        )
-
-        holdings, total = crud.get_current_holdings(
+        transactions = crud.getHoldingTransactions(
             self._db,
-            product_type=query.product_type,
+            productType=query.product_type,
             productName=query.product_name,
             productCode=query.product_code,
-            limit=limit,
-            offset=offset,
         )
+        groups = groupByProductKey(transactions)
+        keys = [group.key for group in groups]
+        valuations = crud.getLatestValuations(self._db, keys)
+        fundData = self._getFundPerformanceData(keys)
+        marketQuotes = self._getMarketQuotes(keys, valuations, fundData)
 
-        pageCount = Paginator2.get_page_count(total, query.page_size)
+        holdings: list[HoldingOut] = []
+        for group in groups:
+            quote = marketQuotes.get(group.key)
+            unitNav = quote["unit_nav"] if quote is not None else None
+            valuationDate = quote["valuation_date"] if quote is not None else None
+            trades = [
+                FundTrade.fromTransaction(transaction)
+                for transaction in group.transactions
+            ]
+            performanceData = (
+                fundData.get(group.product_code)
+                if group.product_type == "FUND"
+                else None
+            )
+            performance = self._performanceCalculator.calculate(
+                trades,
+                unitNav=unitNav,
+                valuationDate=valuationDate,
+                dividends=(performanceData.dividends if performanceData else ()),
+                splits=(performanceData.splits if performanceData else ()),
+            )
+            if performance.shares <= Decimal("0"):
+                continue
+            holdings.append(self._toHoldingOut(group, performance, quote))
 
-        latestNav = self._fundQuoteService.getLatestNav(
-            [row.product_code for row in holdings]
+        orderedHoldings = sortHoldings(
+            holdings,
+            query.holding_sort_field,
+            query.holding_sort_order,
         )
-
-        items = []
-        for row in holdings:
-            latestNavRow = next(
-                (item for item in latestNav if item["fund_code"] == row.product_code), None,
-            )
-
-            items.append(
-                HoldingOut(
-                    product_type=row.product_type,
-                    product_name=row.product_name,
-                    product_code=row.product_code,
-                    position=Metric.of(value=row.net_quantity * Decimal(latestNavRow.get("unit_nav", 0))),
-                    position_quantity=Metric.of(value=row.net_quantity),
-                    total_profit=Metric.of(value=0),
-                    total_profit_rate=Metric.of(value=0),
-                    annualized_rate=Metric.of(value=0),
-                    latest_valuation_date=date.fromisoformat(latestNavRow.get("update_date")),
-                    latest_valuation_unit_price=Metric.of(value=latestNavRow.get("unit_nav")),
-                )
-            )
-
+        pageRows, pageCount = Paginator().slice(
+            orderedHoldings,
+            page=query.page,
+            pageSize=query.page_size,
+        )
         return PageOut[HoldingOut](
-            items=items,
-            total=total,
+            items=pageRows,
+            total=len(orderedHoldings),
             page=query.page,
             page_size=query.page_size,
             page_count=pageCount,
+        )
+
+    def _getFundPerformanceData(
+        self,
+        keys: list[tuple[str, str]],
+    ) -> dict[str, FundPerformanceData]:
+        """读取基金详情；行情异常时返回空数据以便使用本地估值兜底。"""
+        if self._fundQuoteService is None:
+            return {}
+        fundCodes = [
+            code for productType, code in keys if productType == "FUND"
+        ]
+        if not fundCodes:
+            return {}
+        try:
+            return self._fundQuoteService.getPerformanceData(fundCodes)
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _getMarketQuotes(
+        keys: list[tuple[str, str]],
+        valuations: dict[tuple[str, str], object],
+        fundData: dict[str, FundPerformanceData],
+    ) -> dict[tuple[str, str], dict[str, object]]:
+        """合并本地估值和基金详情接口的最新单位净值。"""
+        quotes: dict[tuple[str, str], dict[str, object]] = {
+            key: {
+                "unit_nav": FundTrade.toDecimal(valuation.unit_price),
+                "valuation_date": valuation.valuation_date,
+            }
+            for key, valuation in valuations.items()
+        }
+        for productType, code in keys:
+            if productType != "FUND":
+                continue
+            data = fundData.get(code)
+            if data is None or data.unit_nav is None or data.valuation_date is None:
+                continue
+            quotes[(productType, code)] = {
+                "unit_nav": data.unit_nav,
+                "valuation_date": data.valuation_date,
+            }
+        return quotes
+
+    @staticmethod
+    def _toHoldingOut(
+        group: HoldingGroup,
+        performance,
+        quote: dict[str, object] | None,
+    ) -> HoldingOut:
+        """将纯计算结果转换为现有 Metric 响应契约。"""
+        missingValuation = "缺少最新估值"
+        buyCostUnavailable = "累计买入金额为 0"
+        position = (
+            Metric.of(performance.position)
+            if performance.position is not None
+            else Metric.unavailable(missingValuation)
+        )
+        totalProfit = (
+            Metric.of(performance.total_profit)
+            if performance.total_profit is not None
+            else Metric.unavailable(missingValuation)
+        )
+        totalProfitRate = (
+            Metric.of(performance.total_profit_rate)
+            if performance.total_profit_rate is not None
+            else Metric.unavailable(
+                missingValuation if quote is None else buyCostUnavailable
+            )
+        )
+        annualizedRate = (
+            Metric.of(performance.annualized_rate)
+            if performance.annualized_rate is not None
+            else Metric.unavailable(
+                missingValuation if quote is None else buyCostUnavailable
+            )
+        )
+        latestPrice = (
+            Metric.of(quote["unit_nav"])
+            if quote is not None
+            else Metric.unavailable(missingValuation)
+        )
+        return HoldingOut(
+            product_type=group.product_type,
+            product_name=group.product_name,
+            product_code=group.product_code,
+            position=position,
+            position_quantity=Metric.of(performance.shares),
+            total_profit=totalProfit,
+            total_profit_rate=totalProfitRate,
+            annualized_rate=annualizedRate,
+            latest_valuation_date=(
+                quote["valuation_date"] if quote is not None else None
+            ),
+            latest_valuation_unit_price=latestPrice,
         )

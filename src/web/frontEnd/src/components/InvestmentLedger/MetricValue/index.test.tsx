@@ -18,22 +18,22 @@ describe('MetricValue', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('缺少最新估值');
   });
 
-  it('可用值只追加对应单位，不修改后端十进制字符串', () => {
+  it('金额和收益率展示时保留两位小数，持仓量保持后端精度', () => {
     const { rerender } = render(
-      <MetricValue kind="amount" metric={{ available: true, value: '123.45', unavailableReason: null }} />,
+      <MetricValue kind="amount" metric={{ available: true, value: '123.456', unavailableReason: null }} />,
     );
-    expect(screen.getByText('123.45 元')).toBeInTheDocument();
+    expect(screen.getByText('123.46 元')).toBeInTheDocument();
 
     rerender(
       <MetricValue kind="rate" metric={{ available: true, value: '0.125', unavailableReason: null }} />,
     );
-    expect(screen.getByText('0.125 %')).toBeInTheDocument();
+    expect(screen.getByText('0.13 %')).toBeInTheDocument();
 
     rerender(
-      <MetricValue kind="quantity" metric={{ available: true, value: '88', unavailableReason: null }} />,
+      <MetricValue kind="quantity" metric={{ available: true, value: '88.123456', unavailableReason: null }} />,
     );
-    expect(screen.getByText('88')).toBeInTheDocument();
-    expect(screen.queryByText('88 元')).not.toBeInTheDocument();
-    expect(screen.queryByText('88 %')).not.toBeInTheDocument();
+    expect(screen.getByText('88.123456')).toBeInTheDocument();
+    expect(screen.queryByText('88.123456 元')).not.toBeInTheDocument();
+    expect(screen.queryByText('88.123456 %')).not.toBeInTheDocument();
   });
 });

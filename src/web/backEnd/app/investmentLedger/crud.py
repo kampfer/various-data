@@ -305,6 +305,32 @@ def getLatestValuations(
             selected[key] = valuation
     return selected
 
+
+def getHoldingTransactions(
+    db: Session,
+    productType: str | None = None,
+    productName: str | None = None,
+    productCode: str | None = None,
+) -> list[models.Transaction]:
+    """读取收益计算所需的完整产品交易流水，按交易日期和主键稳定排序。"""
+    statement = select(models.Transaction)
+    if productType is not None:
+        statement = statement.where(models.Transaction.product_type == productType)
+    if productName is not None:
+        statement = statement.where(
+            models.Transaction.product_name.contains(productName, case_sensitive=True)
+        )
+    if productCode is not None:
+        statement = statement.where(
+            models.Transaction.product_code.contains(productCode, case_sensitive=True)
+        )
+    statement = statement.order_by(
+        models.Transaction.trade_date.asc(),
+        models.Transaction.id.asc(),
+    )
+    return list(db.scalars(statement).all())
+
+
 """
 查询当前持仓，支持可选的分页和代码/名称筛选。
 
