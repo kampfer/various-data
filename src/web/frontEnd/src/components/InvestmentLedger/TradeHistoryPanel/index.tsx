@@ -23,9 +23,9 @@ export interface TradeHistoryPanelProps {
   readonly items: readonly TransactionOut[];
   /** 表格加载状态。 */
   readonly loading: boolean;
-  /** 当前交易日期排序；null 表示未启用。 */
+  /** 确认日期排序方向；null=使用后端默认确认日期降序。 */
   readonly tradeDateOrder: SortOrder | null;
-  /** 交易日期排序变化回调。 */
+  /** 确认日期排序变化回调。 */
   readonly onSortChange: (order: SortOrder | null) => void;
   /** 确认删除后的回调；id 不向用户展示。 */
   readonly onDelete: (transactionId: number) => void;
@@ -79,9 +79,9 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
     }
 
     const activeSorter = Array.isArray(sorter)
-      ? sorter.find((item) => item.columnKey === 'tradeDate')
+      ? sorter.find((item) => item.columnKey === 'confirmationDate')
       : sorter;
-    if (activeSorter?.columnKey !== 'tradeDate') return;
+    if (activeSorter?.columnKey !== 'confirmationDate') return;
 
     const order: SortOrder | null = activeSorter.order === 'ascend'
       ? 'asc'
@@ -91,13 +91,11 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
     this.props.onSortChange(order);
   };
 
-  /** 9 个数据列与 1 个删除操作列；不定义 id 或编辑列。 */
+  /** 10 个数据列与 1 个删除操作列；不定义 id 或编辑列。 */
   private columns(): TransactionColumns {
     const sortOrder = this.props.tradeDateOrder === 'asc'
       ? 'ascend'
-      : this.props.tradeDateOrder === 'desc'
-        ? 'descend'
-        : null;
+      : 'descend';
 
     return [
       {
@@ -140,11 +138,12 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
         render: (value: TransactionOut['direction']) => TRADE_DIRECTION_LABELS[value],
       },
       {
-        title: '交易日期',
-        dataIndex: 'tradeDate',
-        key: 'tradeDate',
+        title: '确认日期',
+        dataIndex: 'confirmationDate',
+        key: 'confirmationDate',
         sorter: true,
         sortOrder,
+        render: (value: TransactionOut['confirmationDate']) => value ?? '--',
       },
 
       {

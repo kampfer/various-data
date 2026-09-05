@@ -5,8 +5,9 @@ export interface ApiEnvelope<T> { code: number; msg: string; data: T | null; }
 export interface FieldErrorItem { field: string; code: string; message: string; }
 export interface Metric { available: boolean; value: string | null; unavailableReason: string | null; }
 /** 历史交易行：价格、数量使用 canonical 字段，均不做前端数值转换。 */
-export interface TransactionOut { id: number; accountId: number | null; accountName: string | null; accountInstitution: string | null; productType: ProductType; productName: string; productCode: string; transactionPrice: string; transactionQuantity: string; fee: string; direction: TradeDirection; tradeDate: string; }
-export interface HoldingOut { productType: ProductType; productName: string; productCode: string; position: Metric; positionQuantity: Metric; latestValuationUnitPrice: Metric; latestValuationDate: string | null; totalProfit: Metric; totalProfitRate: Metric; annualizedRate: Metric; }
+export interface TransactionOut { id: number; accountId: number | null; accountName: string | null; accountInstitution: string | null; productType: ProductType; productName: string; productCode: string; transactionPrice: string; transactionQuantity: string; fee: string; direction: TradeDirection; tradeDate: string; /** 基金确认日期；非基金或旧数据可能为空。 */ confirmationDate?: string | null; }
+export interface HoldingAccount { accountId: number | null; accountName: string | null; accountInstitution: string | null; }
+export interface HoldingOut { productType: ProductType; productName: string; productCode: string; accounts: HoldingAccount[]; position: Metric; positionQuantity: Metric; latestValuationUnitPrice: Metric; latestValuationDate: string | null; totalProfit: Metric; totalProfitRate: Metric; annualizedRate: Metric; }
 export interface PageOut<T> { items: T[]; total: number; page: number; pageSize: number; pageCount: number; }
 /** 基金代码表筛选结果：用于展示并回填交易草稿，不经过 HTTP 传输。 */
 export interface FundSearchOut {
@@ -16,8 +17,8 @@ export interface FundSearchOut {
   fundCode: string;
 }
 /** 新交易草稿；所有数值始终保留为原始文本。交易金额不进入草稿，纯前端展示计算。 */
-export interface TradeDraft { accountId?: number | null; productType?: ProductType | null; productName?: string | null; productCode?: string | null; transactionPrice?: string | null; transactionQuantity?: string | null; fee?: string | null; direction?: TradeDirection | null; tradeDate?: string | null; }
-export interface TransactionQueryParams { productType?: ProductType; direction?: TradeDirection; startDate?: string; endDate?: string; productName?: string; productCode?: string; tradeDateOrder?: SortOrder; scopeProductCode?: string; page?: number; pageSize?: number; }
+export interface TradeDraft { accountId?: number | null; productType?: ProductType | null; productName?: string | null; productCode?: string | null; transactionPrice?: string | null; transactionQuantity?: string | null; fee?: string | null; direction?: TradeDirection | null; tradeDate?: string | null; /** 基金确认日期；默认由交易日期填充，但允许用户编辑，普通交易为空。 */ confirmationDate?: string | null; }
+export interface TransactionQueryParams { productType?: ProductType; direction?: TradeDirection; startDate?: string; endDate?: string; productName?: string; productCode?: string; /** 确认日期排序方向；沿用历史参数名。 */ tradeDateOrder?: SortOrder; scopeProductCode?: string; page?: number; pageSize?: number; }
 export interface HoldingQueryParams extends TransactionQueryParams { holdingSortField?: HoldingSortField; holdingSortOrder?: SortOrder; }
 
 /** 投资账户响应 DTO；身份字段由服务端维护，前端只展示不可编辑字段。 */

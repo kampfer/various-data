@@ -15,6 +15,7 @@ const holdings: HoldingOut[] = [{
   productType: 'FUND',
   productName: '沪深300ETF',
   productCode: '510300',
+  accounts: [{ accountId: 1, accountName: '基金账户', accountInstitution: '示例机构' }],
   position: available('325.00'),
   positionQuantity: available('100'),
   latestValuationUnitPrice: available('3.25'),
@@ -44,10 +45,10 @@ describe('HoldingsPanel', () => {
     const { container } = renderPanel();
 
     expect(screen.getAllByRole('columnheader').map((node) => node.textContent?.trim())).toEqual([
-      '产品类型', '产品名称', '产品代码', '持仓量', '持仓额', '最新净值', '最新净值日期', '总收益', '总收益率', '年化收益率',
+      '产品类型', '产品名称', '产品代码', '交易账户', '持仓量', '持仓额', '最新净值', '最新净值日期', '总收益', '总收益率', '年化收益率',
     ]);
     expect(screen.getByText('基金')).toBeInTheDocument();
-    expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.getByText('示例机构 - 基金账户')).toBeInTheDocument();
     expect(screen.getByText('3.25')).toBeInTheDocument();
     expect(screen.getByText('2024-01-05')).toBeInTheDocument();
     expect(screen.queryByText('100 元')).not.toBeInTheDocument();
@@ -142,7 +143,7 @@ describe('HoldingsPanel', () => {
   it('空结果保留全部列头', () => {
     const { container } = renderPanel({ items: [] });
 
-    expect(screen.getAllByRole('columnheader')).toHaveLength(10);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(11);
     expect(container.querySelectorAll('tbody .ant-table-row')).toHaveLength(0);
     expect(screen.getByText('暂无数据')).toBeInTheDocument();
   });

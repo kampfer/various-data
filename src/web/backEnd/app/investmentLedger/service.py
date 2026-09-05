@@ -15,6 +15,7 @@ from typing import Generic, Iterable, Protocol, TypeVar
 from sqlalchemy.orm import Session
 
 from app.investmentLedger import crud
+from app.investmentLedger.business_days import next_working_day
 from app.investmentLedger.calculators import Paginator
 from app.investmentLedger.fund_performance import FundPerformanceCalculator, FundTrade
 from app.investmentLedger.fund_quote import FundPerformanceData, FundQuoteService
@@ -41,6 +42,7 @@ from app.investmentLedger.schemas import (
     AccountStatusUpdate,
     HoldingOut,
     HoldingQuery,
+    HoldingAccountOut,
     HoldingSortFieldLiteral,
     Metric,
     PageOut,
@@ -252,7 +254,7 @@ class AccountService:
 
 
 class TransactionService:
-    """历史交易的查询、创建与删除用例；刻意不提供更新方法（需求 1.4）。"""
+    """历史交易的查询、创建与删除用例；交易创建后仍不提供整笔交易编辑。"""
 
     def __init__(self, db: Session) -> None:
         """绑定请求级数据库会话；会话的创建与关闭仍由调用方负责。"""
@@ -297,6 +299,15 @@ class TransactionService:
                 raise AccountDisabled()
         if payload.fee is None:
             payload = payload.model_copy(update={"fee": Decimal(0)})
+        # 基金确认日允许由用户编辑；未提供时保留默认的下一个工作日。
+        # 非基金交易不保存基金专用确认日期。
+        if payload.product_type.value == "FUND":
+            if payload.confirmation_date is None:
+                payload = payload.model_copy(
+                    update={"confirmation_date": next_working_day(payload.trade_date)}
+                )
+        elif payload.confirmation_date is not None:
+            payload = payload.model_copy(update={"confirmation_date": None})
         if payload.direction == TradeDirection.SELL:
             currentQuantity = crud.getPositionQuantity(
                 self._db,
@@ -432,6 +443,31 @@ class HoldingService:
         return quotes
 
     @staticmethod
+    def _toHoldingAccounts(
+        group: HoldingGroup,
+    ) -> list[HoldingAccountOut]:
+        """从产品交易组收集去重账户，并保留未关联账户记录。"""
+        accountsById: dict[int | None, HoldingAccountOut] = {}
+        for transaction in group.transactions:
+            accountId = getattr(transaction, "account_id", None)
+            if accountId in accountsById:
+                continue
+            accountsById[accountId] = HoldingAccountOut(
+                account_id=accountId,
+                account_name=getattr(transaction, "account_name", None),
+                account_institution=getattr(
+                    transaction, "account_institution", None
+                ),
+            )
+        return sorted(
+            accountsById.values(),
+            key=lambda account: (
+                account.account_id is None,
+                account.account_id or 0,
+            ),
+        )
+
+    @staticmethod
     def _toHoldingOut(
         group: HoldingGroup,
         performance,
@@ -473,6 +509,7 @@ class HoldingService:
             product_type=group.product_type,
             product_name=group.product_name,
             product_code=group.product_code,
+            accounts=HoldingService._toHoldingAccounts(group),
             position=position,
             position_quantity=Metric.of(performance.shares),
             total_profit=totalProfit,

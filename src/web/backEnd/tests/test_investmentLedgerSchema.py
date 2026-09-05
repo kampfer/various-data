@@ -89,12 +89,102 @@ def testUpgradeAccountSchemaPreservesLegacyTransactionsAndIsRepeatable(
     with tempEngine.connect() as connection:
         legacyRow = connection.execute(
             text(
-                "SELECT product_code, account_id "
+                "SELECT product_code, account_id, confirmation_date "
                 "FROM il_transaction WHERE product_code = 'F001'"
             )
         ).one()
 
-    assert legacyRow == ("F001", None)
+    assert legacyRow == ("F001", None, "2024-01-02")
+
+
+def testUpgradeAccountSchemaBackfillsOnlyMissingFundConfirmationDates(
+    tempEngine: Engine,
+):
+    """回填缺失确认日，保留已有值且不处理非基金交易。"""
+    Base.metadata.create_all(bind=tempEngine)
+    with tempEngine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO il_transaction ("
+                "product_type, product_name, product_code, transaction_price, "
+                "transaction_quantity, fee, direction, trade_date, "
+                "confirmation_date, created_at"
+                ") VALUES ("
+                ":product_type, :product_name, :product_code, :transaction_price, "
+                ":transaction_quantity, :fee, :direction, :trade_date, "
+                ":confirmation_date, :created_at"
+                ")"
+            ),
+            [
+                {
+                    "product_type": "FUND",
+                    "product_name": "周四基金",
+                    "product_code": "F001",
+                    "transaction_price": "1",
+                    "transaction_quantity": "2",
+                    "fee": None,
+                    "direction": "BUY",
+                    "trade_date": date(2024, 1, 4),
+                    "confirmation_date": None,
+                    "created_at": datetime(2024, 1, 4),
+                },
+                {
+                    "product_type": "FUND",
+                    "product_name": "周五基金",
+                    "product_code": "F002",
+                    "transaction_price": "1",
+                    "transaction_quantity": "2",
+                    "fee": None,
+                    "direction": "BUY",
+                    "trade_date": date(2024, 1, 5),
+                    "confirmation_date": None,
+                    "created_at": datetime(2024, 1, 5),
+                },
+                {
+                    "product_type": "FUND",
+                    "product_name": "已有确认日基金",
+                    "product_code": "F003",
+                    "transaction_price": "1",
+                    "transaction_quantity": "2",
+                    "fee": None,
+                    "direction": "BUY",
+                    "trade_date": date(2024, 1, 5),
+                    "confirmation_date": date(2024, 1, 10),
+                    "created_at": datetime(2024, 1, 5),
+                },
+                {
+                    "product_type": "STOCK",
+                    "product_name": "股票",
+                    "product_code": "S001",
+                    "transaction_price": "1",
+                    "transaction_quantity": "2",
+                    "fee": None,
+                    "direction": "BUY",
+                    "trade_date": date(2024, 1, 5),
+                    "confirmation_date": None,
+                    "created_at": datetime(2024, 1, 5),
+                },
+            ],
+        )
+
+    manager = AccountSchemaManager(tempEngine)
+    manager.upgradeAccountSchema()
+    manager.upgradeAccountSchema()
+
+    with tempEngine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "SELECT product_code, confirmation_date "
+                "FROM il_transaction ORDER BY product_code"
+            )
+        ).all()
+
+    assert rows == [
+        ("F001", "2024-01-05"),
+        ("F002", "2024-01-08"),
+        ("F003", "2024-01-10"),
+        ("S001", None),
+    ]
 
 
 def testUpgradeAccountSchemaIsIdempotentForNewSchema(tempEngine: Engine):

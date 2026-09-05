@@ -5,7 +5,10 @@ import type { HoldingOut } from '../../../api/types';
 import { PAGE_SIZE_OPTIONS } from '../../../domain/ledger/constants';
 import type { HoldingSortField, SortOrder } from '../../../domain/ledger/constants';
 import type { ProductScope } from '../../../domain/ledger/LedgerQueryState';
-import { PRODUCT_TYPE_LABELS } from '../../../domain/ledger/labels';
+import {
+  PRODUCT_TYPE_LABELS,
+  formatAccountDisplayName,
+} from '../../../domain/ledger/labels';
 import MetricValue from '../MetricValue';
 import styles from './index.module.scss';
 
@@ -131,6 +134,20 @@ export default class HoldingsPanel extends React.Component<HoldingsPanelProps> {
         ),
       },
       { title: '产品代码', dataIndex: 'productCode', key: 'productCode' },
+      {
+        title: '交易账户',
+        dataIndex: 'accounts',
+        key: 'accounts',
+        render: (_accounts: HoldingOut['accounts'], record: HoldingOut) => {
+          const labels = (record.accounts ?? []).map(
+            (account) => formatAccountDisplayName(
+              account.accountInstitution,
+              account.accountName,
+            ) ?? '未关联账户',
+          );
+          return labels.length > 0 ? labels.join('、') : '未关联账户';
+        },
+      },
       {
         title: '持仓量',
         dataIndex: 'positionQuantity',

@@ -187,6 +187,9 @@ class Transaction(Base):
     #: 交易日期（有效公历日期）；建索引以支撑闭区间筛选与排序（需求 2.16、2.15）
     trade_date: Mapped[date] = mapped_column(Date, index=True)
 
+    #: 确认日期；基金交易可由用户提供，未提供时由服务层补默认确认日，非基金交易为空
+    confirmation_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
     #: 写入时间：同一交易日期内多笔记录的稳定次序依据（需求 2.15）；
     #: 交易不可编辑，故不设置 onupdate（需求 1.4）
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

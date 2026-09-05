@@ -43,6 +43,7 @@ const holding: HoldingOut = {
   productType: 'FUND',
   productName: '测试基金',
   productCode: 'F001',
+  accounts: [],
   position: availableMetric('12.50'),
   positionQuantity: availableMetric('10'),
   latestValuationUnitPrice: availableMetric('1.25'),

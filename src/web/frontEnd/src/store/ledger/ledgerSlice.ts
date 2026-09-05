@@ -23,6 +23,7 @@ const createEmptyTradeDraft = (): TradeDraft => ({
   transactionQuantity: null,
   direction: null,
   tradeDate: null,
+  confirmationDate: null,
 });
 
 /** 构造新建账户的空草稿。 */
@@ -63,6 +64,7 @@ const initialState: LedgerState = {
   },
   tradeForm: {
     visible: false,
+    mode: 'general',
     draft: createEmptyTradeDraft(),
     fieldErrors: [],
     submitting: false,
@@ -151,7 +153,17 @@ const ledgerSlice = createSlice({
     /** 打开新建交易弹窗并清除上次草稿及字段错误。 */
     openTradeForm(state) {
       state.tradeForm.visible = true;
+      state.tradeForm.mode = 'general';
       state.tradeForm.draft = createEmptyTradeDraft();
+      state.tradeForm.fieldErrors = [];
+      state.tradeForm.submitting = false;
+    },
+
+    /** 打开基金交易弹窗；产品类型在状态层固定为 FUND。 */
+    openFundTradeForm(state) {
+      state.tradeForm.visible = true;
+      state.tradeForm.mode = 'fund';
+      state.tradeForm.draft = { ...createEmptyTradeDraft(), productType: 'FUND' };
       state.tradeForm.fieldErrors = [];
       state.tradeForm.submitting = false;
     },
@@ -247,6 +259,7 @@ const ledgerSlice = createSlice({
       .addCase(thunks.submitTransaction.fulfilled, (state) => {
         state.tradeForm.submitting = false;
         state.tradeForm.visible = false;
+        state.tradeForm.mode = 'general';
         state.tradeForm.draft = createEmptyTradeDraft();
         state.tradeForm.fieldErrors = [];
       })
@@ -329,6 +342,7 @@ export const {
   changePage,
   changePageSize,
   openTradeForm,
+  openFundTradeForm,
   closeTradeForm,
   changeTradeDraft,
   openAccountForm,

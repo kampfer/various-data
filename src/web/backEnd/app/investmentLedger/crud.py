@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from decimal import Decimal
 
 from sqlalchemy import ColumnElement, and_, case, func, select, tuple_, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.investmentLedger import models
 from app.investmentLedger.constants import SOURCE_PRIORITY, TradeDirection
@@ -56,9 +56,9 @@ def queryTransactions(
 ) -> list[models.Transaction]:
     """查询满足全部已启用条件的交易，并返回稳定的有序结果集。
 
-    日期范围使用闭区间；名称和代码使用转义通配符后的 ``LIKE %v%``
-    包含匹配。指定日期排序时，同一日期内以 ``id`` 升序作为稳定次序；
-    未指定日期排序时直接按 ``id`` 升序。
+    日期范围使用交易日闭区间；名称和代码使用转义通配符后的 ``LIKE %v%``
+    包含匹配。排序按确认日期处理，同一确认日期内以 ``id`` 升序作为稳定次序；
+    未指定排序时按确认日期降序，空确认日期置后。
     """
     statement = select(models.Transaction).where(
         *_transactionPredicates(query)
@@ -66,14 +66,19 @@ def queryTransactions(
 
     if query.trade_date_order == "asc":
         statement = statement.order_by(
-            models.Transaction.trade_date.asc(), models.Transaction.id.asc()
+            models.Transaction.confirmation_date.asc().nulls_last(),
+            models.Transaction.id.asc(),
         )
     elif query.trade_date_order == "desc":
         statement = statement.order_by(
-            models.Transaction.trade_date.desc(), models.Transaction.id.asc()
+            models.Transaction.confirmation_date.desc().nulls_last(),
+            models.Transaction.id.asc(),
         )
     else:
-        statement = statement.order_by(models.Transaction.id.asc())
+        statement = statement.order_by(
+            models.Transaction.confirmation_date.desc().nulls_last(),
+            models.Transaction.id.asc(),
+        )
 
     return list(db.scalars(statement).all())
 
@@ -168,6 +173,7 @@ def addTransaction(
         fee=payload.fee,
         direction=payload.direction.value,
         trade_date=payload.trade_date,
+        confirmation_date=payload.confirmation_date,
     )
     try:
         db.add(transaction)
@@ -313,7 +319,9 @@ def getHoldingTransactions(
     productCode: str | None = None,
 ) -> list[models.Transaction]:
     """读取收益计算所需的完整产品交易流水，按交易日期和主键稳定排序。"""
-    statement = select(models.Transaction)
+    statement = select(models.Transaction).options(
+        selectinload(models.Transaction.account)
+    )
     if productType is not None:
         statement = statement.where(models.Transaction.product_type == productType)
     if productName is not None:

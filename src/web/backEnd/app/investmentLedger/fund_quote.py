@@ -22,6 +22,7 @@ class FundPerformanceData:
 
 
 class AkshareFundQuoteClient:
+
     """调用 akshare 基金详情接口。"""
 
     def fetchFundInfoEm(

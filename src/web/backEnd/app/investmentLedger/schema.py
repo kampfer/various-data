@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import date
 
 from sqlalchemy import Engine, inspect, text
 from sqlalchemy.engine import Connection
 
+from app.investmentLedger.business_days import next_working_day
 from app.investmentLedger.models import Account, Transaction
 
 
@@ -37,12 +39,14 @@ class AccountSchemaManager:
         self._engine = engine
 
     def upgradeAccountSchema(self) -> None:
-        """幂等升级账户表、交易账户列、外键和索引。"""
+        """幂等升级账户表、交易账户列、确认日期列、外键和索引。"""
         with self._engine.begin() as connection:
             self._ensureAccountTable(connection)
             if not self._hasTable(connection, self._TRANSACTION_TABLE):
                 return
             self._ensureTransactionAccountColumn(connection)
+            self._ensureTransactionConfirmationDateColumn(connection)
+            self._backfillMissingTransactionConfirmationDates(connection)
             self._ensureTransactionIndexes(connection)
             self._validateTransactionAccountForeignKey(connection)
 
@@ -83,6 +87,54 @@ class AccountSchemaManager:
                 'REFERENCES "il_account" ("id") ON DELETE RESTRICT'
             )
         )
+
+    def _ensureTransactionConfirmationDateColumn(self, connection: Connection) -> None:
+        """为旧交易表增加可空确认日期列；已有列不重复修改。"""
+        columns = {
+            column["name"]
+            for column in inspect(connection).get_columns(self._TRANSACTION_TABLE)
+        }
+        if "confirmation_date" in columns:
+            return
+
+        connection.execute(
+            text(
+                'ALTER TABLE "il_transaction" '
+                'ADD COLUMN "confirmation_date" DATE NULL'
+            )
+        )
+
+    def _backfillMissingTransactionConfirmationDates(
+        self, connection: Connection
+    ) -> None:
+        """为缺少确认日的历史基金交易补写下一个工作日。"""
+        missingDates = connection.execute(
+            text(
+                'SELECT "id", "trade_date" '
+                'FROM "il_transaction" '
+                'WHERE "product_type" = :product_type '
+                'AND "confirmation_date" IS NULL '
+                'AND "trade_date" IS NOT NULL'
+            ),
+            {"product_type": "FUND"},
+        ).mappings()
+        updateStatement = text(
+            'UPDATE "il_transaction" '
+            'SET "confirmation_date" = :confirmation_date '
+            'WHERE "id" = :transaction_id '
+            'AND "confirmation_date" IS NULL'
+        )
+        for row in missingDates:
+            tradeDate = row["trade_date"]
+            if isinstance(tradeDate, str):
+                tradeDate = date.fromisoformat(tradeDate)
+            connection.execute(
+                updateStatement,
+                {
+                    "transaction_id": row["id"],
+                    "confirmation_date": next_working_day(tradeDate),
+                },
+            )
 
     def _ensureTransactionIndexes(self, connection: Connection) -> None:
         """补建账户单列索引和账户产品复合索引。"""

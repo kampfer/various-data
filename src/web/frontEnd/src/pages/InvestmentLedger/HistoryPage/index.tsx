@@ -10,6 +10,7 @@ import type { LedgerQuerySnapshot } from '../../../domain/ledger/LedgerQueryStat
 import type { SortOrder } from '../../../domain/ledger/constants';
 import TradeFilterBar from '../../../components/InvestmentLedger/TradeFilterBar';
 import TradeFormModal from '../../../components/InvestmentLedger/TradeFormModal';
+import FundTradeFormModal from '../../../components/InvestmentLedger/FundTradeFormModal';
 import TradeHistoryPanel from '../../../components/InvestmentLedger/TradeHistoryPanel';
 import {
   applyQuery,
@@ -18,6 +19,7 @@ import {
   changeTradeDraft,
   closeTradeForm,
   openTradeForm,
+  openFundTradeForm,
   openHistoryScope,
   resetHistory,
 } from '../../../store/ledger/ledgerSlice';
@@ -148,9 +150,14 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
           {scoped && (
             <Button onClick={this.handleClearScope}>返回全部交易</Button>
           )}
-          <Button type="primary" onClick={() => this.props.dispatch(openTradeForm())}>
-            新建交易
-          </Button>
+          <div className={styles.headerActions}>
+            {/* <Button type="primary" onClick={() => this.props.dispatch(openTradeForm())}>
+              新建交易
+            </Button> */}
+            <Button type="primary" onClick={() => this.props.dispatch(openFundTradeForm())}>
+              新建基金交易
+            </Button>
+          </div>
         </div>
         <TradeFilterBar
           query={history.query}
@@ -171,7 +178,17 @@ export class HistoryPageContainer extends React.Component<HistoryPageProps> {
           onPageSizeChange={this.handlePageSizeChange}
         />
         <TradeFormModal
-          visible={tradeForm.visible}
+          visible={tradeForm.visible && tradeForm.mode === 'general'}
+          draft={tradeForm.draft}
+          accounts={accounts.items}
+          fieldErrors={tradeForm.fieldErrors}
+          submitting={tradeForm.submitting}
+          onChange={(patch) => this.props.dispatch(changeTradeDraft(patch))}
+          onSubmit={this.handleTradeSubmit}
+          onCancel={() => this.props.dispatch(closeTradeForm())}
+        />
+        <FundTradeFormModal
+          visible={tradeForm.visible && tradeForm.mode === 'fund'}
           draft={tradeForm.draft}
           accounts={accounts.items}
           fieldErrors={tradeForm.fieldErrors}

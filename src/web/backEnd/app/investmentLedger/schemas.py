@@ -388,6 +388,9 @@ class TransactionCreate(LedgerSchema):
     #: 交易日期，有效公历日期（需求 1.2）；非法日历日期（如 2 月 30 日）在解析阶段即失败
     trade_date: date
 
+    #: 基金确认日期；可由客户端编辑，未提供时由服务层使用默认确认日，非基金交易为空
+    confirmation_date: date | None = None
+
     @field_validator("transaction_price", mode="before")
     @classmethod
     def parseTransactionPrice(cls, value: object) -> Decimal:
@@ -480,6 +483,9 @@ class TransactionOut(LedgerSchema):
     #: 交易日期，序列化为 YYYY-MM-DD
     trade_date: date
 
+    #: 基金确认日期，序列化为 YYYY-MM-DD；非基金或旧数据为空
+    confirmation_date: date | None = None
+
 
 class TransactionQuery(LedgerSchema):
     """历史交易查询入参；以 ``Annotated[TransactionQuery, Depends()]`` 从 query string 注入。
@@ -510,7 +516,7 @@ class TransactionQuery(LedgerSchema):
         None, min_length=1, max_length=MAX_SEARCH_VALUE_LENGTH
     )
 
-    #: 交易日期排序方向；None=未启用日期排序，此时按 id 升序保证顺序稳定（需求 2.15）
+    #: 确认日期排序方向；null=使用默认确认日期降序（兼容现有字段名）
     trade_date_order: SortOrderLiteral | None = None
 
     #: 产品历史交易范围的产品代码，1..32 字符；None=未启用范围（需求 2.9、2.10）
@@ -558,8 +564,21 @@ class HoldingQuery(TransactionQuery):
     holding_sort_order: SortOrderLiteral | None = None
 
 
+class HoldingAccountOut(LedgerSchema):
+    """持仓产品涉及的账户摘要；``account_id=None`` 表示未关联账户。"""
+
+    #: 账户主键；未关联交易为空
+    account_id: int | None
+
+    #: 账户名称；未关联交易为空
+    account_name: str | None
+
+    #: 账户所属机构；未关联交易为空
+    account_institution: str | None
+
+
 class HoldingOut(LedgerSchema):
-    """持仓条目汇总出参（需求 2.6 的 7 列数据源）。
+    """持仓条目汇总出参，包含产品级指标和涉及账户摘要。
 
     每个指标均为 :class:`Metric`：不满足定义域时以 ``available=False`` 显式标记，
     绝不以 0 替代（需求 3.9）。
@@ -573,6 +592,9 @@ class HoldingOut(LedgerSchema):
 
     #: 产品键之二：产品代码（需求 2.5）
     product_code: str
+
+    #: 该产品交易涉及的去重账户；未关联交易以 ``account_id=None`` 保留
+    accounts: list[HoldingAccountOut]
 
     #: 持仓（= 持仓市值 = 持仓数量 × 最新估值单价），需求 2.6、3.5
     position: Metric

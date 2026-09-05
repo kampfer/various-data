@@ -6,7 +6,7 @@ from app.investmentLedger.schema import AccountSchemaManager
 
 
 def initAppModels() -> None:
-    """升级投资台账账户结构后创建各模块尚不存在的表。"""
+    """升级投资台账账户结构和交易确认日期后创建各模块尚不存在的表。"""
     AccountSchemaManager(engine).upgradeAccountSchema()
     SinaNewsBase.metadata.create_all(bind=engine)
     OMOBase.metadata.create_all(bind=engine)

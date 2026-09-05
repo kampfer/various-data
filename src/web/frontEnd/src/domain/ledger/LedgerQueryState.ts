@@ -21,7 +21,7 @@ export interface LedgerQuerySnapshot {
   readonly productName: string | null;
   /** 产品代码搜索值，语义为「包含」匹配，长度 1..100；null=未启用（需求 2.17、2.18、2.20） */
   readonly productCode: string | null;
-  /** 交易日期排序方向；null=未启用日期排序（需求 2.15） */
+  /** 确认日期排序方向；null=使用后端默认确认日期降序（需求 2.15） */
   readonly tradeDateOrder: SortOrder | null;
   /** 持仓条目排序字段；null=未启用数值排序，此时按首次出现顺序（需求 2.15、2.19） */
   readonly holdingSortField: HoldingSortField | null;

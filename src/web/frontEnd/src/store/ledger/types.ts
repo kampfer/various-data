@@ -30,6 +30,9 @@ export interface ListSliceState<T> {
   error: string | null;
 }
 
+/** 新建交易表单来源；基金表单固定写入 FUND。 */
+export type TradeFormMode = 'general' | 'fund';
+
 /** 表单状态；D 为交易草稿。 */
 export interface FormSliceState<D> {
   /** 弹窗是否可见。 */
@@ -48,7 +51,7 @@ export interface LedgerState {
   /** 持仓模块列表状态。 */
   holdings: ListSliceState<HoldingOut>;
   /** 新建交易表单状态。 */
-  tradeForm: FormSliceState<TradeDraft>;
+  tradeForm: FormSliceState<TradeDraft> & { mode: TradeFormMode };
   /** 全部投资账户；后端已按创建时间倒序返回。 */
   accounts: AccountListState;
   /** 新建账户表单状态。 */

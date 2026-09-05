@@ -23,7 +23,11 @@ from datetime import date
 from decimal import Decimal, InvalidOperation, localcontext
 from typing import Iterable
 
-from app.investmentLedger.constants import ANNUALIZATION_DAYS, TradeDirection
+from app.investmentLedger.constants import (
+    ANNUALIZATION_DAYS,
+    ProductType,
+    TradeDirection,
+)
 
 
 ZERO = Decimal("0")
@@ -31,29 +35,53 @@ ZERO = Decimal("0")
 
 @dataclass(frozen=True, slots=True)
 class FundTrade:
-    """收益计算所需的最小交易值对象。"""
+    """收益计算所需的最小交易值对象。
+
+    ``trade_date`` 保留交易发生日，``calculation_date`` 表示该笔交易
+    进入收益计算的日期。基金优先使用确认日，其他产品使用交易日。
+    """
 
     trade_date: date
     price: Decimal
     quantity: Decimal
     direction: str
     fee: Decimal = ZERO
+    calculation_date: date | None = None
+
+    @property
+    def effective_date(self) -> date:
+        """返回该笔交易进入收益计算的实际日期。"""
+        return self.calculation_date or self.trade_date
 
     @classmethod
     def fromTransaction(cls, transaction: object) -> "FundTrade":
-        """从 ORM 交易对象创建值对象。"""
+        """从 ORM 交易对象创建值对象并确定收益计算起算日。"""
         rawDirection = transaction.direction
         direction = (
             rawDirection.value
             if hasattr(rawDirection, "value")
             else str(rawDirection)
         )
+        rawProductType = getattr(transaction, "product_type", None)
+        productType = (
+            rawProductType.value
+            if hasattr(rawProductType, "value")
+            else str(rawProductType)
+        )
+        tradeDate = transaction.trade_date
+        confirmationDate = getattr(transaction, "confirmation_date", None)
+        calculationDate = (
+            confirmationDate
+            if productType == ProductType.FUND.value and confirmationDate is not None
+            else tradeDate
+        )
         return cls(
-            trade_date=transaction.trade_date,
+            trade_date=tradeDate,
             price=cls.toDecimal(transaction.transaction_price),
             quantity=cls.toDecimal(transaction.transaction_quantity),
             direction=direction,
             fee=cls.toDecimal(transaction.fee),
+            calculation_date=calculationDate,
         )
 
     @staticmethod
@@ -120,9 +148,9 @@ class FundPerformanceCalculator:
             (
                 trade
                 for trade in trades
-                if valuationDate is None or trade.trade_date <= valuationDate
+                if valuationDate is None or trade.effective_date <= valuationDate
             ),
-            key=lambda item: item.trade_date,
+            key=lambda item: item.effective_date,
         )
         orderedDividends = sorted(
             (
@@ -156,7 +184,7 @@ class FundPerformanceCalculator:
             or splitIndex < len(orderedSplits)
         ):
             nextTradeDate = (
-                orderedTrades[tradeIndex].trade_date
+                orderedTrades[tradeIndex].effective_date
                 if tradeIndex < len(orderedTrades)
                 else None
             )
@@ -201,7 +229,7 @@ class FundPerformanceCalculator:
 
             while (
                 tradeIndex < len(orderedTrades)
-                and orderedTrades[tradeIndex].trade_date == eventDate
+                and orderedTrades[tradeIndex].effective_date == eventDate
             ):
                 trade = orderedTrades[tradeIndex]
                 grossAmount = trade.price * trade.quantity
@@ -209,7 +237,7 @@ class FundPerformanceCalculator:
                     shares += trade.quantity
                     buyCost += grossAmount + trade.fee
                     if holdingStartDate is None:
-                        holdingStartDate = trade.trade_date
+                        holdingStartDate = trade.effective_date
                 else:
                     shares -= trade.quantity
                     sellProceeds += grossAmount - trade.fee
