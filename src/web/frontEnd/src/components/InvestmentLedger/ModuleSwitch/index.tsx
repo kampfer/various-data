@@ -25,9 +25,16 @@ export default class ModuleSwitch extends React.Component<ModuleSwitchProps> {
           mode="inline"
           selectedKeys={[this.props.selectedModule]}
           items={[
-            { key: 'holdings', label: '持仓' },
-            { key: 'history', label: '历史交易记录' },
-            { key: 'accounts', label: '账户管理' },
+            {
+              type: 'group',
+              key: 'fund',
+              label: '基金',
+              children: [
+                { key: 'holdings', label: '持仓' },
+                { key: 'history', label: '历史交易记录' },
+                { key: 'accounts', label: '账户管理' },
+              ],
+            },
           ]}
           onClick={this.handleClick}
         />

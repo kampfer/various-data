@@ -7,4 +7,5 @@ node_modules
 /log/*
 nohup.out
 *.db
-.hypothesis
+**/.hypothesis
+**/.pytest_cache
