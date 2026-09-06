@@ -24,12 +24,12 @@ from app.investmentLedger.exceptions import (
 )
 from app.investmentLedger.models import Base, Transaction, Valuation
 from app.investmentLedger.schemas import HoldingQuery, TransactionQuery
-from app.investmentLedger.service import HoldingService, TransactionService
+from app.investmentLedger.service import FundHoldingService, TransactionService
 
 
 SERVICE_BOUNDARIES = (
     (TransactionService, TransactionQuery, "listTransactions"),
-    (HoldingService, HoldingQuery, "listHoldings"),
+    (FundHoldingService, HoldingQuery, "listHoldings"),
 )
 
 

@@ -26,7 +26,7 @@ from app.investmentLedger.schemas import (
 from app.investmentLedger.fund_quote import FundQuoteService
 from app.investmentLedger.service import (
     AccountService,
-    HoldingService,
+    FundHoldingService,
     TransactionService,
 )
 
@@ -60,12 +60,12 @@ def getFundQuoteService() -> FundQuoteService:
     return fund_quote_service
 
 
-def getHoldingService(
+def getFundHoldingService(
     db: Annotated[Session, Depends(get_db)],
     fundQuoteService: Annotated[FundQuoteService, Depends(getFundQuoteService)],
-) -> HoldingService:
-    """构造绑定请求级数据库会话的只读持仓服务。"""
-    return HoldingService(db, fundQuoteService)
+) -> FundHoldingService:
+    """构造绑定请求级数据库会话的基金持仓服务。"""
+    return FundHoldingService(db, fundQuoteService)
 
 
 @router.get(
@@ -162,7 +162,7 @@ def deleteTransaction(
 )
 def getHoldings(
     query: Annotated[HoldingQuery, Depends()],
-    service: Annotated[HoldingService, Depends(getHoldingService)],
+    service: Annotated[FundHoldingService, Depends(getFundHoldingService)],
 ) -> ApiResponse[PageOut[HoldingOut]]:
     """按查询条件返回只读持仓汇总，不暴露逐笔交易或写操作。"""
     return ApiResponse(data=service.listHoldings(query))

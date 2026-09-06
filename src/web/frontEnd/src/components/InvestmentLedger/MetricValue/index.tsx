@@ -33,8 +33,12 @@ export default class MetricValue extends React.Component<MetricValueProps> {
     }
 
     const rawValue = metric.value ?? '--';
+    // 收益率需要乘以100转换为百分比形式
+    const displayValue = kind === 'rate' && rawValue !== '--'
+      ? (parseFloat(rawValue) * 100).toString()
+      : rawValue;
     const value = kind === 'amount' || kind === 'rate'
-      ? formatDecimalScale(rawValue, 2)
+      ? formatDecimalScale(displayValue, 2)
       : rawValue;
     const suffix = kind === 'amount' ? '元' : kind === 'rate' ? '%' : '';
     return (

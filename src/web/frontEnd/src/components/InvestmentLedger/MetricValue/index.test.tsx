@@ -27,7 +27,8 @@ describe('MetricValue', () => {
     rerender(
       <MetricValue kind="rate" metric={{ available: true, value: '0.125', unavailableReason: null }} />,
     );
-    expect(screen.getByText('0.13 %')).toBeInTheDocument();
+    // 收益率需要乘以100转换为百分比形式
+    expect(screen.getByText('12.50 %')).toBeInTheDocument();
 
     rerender(
       <MetricValue kind="quantity" metric={{ available: true, value: '88.123456', unavailableReason: null }} />,

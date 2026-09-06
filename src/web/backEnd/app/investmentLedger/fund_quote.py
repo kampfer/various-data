@@ -5,10 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from logging import getLogger
 from typing import Any
 
 from app.investmentLedger.cache_proxy import CacheManager, CacheProxy
 from app.investmentLedger.fund_performance import FundDividend, FundSplit
+
+logger = getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +91,12 @@ class FundQuoteService:
         """获取单项基金详情并收敛第三方异常。"""
         try:
             return self._client.fetchFundInfoEm(fundCode, indicator)
-        except Exception:
+        except Exception as error:
+            logger.warning(
+                "fund_quote_indicator_failed indicator=%s error_type=%s",
+                indicator,
+                type(error).__name__,
+            )
             return []
 
     @staticmethod
@@ -164,22 +172,27 @@ class FundQuoteService:
         result: list[FundDividend] = []
         for row in cls._records(value):
             exDate = cls._dateValue(
-                cls._firstValue(row, ("除息日", "ex_date"))
+                cls._firstValue(row, ("除息日", "除息日期", "ex_date"))
             )
             perTenSharesAmount = row.get("每10份分红")
-            amountPerShareSource = (
-                perTenSharesAmount
-                if perTenSharesAmount is not None
-                else cls._firstValue(
-                    row,
-                    ("每份分红", "分红金额", "amount_per_share"),
-                )
-            )
-            amountPerShare = cls._decimalValue(amountPerShareSource)
-            if exDate is None or amountPerShare is None:
-                continue
             if perTenSharesAmount is not None:
-                amountPerShare /= Decimal("10")
+                amountPerShare = (
+                    Decimal(
+                        str(perTenSharesAmount)
+                        .removeprefix("每10份派现金")
+                        .removesuffix("元")
+                        .strip()
+                    )
+                    / Decimal("10")
+                )
+            else:
+                amountPerShare = cls._decimalValue(row.get("每份分红"))
+            if (
+                exDate is None
+                or amountPerShare is None
+                or amountPerShare <= Decimal("0")
+            ):
+                continue
             reinvestNav = cls._decimalValue(
                 cls._firstValue(row, ("再投资净值", "红利再投资净值", "reinvest_nav"))
             )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 from typing import Iterator
 
@@ -15,15 +15,13 @@ from app.investmentLedger.exceptions import (
     PageOutOfRange,
     TransactionNotFound,
 )
-from app.investmentLedger.models import Base, Transaction, Valuation
+from app.investmentLedger.models import Base, Transaction
 from app.investmentLedger.schemas import (
     ERROR_CODE_INSUFFICIENT_HOLDING,
     TransactionCreate,
     TransactionQuery,
 )
 from app.investmentLedger.service import TransactionService
-from app.investmentLedger.valuation_ingest.protocol import StandardValuation
-from app.investmentLedger.valuation_ingest.repository import ValuationRepository
 
 
 @pytest.fixture()
@@ -227,8 +225,8 @@ class TestTransactionService:
         assert persisted is not None and persisted.fee == Decimal("5.00")
 
 
-class TestHoldingService:
-    """覆盖 HoldingService 的只读六步流水线与全结果集组合统计。"""
+class TestFundHoldingService:
+    """覆盖 FundHoldingService 的基金持仓聚合流水线。"""
 
     @staticmethod
     def addTransaction(
@@ -254,28 +252,8 @@ class TestHoldingService:
             )
         )
 
-    @staticmethod
-    def addValuation(
-        session: Session,
-        productType: str,
-        productCode: str,
-        valuationDate: date,
-        unitPrice: str,
-    ) -> None:
-        """通过内部标准化值对象和唯一摄取仓储写入测试估值。"""
-        ValuationRepository(session).ingestBatch([
-            StandardValuation(
-                product_type=productType,
-                product_code=productCode,
-                valuation_date=valuationDate,
-                unit_price=Decimal(unitPrice),
-                source_id="legacy",
-                collected_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            )
-        ])
-
     def seedPortfolio(self, session: Session) -> None:
-        """写入两个已估值产品和一个无估值产品。"""
+        """写入基金、股票和理财交易，验证服务只聚合基金。"""
         self.addTransaction(
             session, "FUND", "甲基金旧名", "A", "10.00", 10, "BUY", date(2024, 1, 1)
         )
@@ -288,19 +266,35 @@ class TestHoldingService:
         self.addTransaction(
             session, "WEALTH", "丙理财", "C", "50.00", 1, "BUY", date(2024, 1, 4)
         )
-        self.addValuation(session, "FUND", "A", date(2024, 1, 2), "12.00")
-        self.addValuation(session, "FUND", "A", date(2024, 1, 5), "20.00")
-        self.addValuation(session, "STOCK", "B", date(2024, 1, 4), "40.00")
 
-    def testListRunsGroupingLatestValuationSortingAndPagination(
+    def testListReturnsOnlyFundHoldings(
         self, ledgerSession: Session
     ) -> None:
-        """列表使用最新估值计算，按收益排序，并只返回请求页。"""
+        """基金持仓服务固定过滤股票和理财，并使用基金最新净值。"""
+        from app.investmentLedger.fund_quote import FundPerformanceData
         from app.investmentLedger.schemas import HoldingQuery
-        from app.investmentLedger.service import HoldingService
+        from app.investmentLedger.service import FundHoldingService
+
+        class StubFundQuoteService:
+            """为服务测试提供稳定基金净值，不访问第三方行情接口。"""
+
+            @staticmethod
+            def getPerformanceData(
+                fundCodes: list[str],
+            ) -> dict[str, FundPerformanceData]:
+                return {
+                    code: FundPerformanceData(
+                        unit_nav=Decimal("20.00"),
+                        valuation_date=date(2024, 1, 5),
+                    )
+                    for code in fundCodes
+                }
 
         self.seedPortfolio(ledgerSession)
-        result = HoldingService(ledgerSession).listHoldings(
+        result = FundHoldingService(
+            ledgerSession,
+            fundQuoteService=StubFundQuoteService(),
+        ).listHoldings(
             HoldingQuery(
                 holding_sort_field="totalProfit",
                 holding_sort_order="desc",
@@ -309,34 +303,20 @@ class TestHoldingService:
             )
         )
 
-        assert result.total == 3
-        assert result.page_count == 2
-        assert [item.product_code for item in result.items] == ["A", "B"]
+        assert result.total == 1
+        assert result.page_count == 1
+        assert [item.product_code for item in result.items] == ["A"]
+        assert all(item.product_type == "FUND" for item in result.items)
         assert result.items[0].product_name == "甲基金新名"
         assert result.items[0].position.value == "160.00"
         assert result.items[0].position_quantity.value == "8"
         assert result.items[0].total_profit.value == "90.00"
-        assert result.items[1].position.value == "200.00"
-        assert result.items[1].total_profit.value == "50.00"
-
-        lastPage = HoldingService(ledgerSession).listHoldings(
-            HoldingQuery(
-                holding_sort_field="totalProfit",
-                holding_sort_order="desc",
-                page=2,
-                page_size=2,
-            )
-        )
-        assert [item.product_code for item in lastPage.items] == ["C"]
-        assert lastPage.items[0].position.available is False
-        assert lastPage.items[0].position.value is None
-        assert lastPage.items[0].position.unavailable_reason == "缺少最新估值"
 
     def testServiceExposesNoWriteMethods(self, ledgerSession: Session) -> None:
-        """持仓服务仅提供列表和组合统计，不暴露写操作。"""
-        from app.investmentLedger.service import HoldingService
+        """基金持仓服务仅提供列表和组合统计，不暴露写操作。"""
+        from app.investmentLedger.service import FundHoldingService
 
-        service = HoldingService(ledgerSession)
+        service = FundHoldingService(ledgerSession)
 
         for methodName in (
             "createHolding",

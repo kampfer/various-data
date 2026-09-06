@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from logging import getLogger
 from typing import Generic, Iterable, Protocol, TypeVar
 
 from sqlalchemy.orm import Session
@@ -23,6 +24,7 @@ from app.investmentLedger.constants import (
     MAX_PAGE_SIZE,
     MAX_SEARCH_VALUE_LENGTH,
     MIN_PAGE_SIZE,
+    ProductType,
     TradeDirection,
 )
 from app.investmentLedger.exceptions import (
@@ -51,6 +53,8 @@ from app.investmentLedger.schemas import (
     TransactionOut,
     TransactionQuery,
 )
+
+logger = getLogger(__name__)
 
 
 class GroupableTransaction(Protocol):
@@ -326,8 +330,8 @@ class TransactionService:
             raise TransactionNotFound(transactionId)
 
 
-class HoldingService:
-    """持仓和基金收益只读聚合用例。"""
+class FundHoldingService:
+    """基金持仓和基金收益的只读聚合用例。"""
 
     def __init__(
         self,
@@ -341,20 +345,21 @@ class HoldingService:
         self._performanceCalculator = performanceCalculator or FundPerformanceCalculator()
 
     def listHoldings(self, query: HoldingQuery) -> PageOut[HoldingOut]:
-        """计算并分页返回基金、股票和理财产品的持仓指标。"""
+        """计算并分页返回基金持仓指标，不读取其它产品类型。"""
         ServiceQueryValidator.validate(query)
 
+        # FundHoldingService 的职责边界固定为基金；即使调用方传入其它
+        # productType，也不会让股票或理财交易进入基金持仓计算。
         transactions = crud.getHoldingTransactions(
             self._db,
-            productType=query.product_type,
+            productType=ProductType.FUND.value,
             productName=query.product_name,
             productCode=query.product_code,
         )
         groups = groupByProductKey(transactions)
         keys = [group.key for group in groups]
-        valuations = crud.getLatestValuations(self._db, keys)
         fundData = self._getFundPerformanceData(keys)
-        marketQuotes = self._getMarketQuotes(keys, valuations, fundData)
+        marketQuotes = self._getMarketQuotes(keys, fundData)
 
         holdings: list[HoldingOut] = []
         for group in groups:
@@ -365,17 +370,13 @@ class HoldingService:
                 FundTrade.fromTransaction(transaction)
                 for transaction in group.transactions
             ]
-            performanceData = (
-                fundData.get(group.product_code)
-                if group.product_type == "FUND"
-                else None
-            )
+            performanceData = fundData.get(group.product_code)
             performance = self._performanceCalculator.calculate(
                 trades,
                 unitNav=unitNav,
                 valuationDate=valuationDate,
-                dividends=(performanceData.dividends if performanceData else ()),
-                splits=(performanceData.splits if performanceData else ()),
+                dividends=performanceData.dividends if performanceData else (),
+                splits=performanceData.splits if performanceData else (),
             )
             if performance.shares <= Decimal("0"):
                 continue
@@ -403,35 +404,34 @@ class HoldingService:
         self,
         keys: list[tuple[str, str]],
     ) -> dict[str, FundPerformanceData]:
-        """读取基金详情；行情异常时返回空数据以便使用本地估值兜底。"""
+        """只从 FundQuoteService 读取基金净值、分红和拆分数据。"""
         if self._fundQuoteService is None:
             return {}
-        fundCodes = [
-            code for productType, code in keys if productType == "FUND"
-        ]
+        fundCodes = list(
+            dict.fromkeys(
+                code for productType, code in keys if productType == ProductType.FUND.value
+            )
+        )
         if not fundCodes:
             return {}
         try:
             return self._fundQuoteService.getPerformanceData(fundCodes)
-        except Exception:
+        except Exception as error:
+            logger.warning(
+                "fund_quote_performance_failed error_type=%s",
+                type(error).__name__,
+            )
             return {}
 
     @staticmethod
     def _getMarketQuotes(
         keys: list[tuple[str, str]],
-        valuations: dict[tuple[str, str], object],
         fundData: dict[str, FundPerformanceData],
     ) -> dict[tuple[str, str], dict[str, object]]:
-        """合并本地估值和基金详情接口的最新单位净值。"""
-        quotes: dict[tuple[str, str], dict[str, object]] = {
-            key: {
-                "unit_nav": FundTrade.toDecimal(valuation.unit_price),
-                "valuation_date": valuation.valuation_date,
-            }
-            for key, valuation in valuations.items()
-        }
+        """合并 FundQuoteService 返回的基金最新估值。"""
+        quotes: dict[tuple[str, str], dict[str, object]] = {}
         for productType, code in keys:
-            if productType != "FUND":
+            if productType != ProductType.FUND.value:
                 continue
             data = fundData.get(code)
             if data is None or data.unit_nav is None or data.valuation_date is None:
@@ -509,7 +509,7 @@ class HoldingService:
             product_type=group.product_type,
             product_name=group.product_name,
             product_code=group.product_code,
-            accounts=HoldingService._toHoldingAccounts(group),
+            accounts=FundHoldingService._toHoldingAccounts(group),
             position=position,
             position_quantity=Metric.of(performance.shares),
             total_profit=totalProfit,
