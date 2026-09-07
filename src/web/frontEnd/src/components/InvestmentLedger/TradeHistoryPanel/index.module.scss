@@ -16,3 +16,14 @@
 .deleteButton {
   padding-inline: 0;
 }
+
+// 基金产品名称链接：指向天天基金详情页，悬停时加深并显示下划线
+.fundLink {
+  color: #1677ff;
+  text-decoration: none;
+
+  &:hover {
+    color: #0958d9;
+    text-decoration: underline;
+  }
+}

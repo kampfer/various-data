@@ -167,6 +167,35 @@ class FundQuoteService:
         return parsed if parsed.is_finite() else None
 
     @classmethod
+    def _splitRatioValue(cls, value: Any) -> Decimal | None:
+        """解析基金拆分比例，返回每一份拆分后的份数。
+
+        支持以下格式：
+        - "1:3.0000"（份额分拆）表示 1 份拆为 3 份，返回 3；
+        - "1：3"（全角冒号）等价处理；
+        - "3" 纯数字（兼容旧格式）直接作为份数返回。
+        比例语义为“冒号后 ÷ 冒号前”，结果需为有限正数，否则返回 None。
+        """
+        if value is None:
+            return None
+        text = str(value).strip().replace("％", "%").replace("%", "")
+        if not text or text in {"-", "nan", "NaT", "None"}:
+            return None
+        # 兼容全角冒号，统一为半角冒号后拆分
+        parts = text.replace("：", ":").split(":")
+        if len(parts) == 1:
+            # 无冒号，按纯数字份数处理
+            return cls._decimalValue(parts[0])
+        if len(parts) != 2:
+            return None
+        before = cls._decimalValue(parts[0])
+        after = cls._decimalValue(parts[1])
+        if before is None or after is None or before <= 0 or after <= 0:
+            return None
+        ratio = after / before
+        return ratio if ratio.is_finite() else None
+
+    @classmethod
     def _normalizeDividends(cls, value: Any) -> list[FundDividend]:
         """标准化分红事件并转换为每份金额。"""
         result: list[FundDividend] = []
@@ -216,7 +245,7 @@ class FundQuoteService:
             splitDate = cls._dateValue(
                 cls._firstValue(row, ("拆分折算日", "拆分日期", "split_date"))
             )
-            ratio = cls._decimalValue(
+            ratio = cls._splitRatioValue(
                 cls._firstValue(row, ("拆分折算比例", "拆分比例", "ratio"))
             )
             if splitDate is None or ratio is None or ratio <= 0:

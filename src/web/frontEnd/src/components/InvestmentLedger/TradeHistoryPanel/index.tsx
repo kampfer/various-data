@@ -91,6 +91,32 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
     this.props.onSortChange(order);
   };
 
+  /**
+   * 渲染产品名称列内容。
+   * 基金（productType === 'FUND'）且存在产品代码时，渲染为指向天天基金
+   * 详情页（https://fund.eastmoney.com/{code}.html）的新标签页链接；
+   * 其余情况保持纯文本展示。
+   */
+  private renderProductName(
+    value: string,
+    record: TransactionOut,
+  ): React.ReactNode {
+    const code = record.productCode?.trim();
+    if (record.productType !== 'FUND' || !code) {
+      return value;
+    }
+    return (
+      <a
+        className={styles.fundLink}
+        href={`https://fund.eastmoney.com/${code}.html`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {value}
+      </a>
+    );
+  }
+
   /** 10 个数据列与 1 个删除操作列；不定义 id 或编辑列。 */
   private columns(): TransactionColumns {
     const sortOrder = this.props.tradeDateOrder === 'asc'
@@ -104,7 +130,14 @@ export default class TradeHistoryPanel extends React.Component<TradeHistoryPanel
         key: 'productType',
         render: (value: TransactionOut['productType']) => PRODUCT_TYPE_LABELS[value],
       },
-      { title: '产品名称', dataIndex: 'productName', key: 'productName' },
+      {
+        title: '产品名称',
+        dataIndex: 'productName',
+        key: 'productName',
+        // 基金渲染为指向天天基金详情页的链接；其余产品类型保持纯文本
+        render: (value: string, record: TransactionOut) =>
+          this.renderProductName(value, record),
+      },
       { title: '产品代码', dataIndex: 'productCode', key: 'productCode' },
       {
         title: '交易账户',
