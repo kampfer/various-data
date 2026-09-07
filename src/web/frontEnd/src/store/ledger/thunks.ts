@@ -62,13 +62,16 @@ export const fetchHistory = createAsyncThunk<PageOut<TransactionOut>, void, Thun
 );
 
 
-/** 依据已应用持仓查询快照拉取当前页。 */
+/**
+ * 拉取全部持仓条目。
+ * 持仓列表已改为前端展示全部数据并在前端完成筛选与排序，
+ * 因此不再向后端传递分页、筛选或排序参数。
+ */
 export const fetchHoldings = createAsyncThunk<PageOut<HoldingOut>, void, ThunkConfig>(
   'ledger/fetchHoldings',
-  async (_, { getState, rejectWithValue }) => {
-    const params = LedgerQueryState.from(getState().ledger.holdings.query).toParams();
+  async (_, { rejectWithValue }) => {
     try {
-      return await ledgerApi.fetchHoldings(params);
+      return await ledgerApi.fetchHoldings({});
     } catch (error) {
       return rejectWithValue(toRejectValue(error));
     }

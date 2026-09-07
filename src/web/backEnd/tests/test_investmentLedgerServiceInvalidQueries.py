@@ -23,13 +23,14 @@ from app.investmentLedger.exceptions import (
     PageOutOfRange,
 )
 from app.investmentLedger.models import Base, Transaction, Valuation
-from app.investmentLedger.schemas import HoldingQuery, TransactionQuery
-from app.investmentLedger.service import FundHoldingService, TransactionService
+from app.investmentLedger.schemas import TransactionQuery
+from app.investmentLedger.service import TransactionService
 
 
+# 持仓列表已改为前端展示全部并在前端筛选/排序，后端 listHoldings 不再分页或
+# 校验查询参数，因此仅历史交易仍受服务边界的分页/搜索/日期校验约束。
 SERVICE_BOUNDARIES = (
     (TransactionService, TransactionQuery, "listTransactions"),
-    (FundHoldingService, HoldingQuery, "listHoldings"),
 )
 
 
@@ -42,8 +43,8 @@ def ledgerSession(tempEngine: Engine, dbSession: Session) -> Iterator[Session]:
             product_type="FUND",
             product_name="成长基金",
             product_code="F-001",
-            unit_price=Decimal("1.25"),
-            quantity=10,
+            transaction_price=Decimal("1.25"),
+            transaction_quantity=Decimal("10"),
             direction="BUY",
             trade_date=date(2024, 2, 29),
         )

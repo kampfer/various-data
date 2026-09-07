@@ -4,14 +4,9 @@ import { connect } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router-dom';
 import type { RootState, AppDispatch } from '../../../store';
-import type { LedgerQuerySnapshot } from '../../../domain/ledger/LedgerQueryState';
-import type { HoldingSortField, SortOrder } from '../../../domain/ledger/constants';
 import HoldingsPanel from '../../../components/InvestmentLedger/HoldingsPanel';
-import TradeFilterBar from '../../../components/InvestmentLedger/TradeFilterBar';
-import { applyQuery, changePage, changePageSize } from '../../../store/ledger/ledgerSlice';
 import { fetchHoldings } from '../../../store/ledger/thunks';
 import type { LedgerState } from '../../../store/ledger/types';
-import { validateQueryPatch } from '../pageUtils';
 import styles from '../index.module.scss';
 
 interface StateProps {
@@ -38,23 +33,7 @@ export class HoldingsPageContainer extends React.Component<HoldingsPageProps> {
     }
   }
 
-  private readonly load = (): void => {
-    void this.props.dispatch(fetchHoldings());
-  };
-
-  private readonly handleApplyQuery = (patch: Partial<LedgerQuerySnapshot>): void => {
-    if (!validateQueryPatch(this.props.holdings.query, patch)) return;
-    this.props.dispatch(applyQuery({ module: 'holdings', patch }));
-    this.load();
-  };
-
-  private readonly handleSort = (
-    field: HoldingSortField | null,
-    order: SortOrder | null,
-  ): void => {
-    this.handleApplyQuery({ holdingSortField: field, holdingSortOrder: order });
-  };
-
+  /** 产品名称点击后携带产品范围跳转到历史交易模块。 */
   private readonly handleViewTransactions = (scope: {
     readonly productCode: string;
     readonly productName: string;
@@ -66,41 +45,15 @@ export class HoldingsPageContainer extends React.Component<HoldingsPageProps> {
     this.props.navigate(`/investmentLedger/history?${params.toString()}`);
   };
 
-  /** antd Table 内置分页已约束页码有效，直接派发并重新拉取。 */
-  private readonly handlePageChange = (page: number): void => {
-    this.props.dispatch(changePage({ module: 'holdings', page }));
-    this.load();
-  };
-
-  /** 切换页大小由 redux 把页码重置为 1，再重新拉取。 */
-  private readonly handlePageSizeChange = (size: number): void => {
-    this.props.dispatch(changePageSize({ module: 'holdings', size }));
-    this.load();
-  };
-
   public override render(): React.ReactNode {
     const { holdings } = this.props;
     return (
       <div className={styles.modulePage}>
-        <TradeFilterBar
-          query={holdings.query}
-          module="holdings"
-          scoped={false}
-          onApply={this.handleApplyQuery}
-        />
         <HoldingsPanel
           items={holdings.items}
           loading={holdings.loading}
-          sortField={holdings.query.holdingSortField}
-          sortOrder={holdings.query.holdingSortOrder}
-          onSortChange={this.handleSort}
           onViewTransactions={this.handleViewTransactions}
           onReadOnlyIntent={() => message.info('持仓模块仅供查看')}
-          page={holdings.page}
-          pageSize={holdings.pageSize}
-          total={holdings.total}
-          onPageChange={this.handlePageChange}
-          onPageSizeChange={this.handlePageSizeChange}
         />
       </div>
     );

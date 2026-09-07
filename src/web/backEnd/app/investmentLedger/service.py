@@ -45,10 +45,8 @@ from app.investmentLedger.schemas import (
     HoldingOut,
     HoldingQuery,
     HoldingAccountOut,
-    HoldingSortFieldLiteral,
     Metric,
     PageOut,
-    SortOrderLiteral,
     TransactionCreate,
     TransactionOut,
     TransactionQuery,
@@ -83,23 +81,6 @@ class HoldingGroup(Generic[TransactionRowT]):
     def key(self) -> tuple[str, str]:
         """返回可直接传给估值批量查询的产品键。"""
         return self.product_type, self.product_code
-
-
-class SortableMetric(Protocol):
-    """计算指标和响应指标共同满足的数值排序接口。"""
-
-    available: bool
-    value: Decimal | str | None
-
-
-class SortableHolding(Protocol):
-    """持仓排序所需的最小只读接口。"""
-
-    position: SortableMetric
-    total_profit: SortableMetric
-
-
-HoldingT = TypeVar("HoldingT", bound=SortableHolding)
 
 
 class ServiceQueryValidator:
@@ -172,43 +153,6 @@ def groupByProductKey(
         )
         for key, groupRows in groupedRows.items()
     ]
-
-
-def sortHoldings(
-    holdings: Iterable[HoldingT],
-    sortField: HoldingSortFieldLiteral | None,
-    sortOrder: SortOrderLiteral | None,
-) -> list[HoldingT]:
-    """按计算指标稳定排序，不可用指标始终置于所有可用指标之后。"""
-    source = list(holdings)
-    if sortField is None or sortOrder is None:
-        return source
-
-    metricAttribute = {
-        "position": "position",
-        "totalProfit": "total_profit",
-    }[sortField]
-    availableItems: list[tuple[HoldingT, SortableMetric]] = []
-    unavailableItems: list[HoldingT] = []
-    for item in source:
-        metric = getattr(item, metricAttribute)
-        if metric.available:
-            availableItems.append((item, metric))
-        else:
-            unavailableItems.append(item)
-
-    def numericValue(entry: tuple[HoldingT, SortableMetric]) -> Decimal:
-        value = entry[1].value
-        if value is None:
-            raise ValueError("可用指标必须包含数值")
-        return value if isinstance(value, Decimal) else Decimal(value)
-
-    orderedAvailable = sorted(
-        availableItems,
-        key=numericValue,
-        reverse=sortOrder == "desc",
-    )
-    return [item for item, _metric in orderedAvailable] + unavailableItems
 
 
 class AccountService:
@@ -345,16 +289,18 @@ class FundHoldingService:
         self._performanceCalculator = performanceCalculator or FundPerformanceCalculator()
 
     def listHoldings(self, query: HoldingQuery) -> PageOut[HoldingOut]:
-        """计算并分页返回基金持仓指标，不读取其它产品类型。"""
-        ServiceQueryValidator.validate(query)
+        """计算并一次性返回全部基金持仓指标，不读取其它产品类型。
 
+        持仓列表已改为前端展示全部数据：筛选与排序均由前端表格承担，
+        后端不再分页、不再按名称/代码过滤或按指标排序，避免分页与后端
+        筛选逻辑与前端交互重复。响应仍沿用 ``PageOut`` 结构以保持契约稳定，
+        其中 ``page``/``page_count`` 恒为 1，``total`` 为全部持仓条数。
+        """
         # FundHoldingService 的职责边界固定为基金；即使调用方传入其它
         # productType，也不会让股票或理财交易进入基金持仓计算。
         transactions = crud.getHoldingTransactions(
             self._db,
             productType=ProductType.FUND.value,
-            productName=query.product_name,
-            productCode=query.product_code,
         )
         groups = groupByProductKey(transactions)
         keys = [group.key for group in groups]
@@ -382,22 +328,12 @@ class FundHoldingService:
                 continue
             holdings.append(self._toHoldingOut(group, performance, quote))
 
-        orderedHoldings = sortHoldings(
-            holdings,
-            query.holding_sort_field,
-            query.holding_sort_order,
-        )
-        pageRows, pageCount = Paginator().slice(
-            orderedHoldings,
-            page=query.page,
-            pageSize=query.page_size,
-        )
         return PageOut[HoldingOut](
-            items=pageRows,
-            total=len(orderedHoldings),
-            page=query.page,
-            page_size=query.page_size,
-            page_count=pageCount,
+            items=holdings,
+            total=len(holdings),
+            page=1,
+            page_size=len(holdings),
+            page_count=1 if holdings else 0,
         )
 
     def _getFundPerformanceData(

@@ -370,8 +370,6 @@ FIELD_LABELS = {
     "page": "页码",
     "pageSize": "页大小",
     "tradeDateOrder": "交易日期排序方向",
-    "holdingSortField": "持仓条目排序字段",
-    "holdingSortOrder": "持仓条目排序方向",
     "scopeProductCode": "产品历史交易范围的产品代码",
 }
 
@@ -384,10 +382,6 @@ FIELD_MESSAGES = {
     ("productType", ERROR_CODE_NOT_IN_ENUM): "产品类型必须为理财、基金或股票之一",
     ("direction", ERROR_CODE_NOT_IN_ENUM): "交易方向必须为买入或卖出之一",
     ("tradeDateOrder", ERROR_CODE_NOT_IN_ENUM): "交易日期排序方向必须为升序或降序",
-    ("holdingSortField", ERROR_CODE_NOT_IN_ENUM): (
-        "持仓条目排序字段必须为持仓或总收益"
-    ),
-    ("holdingSortOrder", ERROR_CODE_NOT_IN_ENUM): "持仓条目排序方向必须为升序或降序",
     ("productName", ERROR_CODE_TOO_LONG): (
         f"产品名称不能超过 {MAX_PRODUCT_NAME_LENGTH} 个字符"
     ),

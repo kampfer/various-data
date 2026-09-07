@@ -294,14 +294,7 @@ class TestFundHoldingService:
         result = FundHoldingService(
             ledgerSession,
             fundQuoteService=StubFundQuoteService(),
-        ).listHoldings(
-            HoldingQuery(
-                holding_sort_field="totalProfit",
-                holding_sort_order="desc",
-                page=1,
-                page_size=2,
-            )
-        )
+        ).listHoldings(HoldingQuery())
 
         assert result.total == 1
         assert result.page_count == 1

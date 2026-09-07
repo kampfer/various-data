@@ -84,9 +84,6 @@ ERROR_CODE_ACCOUNT_DISABLED = "ACCOUNT_DISABLED"
 #: 排序方向：asc=从小到大，desc=从大到小（需求 2.15、2.19）
 SortOrderLiteral = Literal["asc", "desc"]
 
-#: 持仓条目可排序的数值字段：position=持仓（市值），totalProfit=总收益（需求 2.19）
-HoldingSortFieldLiteral = Literal["position", "totalProfit"]
-
 #: 泛型负载类型变量：用于 ApiResponse[T] 与 PageOut[T]
 T = TypeVar("T")
 
@@ -554,14 +551,9 @@ class TransactionQuery(LedgerSchema):
         return self
 
 
-class HoldingQuery(TransactionQuery):
-    """持仓查询入参：复用全部交易筛选/搜索条件，追加持仓条目的数值排序（需求 2.19）。"""
-
-    #: 排序字段：position（持仓）或 totalProfit（总收益）；None=按首次出现顺序（需求 2.15、2.19）
-    holding_sort_field: HoldingSortFieldLiteral | None = None
-
-    #: 排序方向；仅在 holding_sort_field 非 None 时生效（需求 2.19）
-    holding_sort_order: SortOrderLiteral | None = None
+class HoldingQuery(LedgerSchema):
+    """持仓查询入参：持仓列表已改为前端展示全部并在前端完成筛选与排序，
+    故后端不再接受分页、筛选或排序参数，此模型保持为空以维持端点签名稳定。"""
 
 
 class HoldingAccountOut(LedgerSchema):
