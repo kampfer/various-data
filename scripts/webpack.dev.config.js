@@ -6,6 +6,7 @@ import config from './webpack.config.js';
 let devConfig = Object.assign(config, {
     mode: 'development',
     devServer: {
+        open: true,
         port: 3000,
         hot: true,                      // 开启 HMR
         historyApiFallback: true,       // 支持 SPA 路由

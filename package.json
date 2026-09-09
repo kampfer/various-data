@@ -6,6 +6,7 @@
   "scripts": {
     "dev:web": "webpack serve --config ./scripts/webpack.dev.config.js",
     "dev:server": "pipenv run uvicorn main:app --app-dir ./src/web/backEnd --reload --port 8000",
+    "dev": "pipenv run python src/run.py",
     "build:web": "webpack --config ./scripts/webpack.config.js --mode production",
     "type-check": "tsc --noEmit",
     "test": "vitest --run"
