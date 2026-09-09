@@ -4,9 +4,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev:web": "webpack --config ./scripts/webpack.dev.config.js --watch",
+    "dev:web": "webpack serve --config ./scripts/webpack.dev.config.js",
     "dev:server": "pipenv run uvicorn main:app --app-dir ./src/web/backEnd --reload --port 8000",
-    "build:web": "webpack --config ./scripts/webpack.config.js",
+    "build:web": "webpack --config ./scripts/webpack.config.js --mode production",
     "type-check": "tsc --noEmit",
     "test": "vitest --run"
   },
@@ -46,6 +46,7 @@
     "@types/react-dom": "^18.2.25",
     "babel-loader": "^8.2.5",
     "clean-webpack-plugin": "^4.0.0",
+    "concurrently": "^10.0.5",
     "css-loader": "^6.7.1",
     "fast-check": "3.23.1",
     "html-webpack-plugin": "^5.5.0",
@@ -55,7 +56,8 @@
     "style-loader": "^3.3.1",
     "typescript": "^5.4.5",
     "vitest": "2.1.8",
-    "webpack": "^5.73.0",
-    "webpack-cli": "^4.9.2"
+    "webpack": "^5.110.3",
+    "webpack-cli": "^7.2.3",
+    "webpack-dev-server": "^6.0.0"
   }
 }
