@@ -6,6 +6,7 @@ import styles from './index.module.scss';
 const accountTypeOptions = [
   { value: 'FUND', label: '基金账户（FUND）' },
   { value: 'STOCK', label: '证券账户（STOCK）' },
+  { value: 'CASH', label: '现金账户（CASH）' },
 ];
 
 export interface AccountFormModalProps {

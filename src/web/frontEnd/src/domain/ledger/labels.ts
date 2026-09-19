@@ -15,6 +15,7 @@ export const tradeDirectionOptions = (): readonly LabeledOption<TradeDirection>[
 export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   FUND: '基金账户',
   STOCK: '证券账户',
+  CASH: '现金账户',
 };
 
 export const accountTypeLabel = (accountType: string): string =>
