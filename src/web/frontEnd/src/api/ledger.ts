@@ -15,7 +15,6 @@ import type {
   HoldingOut,
   TradeDraft,
   TransactionQueryParams,
-  HoldingQueryParams,
   AccountCreatePayload,
   AccountOut,
   AccountRemarkUpdatePayload,
@@ -28,9 +27,6 @@ import type { LedgerQueryParams } from '../domain/ledger/LedgerQueryState';
  * （两者键集合一致，后者的值被放宽为 string | number 以便直接进 query string）。
  */
 export type TransactionQueryInput = TransactionQueryParams | LedgerQueryParams;
-
-/** 持仓查询入参：在历史交易条件之上追加持仓数值排序（需求 2.19） */
-export type HoldingQueryInput = HoldingQueryParams | LedgerQueryParams;
 
 /**
  * 分页查询历史交易（接口 2：GET /transactions）。
@@ -64,14 +60,9 @@ export const createTransaction = (payload: TradeDraft): Promise<TransactionOut> 
 export const deleteTransaction = (transactionId: number): Promise<null> =>
   unwrap(http.delete<ApiEnvelope<null>>(`/transactions/${transactionId}`));
 
-/**
- * 分页查询持仓条目（接口 5：GET /holdings，只读，需求 2.4-2.8）。
- * @param params 交易筛选/搜索条件 + 持仓排序 + 分页
- * @returns 当前页持仓条目；不可用指标以 Metric.available=false 表达，不以 0 替代（需求 3.9）
- * @throws LedgerApiError 查询参数非法或网络异常
- */
-export const fetchHoldings = (params: HoldingQueryInput): Promise<PageOut<HoldingOut>> =>
-  unwrap(http.get<ApiEnvelope<PageOut<HoldingOut>>>('/holdings', { params, timeout: 30000 }));
+/** 查询全部持仓条目（接口 5：GET /holdings，只读，返回全量数据）。 */
+export const fetchHoldings = (): Promise<HoldingOut[]> =>
+  unwrap(http.get<ApiEnvelope<HoldingOut[]>>('/holdings', { timeout: 30000 }));
 
 /** 查询全部投资账户；后端按创建时间倒序返回。 */
 export const fetchAccounts = (): Promise<AccountOut[]> =>

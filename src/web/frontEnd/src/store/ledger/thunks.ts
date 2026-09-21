@@ -67,11 +67,11 @@ export const fetchHistory = createAsyncThunk<PageOut<TransactionOut>, void, Thun
  * 持仓列表已改为前端展示全部数据并在前端完成筛选与排序，
  * 因此不再向后端传递分页、筛选或排序参数。
  */
-export const fetchHoldings = createAsyncThunk<PageOut<HoldingOut>, void, ThunkConfig>(
+export const fetchHoldings = createAsyncThunk<HoldingOut[], void, ThunkConfig>(
   'ledger/fetchHoldings',
   async (_, { rejectWithValue }) => {
     try {
-      return await ledgerApi.fetchHoldings({});
+      return await ledgerApi.fetchHoldings();
     } catch (error) {
       return rejectWithValue(toRejectValue(error));
     }

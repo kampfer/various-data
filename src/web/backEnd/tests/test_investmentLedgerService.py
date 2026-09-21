@@ -272,7 +272,6 @@ class TestFundHoldingService:
     ) -> None:
         """基金持仓服务固定过滤股票和理财，并使用基金最新净值。"""
         from app.investmentLedger.fund_quote import FundPerformanceData
-        from app.investmentLedger.schemas import HoldingQuery
         from app.investmentLedger.service import FundHoldingService
 
         class StubFundQuoteService:
@@ -294,16 +293,15 @@ class TestFundHoldingService:
         result = FundHoldingService(
             ledgerSession,
             fundQuoteService=StubFundQuoteService(),
-        ).listHoldings(HoldingQuery())
+        ).listHoldings()
 
-        assert result.total == 1
-        assert result.page_count == 1
-        assert [item.product_code for item in result.items] == ["A"]
-        assert all(item.product_type == "FUND" for item in result.items)
-        assert result.items[0].product_name == "甲基金新名"
-        assert result.items[0].position.value == "160.00"
-        assert result.items[0].position_quantity.value == "8"
-        assert result.items[0].total_profit.value == "90.00"
+        assert len(result) == 1
+        assert [item.product_code for item in result] == ["A"]
+        assert all(item.product_type == "FUND" for item in result)
+        assert result[0].product_name == "甲基金新名"
+        assert result[0].position.value == "160.00"
+        assert result[0].position_quantity.value == "8"
+        assert result[0].total_profit.value == "90.00"
 
     def testServiceExposesNoWriteMethods(self, ledgerSession: Session) -> None:
         """基金持仓服务仅提供列表和组合统计，不暴露写操作。"""

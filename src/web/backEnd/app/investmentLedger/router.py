@@ -17,7 +17,6 @@ from app.investmentLedger.schemas import (
     AccountStatusUpdate,
     ApiResponse,
     HoldingOut,
-    HoldingQuery,
     PageOut,
     TransactionCreate,
     TransactionOut,
@@ -158,11 +157,10 @@ def deleteTransaction(
 
 @router.get(
     "/holdings",
-    response_model=ApiResponse[PageOut[HoldingOut]],
+    response_model=ApiResponse[list[HoldingOut]],
 )
 def getHoldings(
-    query: Annotated[HoldingQuery, Depends()],
     service: Annotated[FundHoldingService, Depends(getFundHoldingService)],
-) -> ApiResponse[PageOut[HoldingOut]]:
-    """按查询条件返回只读持仓汇总，不暴露逐笔交易或写操作。"""
-    return ApiResponse(data=service.listHoldings(query))
+) -> ApiResponse[list[HoldingOut]]:
+    """返回全部只读持仓汇总，不暴露逐笔交易或写操作。"""
+    return ApiResponse(data=service.listHoldings())

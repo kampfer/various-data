@@ -551,11 +551,6 @@ class TransactionQuery(LedgerSchema):
         return self
 
 
-class HoldingQuery(LedgerSchema):
-    """持仓查询入参：持仓列表已改为前端展示全部并在前端完成筛选与排序，
-    故后端不再接受分页、筛选或排序参数，此模型保持为空以维持端点签名稳定。"""
-
-
 class HoldingAccountOut(LedgerSchema):
     """持仓产品涉及的账户摘要；``account_id=None`` 表示未关联账户。"""
 

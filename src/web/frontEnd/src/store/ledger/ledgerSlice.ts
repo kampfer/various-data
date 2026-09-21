@@ -242,11 +242,8 @@ const ledgerSlice = createSlice({
       .addCase(thunks.fetchHoldings.fulfilled, (state, action) => {
         state.holdings.loading = false;
         state.holdings.error = null;
-        state.holdings.items = action.payload.items;
-        state.holdings.total = action.payload.total;
-        state.holdings.page = action.payload.page;
-        state.holdings.pageSize = action.payload.pageSize;
-        state.holdings.pageCount = action.payload.pageCount;
+        state.holdings.items = action.payload;
+        state.holdings.total = action.payload.length;
       })
       .addCase(thunks.fetchHoldings.rejected, (state, action) => {
         state.holdings.loading = false;

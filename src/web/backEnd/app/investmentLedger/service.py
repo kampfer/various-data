@@ -43,7 +43,6 @@ from app.investmentLedger.schemas import (
     AccountRemarkUpdate,
     AccountStatusUpdate,
     HoldingOut,
-    HoldingQuery,
     HoldingAccountOut,
     Metric,
     PageOut,
@@ -288,14 +287,8 @@ class FundHoldingService:
         self._fundQuoteService = fundQuoteService
         self._performanceCalculator = performanceCalculator or FundPerformanceCalculator()
 
-    def listHoldings(self, query: HoldingQuery) -> PageOut[HoldingOut]:
-        """计算并一次性返回全部基金持仓指标，不读取其它产品类型。
-
-        持仓列表已改为前端展示全部数据：筛选与排序均由前端表格承担，
-        后端不再分页、不再按名称/代码过滤或按指标排序，避免分页与后端
-        筛选逻辑与前端交互重复。响应仍沿用 ``PageOut`` 结构以保持契约稳定，
-        其中 ``page``/``page_count`` 恒为 1，``total`` 为全部持仓条数。
-        """
+    def listHoldings(self) -> list[HoldingOut]:
+        """计算并一次性返回全部基金持仓指标，不读取其它产品类型。"""
         # FundHoldingService 的职责边界固定为基金；即使调用方传入其它
         # productType，也不会让股票或理财交易进入基金持仓计算。
         transactions = crud.getHoldingTransactions(
@@ -328,13 +321,7 @@ class FundHoldingService:
                 continue
             holdings.append(self._toHoldingOut(group, performance, quote))
 
-        return PageOut[HoldingOut](
-            items=holdings,
-            total=len(holdings),
-            page=1,
-            page_size=len(holdings),
-            page_count=1 if holdings else 0,
-        )
+        return holdings
 
     def _getFundPerformanceData(
         self,
