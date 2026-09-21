@@ -116,6 +116,8 @@ class OMOExtOMOractor:
     # 提取指定公告中的央行公开市场操作
     def extract(self, html):
         doc = pq(html)
+        # 页面标题，用于日志中标识是哪份公告（避免记录整页 HTML）
+        pageTitle = doc.find("title").text().strip()
         time = self.extractTime(doc)
         tables = doc.find("#zoom table")
         deals = []
@@ -170,7 +172,8 @@ class OMOExtOMOractor:
                                 successFul = True
 
                 if not successFul or not deals:
-                    logger.info(f"提取失败: {html}")
+                    # 只记录公告标题和命中的表格标题，便于定位问题，避免刷屏
+                    logger.info(f"提取失败: 公告=[{pageTitle}] 表格标题=[{title}]")
 
         for deal in deals:
             deal["time"] = time

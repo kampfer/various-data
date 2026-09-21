@@ -7,6 +7,8 @@
     "dev:web": "webpack serve --config ./scripts/webpack.dev.config.js",
     "dev:server": "pipenv run uvicorn main:app --app-dir ./src/web/backEnd --reload --port 8000",
     "dev": "pipenv run python src/run.py",
+    "dev:task": "pipenv run python src/web/backEnd/scheduler_service.py --mode dev",
+    "start:task": "pipenv run python src/web/backEnd/scheduler_service.py --mode pro",
     "build:web": "webpack --config ./scripts/webpack.config.js --mode production",
     "type-check": "tsc --noEmit",
     "test": "vitest --run"

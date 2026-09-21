@@ -10,7 +10,8 @@ logger.setLevel(logging.DEBUG)
 logFilePath = os.path.realpath(
     os.path.join(os.path.dirname(__file__), "../../../../log/various_data.log")
 )
-ch = logging.FileHandler(logFilePath)
+# 指定 utf-8 编码，避免在 Windows 上默认使用 gbk 时无法编码全角空格等字符导致 UnicodeEncodeError
+ch = logging.FileHandler(logFilePath, encoding="utf-8")
 ch.setLevel(logging.DEBUG)
 
 # create formatter
