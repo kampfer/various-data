@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import apiRouter
 from app.investmentLedger.exceptions import registerLedgerExceptionHandlers
 from app.models import initAppModels
-from app.scheduler import startScheduler, stopScheduler
 
 
 app = FastAPI()
@@ -25,15 +24,7 @@ initAppModels()
 app.include_router(apiRouter)
 registerLedgerExceptionHandlers(app)  # 注册投资交易账本的统一异常处理器
 
-
-@app.on_event("startup")
-def startUp():
-    startScheduler()
-
-
-@app.on_event("shutdown")
-def shutDown():
-    stopScheduler()
+# 定时任务调度器已拆分为独立服务，请通过 scheduler_service.py 单独启动
 
 
 # 只有生产环境才托管静态文件
