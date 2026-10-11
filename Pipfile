@@ -3,9 +3,15 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
 verify_ssl = true
 name = "tsinghua"
 
+[[source]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+verify_ssl = true
+name = "pypitunatsinghuaedu"
+
 [packages]
 akshare = "*"
 matplotlib = "*"
+quantstats = "*"
 jupyterlab = "*"
 requests = "*"
 pyquery = "*"
@@ -15,6 +21,7 @@ uvicorn = {extras = ["standard"], version = "*"}
 apscheduler = "*"
 sqlalchemy = "*"
 tqdm = "*"
+tdxaidata = {version = "*", index = "pypitunatsinghuaedu"}
 
 [dev-packages]
 pytest = "==8.3.3"

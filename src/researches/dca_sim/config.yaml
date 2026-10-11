@@ -1,0 +1,57 @@
+# 定投-股债配置-清仓模拟器 示例配置
+# 优先级：命令行 > 配置文件 > 默认值
+
+# 本金与投入
+initial_capital: 3000000
+monthly_invest: 0
+
+# 提取设置
+withdrawal:
+  enabled: true               # 提取总开关，false 时完全不提取
+  mode: "rate"                # "rate" 按提取率 | "amount" 按固定金额
+  rate: 0.04
+  amount: 0
+  start_date: "2015-02-01"
+  inflation_adjust: 0.0
+  dynamic: false
+  dynamic_strength: 2.0
+  dynamic_min: 0.5
+  dynamic_max: 1.5
+
+# 资产配置
+portfolio:
+  equity_ratio: 0.3
+  rebalance_band: 0.05
+  fee_rate: 0.0
+
+# 清仓设置
+liquidation:
+  enabled: false
+  mode: "lump"                # "lump" 一次性清仓 | "glide" 逐步降仓
+  date: "2030-01-01"          # 一次性清仓日期
+  glide_years: 5              # 逐步降仓：目标日期前多少年开始降
+  glide_equity_target: 0.0    # 降仓结束时的股票比例
+  glide_start_ratio: null     # 降仓开始时的股票比例，null 表示用当前 equity_ratio
+
+# 数据
+data:
+  source: "real"         # "simulated" | "real"
+  start: "2015-01-01"
+  end: "2025-12-31"
+  seed: 42
+  # 股票/债券各为一篮子，可多只，篮子内等权合成一条净值
+  equity_symbols: ["510300"]  # 如多只：["510300", "159915"]（沪深300 + 创业板）
+  bond_symbols: ["511010"]    # 如多只：["511010", "511260"]
+
+# 趋势过滤
+trend_filter:
+  enabled: false
+  ma_window: 200
+  reduce_to: 0.5
+
+# 输出
+output:
+  print_table: true
+  save_csv: false
+  plot: false
+  plot_path: "output/"
