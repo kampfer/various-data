@@ -4,6 +4,7 @@ if __name__ == "__main__":
 
     os.sys.path.append(os.path.realpath(os.path.join(__file__, "../../../")))
 
+import os
 import re
 from datetime import datetime
 
@@ -175,6 +176,9 @@ class OMOExtOMOractor:
                     # 只记录公告标题和命中的表格标题，便于定位问题，避免刷屏
                     logger.info(f"提取失败: 公告=[{pageTitle}] 表格标题=[{title}]")
 
+        # 子提取器在无有效行时会返回 None，统一兜底为空列表，
+        # 避免后续遍历 deals 时抛出 TypeError，并保证返回值类型稳定
+        deals = deals or []
         for deal in deals:
             deal["time"] = time
 
@@ -207,18 +211,25 @@ class OMOExtOMOractor:
     def extractNHG(self, table):
         rows = table.find("tr")
         arr = []
+        # 默认3列表头：期限、(交易/中标/招标)量、(中标/回购/招标)利率
         schema = ["period", "amount", "rate"]
 
         for i, row in enumerate(rows.items()):
             if i == 0:
+                # 招标数量在前、且表头含"中标加权平均利率"的特殊3列格式
                 if row.text() == "招标数量\n期限品种\n中标加权平均利率（%）":
                     schema = ["amount", "period", "rate"]
+                # 2026年起出现的新4列格式：期限、操作利率、投标量、中标量
+                # amount 取"中标量"（央行实际操作量），bidAmount 仅记录备用、不入库
+                elif row.text() == "期限\n操作利率\n投标量\n中标量":
+                    schema = ["period", "rate", "bidAmount", "amount"]
                 continue
             else:
                 cells = row.find("td")
                 d = {"type": "逆回购"}
 
-                if len(cells) == 3:
+                # 列数需与表头 schema 长度一致，否则视为异常行跳过
+                if len(cells) == len(schema):
                     for i, k in enumerate(schema):
                         d[k] = cells.eq(i).text()
                 else:
@@ -365,22 +376,26 @@ def crawlOMOUrl(latest):
 
 
 def crawlOMOHtml(doc):
-    # if os.getenv('mode') == 'dev':
-    #     logger.info(f"读取公告内容：{doc['title']}")
-    #     htmlPath = f"./data/omo/html/{doc['title']}.html"
-    #     if os.path.exists(htmlPath):
-    #         with open(htmlPath) as f:
-    #             data = f.read()
-    #             f.close()
-    #             return data
-    #     else:
-    #         return None
-
     docUrl = doc["url"]
     logger.info(f"爬取公告内容：{docUrl}")
     res = requests.get(docUrl)
     res.encoding = "utf-8"
     html_text = res.text
+
+    # 保存 HTML 到本地，便于离线分析与回归测试
+    # 路径：项目根/data/omo/html/{公告标题}.html
+    # crawlOMO.py 位于 src/web/backEnd/app/tasks/，需往上 5 层到项目根
+    htmlDir = os.path.realpath(
+        os.path.join(os.path.dirname(__file__), "../../../../../data/omo/html")
+    )
+    os.makedirs(htmlDir, exist_ok=True)
+    htmlPath = os.path.join(htmlDir, f"{doc['title']}.html")
+    try:
+        with open(htmlPath, "w", encoding="utf-8") as f:
+            f.write(html_text)
+    except Exception as e:
+        logger.warn(f"保存 HTML 失败: {htmlPath} {e}")
+
     return html_text
 
 
