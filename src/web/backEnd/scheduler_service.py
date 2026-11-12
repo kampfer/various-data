@@ -9,8 +9,7 @@
     - backupDatabase：每月拷贝数据库文件，无需任何 model
     - pickStock：未注册定时任务，仅供调试，无数据库依赖
 
-因此本服务只初始化上述任务真正用到的表（新浪快讯、OMO），
-不涉及 Web 端投资台账（investmentLedger）的表结构。
+因此本服务只初始化上述任务真正用到的表（新浪快讯、OMO）。
 
 启动方式（在 backEnd 目录下）：
     python scheduler_service.py            # 开发环境（默认，使用 various_data_dev.db）
@@ -45,8 +44,7 @@ def main() -> None:
     from app.omo.models import Base as OMOBase
     from app.scheduler import initScheduler
 
-    # 仅创建定时任务所依赖的表：新浪财经快讯与央行公开市场操作，
-    # 不含 Web 端投资台账（investmentLedger）的表。
+    # 仅创建定时任务所依赖的表：新浪财经快讯与央行公开市场操作。
     SinaNewsBase.metadata.create_all(bind=engine)
     OMOBase.metadata.create_all(bind=engine)
 

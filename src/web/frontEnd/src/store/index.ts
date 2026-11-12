@@ -1,11 +1,10 @@
 // store/index.ts
-// Redux 根装配：保留三个既有状态分支，并注册投资交易账本状态分支。
+// Redux 根装配：注册新闻、行情与爬虫三个状态分支。
 import { configureStore } from '@reduxjs/toolkit';
 import type { Reducer } from 'redux';
 import news from './reducers/news.js';
 import stock from './reducers/stock.js';
 import crawlers from './reducers/crawlers.js';
-import ledger from './ledger/ledgerSlice';
 
 /** 应用唯一 Redux store；configureStore 保留 thunk 支持并启用开发期检查。 */
 const store = configureStore({
@@ -14,7 +13,6 @@ const store = configureStore({
     news: news as Reducer,
     stock: stock as Reducer,
     crawlers: crawlers as Reducer,
-    ledger,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

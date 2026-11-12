@@ -16,10 +16,6 @@ export default {
         // 默认值为 ['.js', '.json', '.wasm']，必须显式加入 TS 扩展名，
         // 否则新 TS 文件的无扩展名 import 无法解析
         extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
-        alias: {
-            // 与 tsconfig.json 的 paths 对应（可选）
-            '@ledger': path.join(ROOT_PATH, 'src/web/frontEnd/src'),
-        },
     },
     module: {
         rules: [

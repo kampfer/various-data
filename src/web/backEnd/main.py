@@ -5,7 +5,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import apiRouter
-from app.investmentLedger.exceptions import registerLedgerExceptionHandlers
 from app.models import initAppModels
 
 
@@ -22,7 +21,6 @@ app.add_middleware(
 
 initAppModels()
 app.include_router(apiRouter)
-registerLedgerExceptionHandlers(app)  # 注册投资交易账本的统一异常处理器
 
 # 定时任务调度器已拆分为独立服务，请通过 scheduler_service.py 单独启动
 

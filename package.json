@@ -10,8 +10,7 @@
     "dev:task": "pipenv run python src/web/backEnd/scheduler_service.py --mode dev",
     "start:task": "pipenv run python src/web/backEnd/scheduler_service.py --mode pro",
     "build:web": "webpack --config ./scripts/webpack.config.js --mode production",
-    "type-check": "tsc --noEmit",
-    "test": "vitest --run"
+    "type-check": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
@@ -43,22 +42,17 @@
     "@babel/core": "^7.20.5",
     "@babel/preset-react": "^7.17.12",
     "@babel/preset-typescript": "^7.24.0",
-    "@testing-library/jest-dom": "6.6.3",
-    "@testing-library/react": "14.3.1",
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.2.25",
     "babel-loader": "^8.2.5",
     "clean-webpack-plugin": "^4.0.0",
     "concurrently": "^10.0.5",
     "css-loader": "^6.7.1",
-    "fast-check": "3.23.1",
     "html-webpack-plugin": "^5.5.0",
-    "jsdom": "25.0.1",
     "sass": "^1.64.2",
     "sass-loader": "^13.3.2",
     "style-loader": "^3.3.1",
     "typescript": "^5.4.5",
-    "vitest": "2.1.8",
     "webpack": "^5.110.3",
     "webpack-cli": "^7.2.3",
     "webpack-dev-server": "^6.0.0"

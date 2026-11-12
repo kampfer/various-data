@@ -5,7 +5,6 @@ export default function Home() {
     <ul>
       <li><a href="#/chartWithNews">chartWithNews</a></li>
       <li><a href="#/crawlersAdmin">crawlersAdmin</a></li>
-      <li><a href="#/investmentLedger">investmentLedger</a></li>
     </ul>
   )
 }
