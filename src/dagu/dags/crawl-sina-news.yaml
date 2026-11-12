@@ -1,0 +1,21 @@
+# 新浪财经快讯：每小时抓取一次
+# 依赖宿主环境变量：PYTHON_BIN、DAGU_DIR、mode、ALERT_EMAIL（见 README）
+schedule: "0 * * * *"
+queue: sina_news
+
+error_mail:
+  from: "${ALERT_EMAIL}"
+  to: "${ALERT_EMAIL}"
+  prefix: "[various-data]"
+
+steps:
+  - name: crawl
+    action: exec
+    with:
+      command: ${PYTHON_BIN}
+      args:
+        - ${DAGU_DIR}/tasks/sina_news.py
+    retry_policy:
+      limit: 2
+      interval_sec: 300
+    mail_on_error: true

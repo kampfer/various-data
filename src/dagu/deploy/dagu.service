@@ -1,0 +1,25 @@
+[Unit]
+Description=Dagu workflow scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=various
+Group=various
+WorkingDirectory=/opt/various-data
+Environment=HOME=/home/various
+Environment=TZ=Asia/Shanghai
+EnvironmentFile=/opt/various-data/src/dagu/.env
+ExecStart=/usr/local/bin/dagu start-all --host 127.0.0.1 --port 8080
+Restart=always
+RestartSec=5
+# 只允许写自己的目录，其余文件系统只读
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/opt/various-data/data /opt/various-data/log /opt/various-data/backup /home/various/.config/dagu /home/various/.local/share/dagu
+
+[Install]
+WantedBy=multi-user.target

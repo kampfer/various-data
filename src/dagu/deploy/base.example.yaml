@@ -1,0 +1,13 @@
+# Dagu 共享默认配置：复制到 ~/.config/dagu/base.yaml（chmod 600）
+# 这里放所有 DAG 共享的 SMTP 与通知开关；账号密码来自 systemd 注入的环境变量，
+# 仓库里不出现任何凭据
+
+smtp:
+  host: "${SMTP_HOST}"
+  port: "${SMTP_PORT}"
+  username: "${SMTP_USER}"
+  password: "${SMTP_PASS}"
+
+mail_on:
+  failure: true
+  success: false
