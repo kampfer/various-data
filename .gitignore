@@ -9,4 +9,3 @@ nohup.out
 *.db
 **/.hypothesis
 **/.pytest_cache
-/src/dagu/.env
