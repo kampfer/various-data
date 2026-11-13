@@ -3,7 +3,7 @@
 
 用法（在仓库任意位置执行均可）:
 
-    python deploy/build_zip.py                  # 需要时先构建前端，再打包
+    python deploy/build_zip.py                  # 先构建前端，再打包
     python deploy/build_zip.py --skip-frontend  # 直接使用现有 src/frontEnd/dist
 """
 
@@ -50,12 +50,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--skip-frontend",
         action="store_true",
-        help="不构建前端，直接使用现有的 src/frontEnd/dist",
-    )
-    parser.add_argument(
-        "--force-frontend",
-        action="store_true",
-        help="即使 dist 已存在也重新构建前端",
+        help="跳过前端构建，直接使用现有的 src/frontEnd/dist",
     )
     parser.add_argument(
         "--output",
@@ -66,14 +61,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def ensure_frontend(skip: bool, force: bool) -> None:
+def ensure_frontend(skip: bool) -> None:
     index_file = FRONTEND_DIR / "dist" / "index.html"
     if skip:
         if not index_file.exists():
             raise SystemExit("src/frontEnd/dist 不存在，去掉 --skip-frontend 或先构建前端")
-        return
-    if index_file.exists() and not force:
-        print(f"==> 复用已有前端产物: {index_file}")
+        print(f"==> 跳过前端构建，使用现有产物: {index_file}")
         return
 
     npm = shutil.which("npm")
@@ -114,7 +107,7 @@ def add_file(archive: zipfile.ZipFile, path: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    ensure_frontend(args.skip_frontend, args.force_frontend)
+    ensure_frontend(args.skip_frontend)
 
     required = [
         ROOT / "src" / "backend" / "pyproject.toml",
@@ -148,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"    文件数 {count}，大小 {size_mb:.2f} MB")
     print()
     print("服务器上执行：")
-    print(f"  unzip {output.name} -d /srv")
+    print(f"  sudo unzip {output.name} -d /srv")
     print(f"  cd /srv/{PACKAGE_NAME}")
     print("  sudo bash deploy/install.sh install")
     print()

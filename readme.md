@@ -50,6 +50,7 @@ backup/                        数据库备份
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
 - Node.js 20+ 与 npm（仅构建前端时需要）
+- PuTTY（仅使用 `deploy_remote.ps1` 的密码模式时需要）
 
 ## 快速开始
 
@@ -139,19 +140,40 @@ cp src/backend/scheduler/config.local.example.yaml src/backend/scheduler/config.
 
 ## 打包与部署
 
-本地生成部署包（默认会复用已有前端产物）：
+本地生成部署包（默认先构建前端，再打包）：
 
 ```bash
 python deploy/build_zip.py
+
+# 前端没有改动时跳过多余构建
+python deploy/build_zip.py --skip-frontend
 ```
+
+包内包含前端构建产物 `src/frontEnd/dist`，不包含前端源码，服务器上无需 Node。
 
 服务器上安装：
 
 ```bash
-unzip various-data-scheduler-*.zip -d /srv
+sudo unzip various-data-scheduler-*.zip -d /srv
 cd /srv/various-data-scheduler
 sudo bash deploy/install.sh install
 ```
+
+`/srv` 归 root 所有，所以解压需要 sudo；代码文件归 root，服务仍以 sudo 发起者身份运行，`data/log/backup` 的归属由安装脚本设置。
+
+Windows 本地一键部署：修改 [deploy_remote.ps1](deploy/deploy_remote.ps1) 顶部 `$Config` 中的地址、用户、端口与安装目录（`Password` 保持为空），然后运行
+
+```powershell
+cd "d:\Git仓库\leek\various-data"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\deploy_remote.ps1
+```
+
+运行后会提示输入 SSH 密码（不回显），随后自动完成构建前端、打包、上传、解压与安装。要点：
+
+- 密码模式依赖 PuTTY 的 `plink` / `pscp`，密码不会写入脚本或磁盘
+- 首次连接会自动接受主机指纹
+- 登录用户没有免密 sudo 时，会在安装阶段提示输入 sudo 密码
+- 每次都会执行 `install`，进程模式下先停旧进程再启动，等价于一次重启
 
 `install` 会依次完成：`uv sync --frozen --no-dev`、创建运行目录、生成 `config.local.yaml`、写入 `/etc/default/various-data-scheduler`、注册 systemd 并开机自启。
 
@@ -161,6 +183,13 @@ sudo bash deploy/install.sh logs 200
 sudo bash deploy/install.sh logs -f
 sudo bash deploy/install.sh upgrade    # 重新上传代码后同步依赖并重启
 sudo bash deploy/install.sh uninstall  # 保留 data/log/backup
+```
+
+升级时先覆盖解压再执行 `upgrade`：
+
+```bash
+sudo unzip -o various-data-scheduler-*.zip -d /srv
+cd /srv/various-data-scheduler && sudo bash deploy/install.sh upgrade
 ```
 
 部署参数（`/etc/default/various-data-scheduler`）：
@@ -173,3 +202,27 @@ sudo bash deploy/install.sh uninstall  # 保留 data/log/backup
 | `VD_ADMIN_PORT` | 管理服务端口 | `8787` |
 
 安装脚本默认把页面绑定到 `0.0.0.0` 且没有鉴权，请用防火墙限制来源 IP。
+
+### 无 systemd 环境
+
+容器、chroot、Linux Deploy 等环境里 `systemctl` 不可用，安装脚本会自动检测并切到进程模式（`nohup` + `log/scheduler.pid`），命令保持不变：
+
+```bash
+sudo bash deploy/install.sh install
+sudo bash deploy/install.sh start|stop|restart|status
+sudo bash deploy/install.sh logs 200
+```
+
+进程模式下 `stop/restart` 发送 SIGTERM，调度器会先停调度器、再停消费者与管理服务。`logs` 读取 `log/scheduler.log`。
+
+也可以强制指定模式：
+
+```bash
+SERVICE_MODE=process sudo bash deploy/install.sh install
+```
+
+进程模式无法自动注册开机自启，需要外部配合：
+
+- Linux Deploy：启用 Autostart，或把 Init 类型切换为 systemd 后重新执行 `install`
+- 在 `/etc/rc.local` 等启动脚本末尾加入 `bash /srv/various-data-scheduler/deploy/install.sh start`
+- Android 侧把 Linux Deploy 加入电池优化白名单

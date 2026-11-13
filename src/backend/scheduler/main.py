@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -100,6 +101,11 @@ def _make_enqueue_callback(spec, trigger, store, runner, logger):
         runner.wake()
 
     return callback
+
+
+def _handle_sigterm(signum: int, frame: object) -> None:
+    """把 SIGTERM 转成 KeyboardInterrupt，复用现有的优雅退出路径。"""
+    raise KeyboardInterrupt
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -208,7 +214,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         logger.info("注册任务: %s", spec.describe())
 
-    logger.info("调度器启动（按 Ctrl+C 退出）")
+    logger.info("调度器启动（Ctrl+C 或 SIGTERM 退出）")
+    previous_sigterm = signal.getsignal(signal.SIGTERM)
+    signal.signal(signal.SIGTERM, _handle_sigterm)
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
@@ -221,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
         runner.stop()
         if admin_server is not None:
             admin_server.stop()
+        signal.signal(signal.SIGTERM, previous_sigterm)
         logger.info("调度器已停止")
 
     return 0
