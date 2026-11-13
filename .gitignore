@@ -1,5 +1,8 @@
 node_modules
+.venv/
 /dist/*
+/src/frontEnd/dist
+/src/backend/scheduler/config.local.yaml
 .ipynb_checkpoints
 /data/*
 **__pycache__**
@@ -7,5 +10,6 @@ node_modules
 /log/*
 nohup.out
 *.db
+.venv/
 **/.hypothesis
 **/.pytest_cache

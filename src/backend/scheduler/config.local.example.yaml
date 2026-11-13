@@ -1,0 +1,20 @@
+# 复制为 config.local.yaml 后填写真实值；config.local.yaml 已被 git 忽略。
+# 缺省或字段不全时，调度器会打印一次警告并降级为“不发信”。
+
+retry:
+  # 失败后的最大尝试次数（含首次执行）
+  max_attempts: 3
+  # 两次尝试之间的间隔（秒）
+  interval_seconds: 300
+
+smtp:
+  host: smtp.example.com
+  port: 465
+  # 465 端口使用 SSL；如需 STARTTLS 请设为 false 并配置为 587
+  use_ssl: true
+  username: your-account@example.com
+  password: "your-smtp-token"
+  sender_name: various-data scheduler
+  recipients:
+    - ops@example.com
+  timeout_seconds: 10

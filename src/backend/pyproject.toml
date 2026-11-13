@@ -1,0 +1,27 @@
+[project]
+name = "various-data-scheduler"
+version = "0.1.0"
+description = "各种数据定时任务调度器：APScheduler + SQLite 账本 + 进程内后台管理"
+requires-python = ">=3.12"
+dependencies = [
+    "apscheduler>=3.11,<4",
+    "fastapi>=0.115",
+    "pyquery>=2.0",
+    "pyyaml>=6.0",
+    "requests>=2.32",
+    "uvicorn>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.0",
+    "pytest>=8.0",
+]
+
+[tool.uv]
+# 不是可安装的库，只用来创建并同步 .venv
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["../../tests"]

@@ -1,0 +1,21 @@
+[Unit]
+Description=various-data scheduler (APScheduler + SQLite ledger + admin UI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__APP_USER__
+Group=__APP_GROUP__
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=-__ENV_FILE__
+Environment=PYTHONUNBUFFERED=1
+ExecStart=__APP_DIR__/deploy/run.sh
+Restart=always
+RestartSec=10
+# 用 SIGINT 触发现有 KeyboardInterrupt 分支，保证消费者与管理服务优雅退出
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
